@@ -18,6 +18,7 @@ export const useAuth = () => {
 
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Current session:', session ? 'Active' : 'None');
       if (session?.user) {
         fetchUserProfile(session.user.id);
       } else {
@@ -27,6 +28,7 @@ export const useAuth = () => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
       if (session?.user) {
         fetchUserProfile(session.user.id);
       } else {
@@ -46,7 +48,10 @@ export const useAuth = () => {
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.log('Error fetching user profile:', error);
+        throw error;
+      }
       
       setUser({
         id: data.id,
@@ -65,6 +70,7 @@ export const useAuth = () => {
 
   const signUp = async (email: string, password: string) => {
     try {
+      console.log('Attempting to sign up user:', email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -73,7 +79,12 @@ export const useAuth = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.log('Sign up error:', error);
+        throw error;
+      }
+
+      console.log('Sign up response:', data);
 
       if (data.user) {
         // Create user profile
@@ -89,36 +100,101 @@ export const useAuth = () => {
             },
           ]);
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.log('Profile creation error:', profileError);
+          throw profileError;
+        }
+
+        // Check if email confirmation is required
+        if (!data.session) {
+          return { 
+            success: true, 
+            error: null, 
+            message: 'Account created successfully! Please check your email to verify your account before signing in.',
+            requiresEmailVerification: true
+          };
+        }
       }
 
-      return { success: true, error: null, message: 'Account created! Please check your email to verify your account.' };
+      return { 
+        success: true, 
+        error: null, 
+        message: 'Account created successfully!',
+        requiresEmailVerification: false
+      };
     } catch (error: any) {
       console.log('Sign up error:', error);
-      return { success: false, error: error.message, message: error.message };
+      const errorMessage = error?.message || 'Failed to create account. Please try again.';
+      return { 
+        success: false, 
+        error: errorMessage, 
+        message: errorMessage,
+        requiresEmailVerification: false
+      };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Attempting to sign in user:', email);
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
-      return { success: true, error: null, message: 'Successfully signed in!' };
+      console.log('Sign in response:', { data, error });
+
+      if (error) {
+        console.log('Sign in error:', error);
+        
+        // Check for specific error types
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          return { 
+            success: false, 
+            error: error.message, 
+            message: 'Please verify your email address before signing in. Check your inbox for the verification link.',
+            requiresEmailVerification: true
+          };
+        }
+        
+        if (error.message.toLowerCase().includes('invalid login credentials')) {
+          return { 
+            success: false, 
+            error: error.message, 
+            message: 'Invalid email or password. Please check your credentials and try again.',
+            requiresEmailVerification: false
+          };
+        }
+        
+        throw error;
+      }
+
+      console.log('Sign in successful');
+      return { 
+        success: true, 
+        error: null, 
+        message: 'Successfully signed in!',
+        requiresEmailVerification: false
+      };
     } catch (error: any) {
       console.log('Sign in error:', error);
-      return { success: false, error: error.message, message: error.message };
+      const errorMessage = error?.message || 'Failed to sign in. Please try again.';
+      return { 
+        success: false, 
+        error: errorMessage, 
+        message: errorMessage,
+        requiresEmailVerification: false
+      };
     }
   };
 
   const signOut = async () => {
     try {
+      console.log('Signing out user');
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
+      console.log('Sign out successful');
     } catch (error) {
       console.log('Sign out error:', error);
     }
@@ -128,6 +204,7 @@ export const useAuth = () => {
     if (!user) return;
 
     try {
+      console.log('Updating user profile:', updates);
       const dbUpdates: any = {};
       
       if (updates.skillLevel !== undefined) dbUpdates.skill_level = updates.skillLevel;
@@ -142,6 +219,7 @@ export const useAuth = () => {
 
       if (error) throw error;
       setUser({ ...user, ...updates });
+      console.log('Profile update successful');
     } catch (error) {
       console.log('Update profile error:', error);
     }

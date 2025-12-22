@@ -1,6 +1,6 @@
 
 import "react-native-reanimated";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFonts } from "expo-font";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -16,6 +16,7 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
+import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,10 +30,40 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  useEffect(() => {
+    // Check authentication state on app start
+    const checkAuth = async () => {
+      if (!isSupabaseConfigured()) {
+        console.log('Supabase not configured');
+        setAuthChecked(true);
+        return;
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Initial auth check:', session ? 'User logged in' : 'No session');
+        
+        if (session?.user) {
+          // User is logged in, redirect to home
+          router.replace('/(tabs)/(home)/');
+        }
+      } catch (error) {
+        console.log('Error checking auth:', error);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+
+    if (loaded) {
+      checkAuth();
     }
   }, [loaded]);
 
@@ -48,7 +79,7 @@ export default function RootLayout() {
     }
   }, [networkState.isConnected, networkState.isInternetReachable]);
 
-  if (!loaded) {
+  if (!loaded || !authChecked) {
     return null;
   }
 

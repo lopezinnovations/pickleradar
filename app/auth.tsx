@@ -27,6 +27,11 @@ export default function AuthScreen() {
       return;
     }
 
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
     if (!isConfigured) {
       Alert.alert(
         'Supabase Required',
@@ -37,28 +42,59 @@ export default function AuthScreen() {
 
     setLoading(true);
 
-    if (isSignUp) {
-      const result = await signUp(email, password);
-      if (result.success) {
-        Alert.alert('Success', result.message || 'Account created! Please check your email to verify your account.');
-        setIsSignUp(false);
-        setEmail('');
-        setPassword('');
-        setConfirmPassword('');
+    try {
+      if (isSignUp) {
+        const result = await signUp(email, password);
+        
+        if (result.success) {
+          if (result.requiresEmailVerification) {
+            Alert.alert(
+              'Verify Your Email',
+              'We\'ve sent a verification link to your email address. Please check your inbox and click the link to verify your account before signing in.',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => {
+                    setIsSignUp(false);
+                    setPassword('');
+                    setConfirmPassword('');
+                  }
+                }
+              ]
+            );
+          } else {
+            Alert.alert('Success', result.message || 'Account created successfully!');
+            router.replace('/(tabs)/(home)/');
+          }
+        } else {
+          Alert.alert('Sign Up Failed', result.message || 'Failed to create account. Please try again.');
+        }
       } else {
-        Alert.alert('Error', result.message || 'Failed to create account');
+        const result = await signIn(email, password);
+        
+        if (result.success) {
+          Alert.alert('Success', result.message || 'Successfully signed in!');
+          router.replace('/(tabs)/(home)/');
+        } else {
+          if (result.requiresEmailVerification) {
+            Alert.alert(
+              'Email Not Verified',
+              result.message || 'Please verify your email address before signing in. Check your inbox for the verification link.',
+              [
+                { text: 'OK' }
+              ]
+            );
+          } else {
+            Alert.alert('Sign In Failed', result.message || 'Failed to sign in. Please check your credentials and try again.');
+          }
+        }
       }
-    } else {
-      const result = await signIn(email, password);
-      if (result.success) {
-        Alert.alert('Success', result.message || 'Successfully signed in!');
-        router.replace('/(tabs)/(home)/');
-      } else {
-        Alert.alert('Error', result.message || 'Failed to sign in');
-      }
+    } catch (error: any) {
+      console.log('Auth error:', error);
+      Alert.alert('Error', error?.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -109,6 +145,7 @@ export default function AuthScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            editable={!loading}
           />
 
           <TextInput
@@ -119,6 +156,7 @@ export default function AuthScreen() {
             onChangeText={setPassword}
             secureTextEntry
             autoCapitalize="none"
+            editable={!loading}
           />
 
           {isSignUp && (
@@ -130,11 +168,12 @@ export default function AuthScreen() {
               onChangeText={setConfirmPassword}
               secureTextEntry
               autoCapitalize="none"
+              editable={!loading}
             />
           )}
 
           <TouchableOpacity
-            style={[buttonStyles.primary, { marginTop: 8 }]}
+            style={[buttonStyles.primary, { marginTop: 8 }, loading && { opacity: 0.6 }]}
             onPress={handleSubmit}
             disabled={loading}
           >
@@ -149,7 +188,12 @@ export default function AuthScreen() {
 
           <TouchableOpacity
             style={styles.switchButton}
-            onPress={() => setIsSignUp(!isSignUp)}
+            onPress={() => {
+              setIsSignUp(!isSignUp);
+              setPassword('');
+              setConfirmPassword('');
+            }}
+            disabled={loading}
           >
             <Text style={commonStyles.textSecondary}>
               {isSignUp ? 'Already have an account? ' : 'Don&apos;t have an account? '}
@@ -177,6 +221,22 @@ export default function AuthScreen() {
               To use authentication and all features, please enable Supabase by pressing the Supabase button 
               in Natively and connecting to a project.
             </Text>
+          </View>
+        )}
+
+        {isSignUp && (
+          <View style={[commonStyles.card, { marginTop: 20, backgroundColor: colors.highlight }]}>
+            <View style={styles.infoHeader}>
+              <IconSymbol 
+                ios_icon_name="info.circle.fill" 
+                android_material_icon_name="info" 
+                size={20} 
+                color={colors.primary} 
+              />
+              <Text style={[commonStyles.textSecondary, { marginLeft: 8, fontSize: 14 }]}>
+                You&apos;ll need to verify your email address before you can sign in.
+              </Text>
+            </View>
           </View>
         )}
       </ScrollView>
@@ -231,5 +291,9 @@ const styles = StyleSheet.create({
   warningHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
   },
 });
