@@ -18,9 +18,10 @@ export function IconSymbol({
 }: IconSymbolProps) {
   const iconMap: { [key: string]: string } = {
     'home': '🏠',
-    'map': '🗺️',
-    'map.fill': '🗺️',
-    'map.circle.fill': '📍',
+    'map': '📍',
+    'map.fill': '📍',
+    'map-pin': '📍',
+    'map.circle.fill': '🗺️',
     'people': '👥',
     'person': '👤',
     'person.fill': '👤',
@@ -52,6 +53,8 @@ export function IconSymbol({
     'trash': '🗑️',
     'delete': '🗑️',
     'account_circle': '👤',
+    'info.circle.fill': 'ℹ️',
+    'info': 'ℹ️',
   };
 
   const iconName = ios_icon_name || android_material_icon_name || 'home';

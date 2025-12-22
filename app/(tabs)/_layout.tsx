@@ -20,7 +20,7 @@ export default function TabLayout() {
     {
       name: 'profile',
       route: '/(tabs)/profile',
-      icon: 'settings',
+      icon: 'person',
       label: 'Profile',
     },
   ];

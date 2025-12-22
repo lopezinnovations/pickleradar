@@ -10,14 +10,15 @@ export default function HomeScreen() {
   const router = useRouter();
   const { courts, loading, refetch } = useCourts();
 
+  // Heat map gradient: green → yellow → orange
   const getActivityColor = (level: 'low' | 'medium' | 'high') => {
     switch (level) {
       case 'high':
-        return colors.error;
+        return colors.orange; // Orange for high activity
       case 'medium':
-        return colors.accent;
+        return colors.accent; // Yellow for medium activity
       case 'low':
-        return colors.success;
+        return colors.success; // Green for low activity
     }
   };
 
@@ -48,8 +49,16 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={commonStyles.title}>PickleRadar</Text>
-          <Text style={commonStyles.textSecondary}>Find active pickleball courts near you</Text>
+          <View style={styles.logoRow}>
+            <Text style={styles.paddleEmoji}>🏓</Text>
+            <Text style={[commonStyles.title, { color: colors.primary, marginBottom: 0 }]}>
+              PickleRadar
+            </Text>
+            <Text style={styles.paddleEmoji}>🏓</Text>
+          </View>
+          <Text style={[commonStyles.textSecondary, { textAlign: 'center' }]}>
+            Find active pickleball courts near you
+          </Text>
         </View>
 
         <View style={styles.mapPlaceholder}>
@@ -65,6 +74,20 @@ export default function HomeScreen() {
           <Text style={[commonStyles.textSecondary, { textAlign: 'center', marginTop: 8 }]}>
             Browse courts below to see activity levels and check in.
           </Text>
+          
+          <View style={styles.heatMapLegend}>
+            <Text style={[commonStyles.textSecondary, { marginBottom: 8, fontWeight: '600' }]}>
+              Activity Heat Map:
+            </Text>
+            <View style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+              <Text style={styles.legendText}>Low</Text>
+              <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
+              <Text style={styles.legendText}>Medium</Text>
+              <View style={[styles.legendDot, { backgroundColor: colors.orange }]} />
+              <Text style={styles.legendText}>High</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.courtsSection}>
@@ -87,9 +110,9 @@ export default function HomeScreen() {
               </Text>
             </View>
           ) : (
-            courts.map((court) => (
+            courts.map((court, index) => (
               <TouchableOpacity
-                key={court.id}
+                key={index}
                 style={commonStyles.card}
                 onPress={() => router.push(`/(tabs)/(home)/court/${court.id}`)}
               >
@@ -144,16 +167,48 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
   },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  paddleEmoji: {
+    fontSize: 28,
+  },
   mapPlaceholder: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    padding: 40,
+    padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
     borderWidth: 2,
     borderColor: colors.border,
     borderStyle: 'dashed',
+  },
+  heatMapLegend: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    width: '100%',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  legendText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginRight: 12,
   },
   courtsSection: {
     marginBottom: 20,

@@ -1,9 +1,59 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
-export const useCheckIn = () => {
+interface CheckInHistory {
+  id: string;
+  courtName: string;
+  skillLevel: string;
+  checkedInAt: string;
+}
+
+export const useCheckIn = (userId?: string) => {
   const [loading, setLoading] = useState(false);
+  const [checkInHistory, setCheckInHistory] = useState<CheckInHistory[]>([]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchCheckInHistory(userId);
+    }
+  }, [userId]);
+
+  const fetchCheckInHistory = async (userId: string) => {
+    if (!isSupabaseConfigured()) {
+      console.log('Supabase not configured - no check-in history');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('check_ins')
+        .select(`
+          id,
+          skill_level,
+          created_at,
+          courts (
+            name
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      const history: CheckInHistory[] = (data || []).map((item: any) => ({
+        id: item.id,
+        courtName: item.courts?.name || 'Unknown Court',
+        skillLevel: item.skill_level,
+        checkedInAt: item.created_at,
+      }));
+
+      setCheckInHistory(history);
+    } catch (error) {
+      console.log('Error fetching check-in history:', error);
+    }
+  };
 
   const checkIn = async (
     userId: string,
@@ -46,6 +96,10 @@ export const useCheckIn = () => {
         ]);
 
       if (error) throw error;
+      
+      // Refresh check-in history
+      await fetchCheckInHistory(userId);
+      
       return { success: true, error: null };
     } catch (error: any) {
       console.log('Check-in error:', error);
@@ -100,5 +154,5 @@ export const useCheckIn = () => {
     }
   };
 
-  return { checkIn, checkOut, getUserCheckIn, loading };
+  return { checkIn, checkOut, getUserCheckIn, loading, checkInHistory };
 };

@@ -1,18 +1,20 @@
 
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
+// Pickleball-themed color palette: greens, yellows, and whites
 export const colors = {
-  background: '#f9f9f9',
-  text: '#212121',
-  textSecondary: '#757575',
-  primary: '#2e7d32',
-  secondary: '#c6ff00',
-  accent: '#ffb300',
+  background: '#f9fdf7',
+  text: '#1a3d1a',
+  textSecondary: '#5a7a5a',
+  primary: '#2C7A7B', // Teal green
+  secondary: '#c6ff00', // Bright yellow-green
+  accent: '#ffb300', // Golden yellow
   card: '#ffffff',
-  highlight: '#b9f6ca',
-  border: '#e0e0e0',
+  highlight: '#e8f5e9', // Light green
+  border: '#c8e6c9',
   error: '#d32f2f',
   success: '#388e3c',
+  orange: '#ff9800', // For heat map gradient
 };
 
 export const buttonStyles = StyleSheet.create({
@@ -111,8 +113,10 @@ export const commonStyles = StyleSheet.create({
     padding: 16,
     marginVertical: 8,
     width: '100%',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    boxShadow: '0px 2px 8px rgba(44, 122, 123, 0.1)',
     elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   input: {
     backgroundColor: colors.card,

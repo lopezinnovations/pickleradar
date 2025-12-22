@@ -120,14 +120,9 @@ export default function AuthScreen() {
 
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <IconSymbol 
-              ios_icon_name="map.fill" 
-              android_material_icon_name="map" 
-              size={48} 
-              color={colors.primary} 
-            />
+            <Text style={styles.paddleEmoji}>🏓</Text>
           </View>
-          <Text style={commonStyles.title}>
+          <Text style={[commonStyles.title, { color: colors.primary }]}>
             {isSignUp ? 'Create Account' : 'Welcome Back'}
           </Text>
           <Text style={commonStyles.textSecondary}>
@@ -276,6 +271,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  paddleEmoji: {
+    fontSize: 48,
   },
   form: {
     width: '100%',

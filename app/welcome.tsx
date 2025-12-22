@@ -17,22 +17,19 @@ export default function WelcomeScreen() {
       >
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <IconSymbol 
-              ios_icon_name="map.fill" 
-              android_material_icon_name="map" 
-              size={64} 
-              color={colors.primary} 
-            />
+            <Text style={styles.paddleEmoji}>🏓</Text>
           </View>
-          <Text style={[commonStyles.title, { fontSize: 36, marginTop: 20 }]}>PickleRadar</Text>
-          <Text style={[commonStyles.text, { textAlign: 'center', marginTop: 12 }]}>
-            Find active pickleball courts and connect with friends who play
+          <Text style={[commonStyles.title, { fontSize: 36, marginTop: 20, color: colors.primary }]}>
+            PickleRadar
+          </Text>
+          <Text style={[commonStyles.text, { textAlign: 'center', marginTop: 12, fontSize: 18 }]}>
+            Welcome to PickleRadar – find friends and courts!
           </Text>
         </View>
 
         <View style={styles.featuresContainer}>
           <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
+            <View style={[styles.featureIcon, { backgroundColor: colors.highlight }]}>
               <IconSymbol 
                 ios_icon_name="map.circle.fill" 
                 android_material_icon_name="location_on" 
@@ -49,7 +46,7 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
+            <View style={[styles.featureIcon, { backgroundColor: colors.highlight }]}>
               <IconSymbol 
                 ios_icon_name="person.2.fill" 
                 android_material_icon_name="people" 
@@ -66,7 +63,7 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
+            <View style={[styles.featureIcon, { backgroundColor: colors.highlight }]}>
               <IconSymbol 
                 ios_icon_name="bell.fill" 
                 android_material_icon_name="notifications" 
@@ -83,7 +80,7 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
+            <View style={[styles.featureIcon, { backgroundColor: colors.highlight }]}>
               <IconSymbol 
                 ios_icon_name="lock.shield.fill" 
                 android_material_icon_name="shield" 
@@ -107,6 +104,10 @@ export default function WelcomeScreen() {
           >
             <Text style={buttonStyles.text}>Get Started</Text>
           </TouchableOpacity>
+          
+          <View style={styles.pickleballGraphic}>
+            <Text style={styles.pickleballText}>🏓 🎾 🏓</Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -133,6 +134,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.primary,
+  },
+  paddleEmoji: {
+    fontSize: 64,
   },
   featuresContainer: {
     marginBottom: 40,
@@ -146,10 +152,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   featureTitle: {
     fontSize: 18,
@@ -159,5 +166,12 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     width: '100%',
+  },
+  pickleballGraphic: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  pickleballText: {
+    fontSize: 32,
   },
 });
