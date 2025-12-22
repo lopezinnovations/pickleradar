@@ -20,10 +20,7 @@ export default function WelcomeScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={[commonStyles.title, { fontSize: 42, marginTop: 20, color: colors.primary }]}>
-            PickleRadar
-          </Text>
-          <Text style={[styles.tagline, { textAlign: 'center', marginTop: 16, fontSize: 18 }]}>
+          <Text style={[styles.tagline, { textAlign: 'center', marginTop: 24, fontSize: 18 }]}>
             Find friends, courts, and your next game - all in one app!
           </Text>
         </View>

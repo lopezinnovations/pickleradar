@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useCourts } from '@/hooks/useCourts';
@@ -49,14 +49,12 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View style={styles.logoRow}>
-            <Text style={styles.paddleEmoji}>🏓</Text>
-            <Text style={[commonStyles.title, { color: colors.primary, marginBottom: 0 }]}>
-              PickleRadar
-            </Text>
-            <Text style={styles.paddleEmoji}>🏓</Text>
-          </View>
-          <Text style={[commonStyles.textSecondary, { textAlign: 'center' }]}>
+          <Image 
+            source={require('@/assets/images/d00ee021-be7a-42f9-a115-ea45cb937f7f.jpeg')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={[commonStyles.textSecondary, { textAlign: 'center', marginTop: 12 }]}>
             Find active pickleball courts near you
           </Text>
         </View>
@@ -167,14 +165,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     alignItems: 'center',
   },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  paddleEmoji: {
-    fontSize: 28,
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: colors.primary,
   },
   mapPlaceholder: {
     backgroundColor: colors.card,
