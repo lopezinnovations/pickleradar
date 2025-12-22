@@ -193,7 +193,7 @@ export default function AuthScreen() {
             disabled={loading}
           >
             <Text style={commonStyles.textSecondary}>
-              {isSignUp ? 'Already have an account? ' : 'Don&apos;t have an account? '}
+              {isSignUp ? 'Already have an account? ' : 'Don\'t have an account? '}
               <Text style={styles.switchButtonText}>
                 {isSignUp ? 'Sign In' : 'Sign Up'}
               </Text>

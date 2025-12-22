@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useCourts } from '@/hooks/useCourts';
 import { useCheckIn } from '@/hooks/useCheckIn';
@@ -19,8 +19,24 @@ export default function CourtDetailScreen() {
   const [selectedSkillLevel, setSelectedSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [currentCheckIn, setCurrentCheckIn] = useState<any>(null);
+  const [isLoadingCourt, setIsLoadingCourt] = useState(true);
 
   const court = courts.find(c => c.id === id);
+
+  // Refresh court data when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      console.log('CourtDetailScreen: Screen focused, refreshing court data');
+      refetch();
+    }, [refetch])
+  );
+
+  useEffect(() => {
+    // Set loading to false once courts are loaded
+    if (courts.length > 0) {
+      setIsLoadingCourt(false);
+    }
+  }, [courts]);
 
   useEffect(() => {
     if (user && court) {
@@ -73,12 +89,32 @@ export default function CourtDetailScreen() {
     }
   };
 
-  if (!court) {
+  // Show loading state while courts are being fetched
+  if (isLoadingCourt) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={commonStyles.text}>Court not found</Text>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading court details...</Text>
+      </View>
+    );
+  }
+
+  // Show error state if court is not found after loading
+  if (!court) {
+    return (
+      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }]}>
+        <IconSymbol 
+          ios_icon_name="exclamationmark.triangle.fill" 
+          android_material_icon_name="warning" 
+          size={64} 
+          color={colors.error} 
+        />
+        <Text style={[commonStyles.title, { marginTop: 24, textAlign: 'center' }]}>Court Not Found</Text>
+        <Text style={[commonStyles.textSecondary, { marginTop: 12, textAlign: 'center' }]}>
+          The court you're looking for could not be found. It may have been removed or the ID is incorrect.
+        </Text>
         <TouchableOpacity 
-          style={[buttonStyles.primary, { marginTop: 20 }]}
+          style={[buttonStyles.primary, { marginTop: 32 }]}
           onPress={() => router.back()}
         >
           <Text style={buttonStyles.text}>Go Back</Text>

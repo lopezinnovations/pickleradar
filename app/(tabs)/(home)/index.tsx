@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useCourts } from '@/hooks/useCourts';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -10,6 +10,14 @@ import { SkillLevelBars } from '@/components/SkillLevelBars';
 export default function HomeScreen() {
   const router = useRouter();
   const { courts, loading, refetch } = useCourts();
+
+  // Auto-refresh courts data whenever the screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      console.log('HomeScreen: Screen focused, refreshing courts data');
+      refetch();
+    }, [refetch])
+  );
 
   // Heat map gradient: green → yellow → orange
   const getActivityColor = (level: 'low' | 'medium' | 'high') => {
