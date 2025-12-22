@@ -7,11 +7,12 @@ import { useCourts } from '@/hooks/useCourts';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
+import { SkillLevelBars } from '@/components/SkillLevelBars';
 
 export default function CourtDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { courts } = useCourts();
+  const { courts, refetch } = useCourts();
   const { user } = useAuth();
   const { checkIn, checkOut, getUserCheckIn, loading } = useCheckIn();
   
@@ -22,28 +23,37 @@ export default function CourtDetailScreen() {
   const court = courts.find(c => c.id === id);
 
   useEffect(() => {
-    if (user) {
+    if (user && court) {
       checkCurrentCheckIn();
     }
-  }, [user]);
+  }, [user, court]);
 
   const checkCurrentCheckIn = async () => {
-    if (!user) return;
+    if (!user || !court) return;
     const checkInData = await getUserCheckIn(user.id);
-    if (checkInData && checkInData.court_id === id) {
+    if (checkInData && checkInData.court_id === court.id) {
       setIsCheckedIn(true);
       setCurrentCheckIn(checkInData);
+    } else {
+      setIsCheckedIn(false);
+      setCurrentCheckIn(null);
     }
   };
 
   const handleCheckIn = async () => {
-    if (!user || !court) return;
+    if (!user || !court) {
+      Alert.alert('Error', 'Please log in to check in');
+      return;
+    }
 
     const result = await checkIn(user.id, court.id, selectedSkillLevel);
     
     if (result.success) {
       setIsCheckedIn(true);
-      Alert.alert('Success', `You&apos;re checked in at ${court.name}!`);
+      Alert.alert('Success', `You're checked in at ${court.name}!`);
+      // Refresh court data to update player count
+      await refetch();
+      await checkCurrentCheckIn();
     } else {
       Alert.alert('Error', result.error || 'Failed to check in');
     }
@@ -57,7 +67,9 @@ export default function CourtDetailScreen() {
     if (result.success) {
       setIsCheckedIn(false);
       setCurrentCheckIn(null);
-      Alert.alert('Success', 'You&apos;ve checked out!');
+      Alert.alert('Success', 'You've checked out!');
+      // Refresh court data to update player count
+      await refetch();
     } else {
       Alert.alert('Error', result.error || 'Failed to check out');
     }
@@ -114,7 +126,9 @@ export default function CourtDetailScreen() {
               size={20} 
               color={colors.textSecondary} 
             />
-            <Text style={[commonStyles.textSecondary, { marginLeft: 6 }]}>{court.address}</Text>
+            <Text style={[commonStyles.textSecondary, { marginLeft: 6, flex: 1 }]}>
+              {court.address}
+            </Text>
           </View>
         </View>
 
@@ -128,16 +142,49 @@ export default function CourtDetailScreen() {
             </View>
           </View>
           
-          <View style={styles.playerInfo}>
-            <IconSymbol 
-              ios_icon_name="person.2.fill" 
-              android_material_icon_name="people" 
-              size={24} 
-              color={colors.primary} 
-            />
-            <Text style={[commonStyles.text, { marginLeft: 12 }]}>
-              {court.currentPlayers} {court.currentPlayers === 1 ? 'player' : 'players'} currently here
-            </Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statRow}>
+              <View style={styles.statIcon}>
+                <IconSymbol 
+                  ios_icon_name="person.2.fill" 
+                  android_material_icon_name="people" 
+                  size={24} 
+                  color={colors.primary} 
+                />
+              </View>
+              <View style={styles.statContent}>
+                <Text style={commonStyles.textSecondary}>Active Players</Text>
+                <Text style={[commonStyles.text, styles.statValue]}>
+                  {court.currentPlayers} {court.currentPlayers === 1 ? 'player' : 'players'}
+                </Text>
+              </View>
+            </View>
+
+            {court.currentPlayers > 0 && (
+              <View style={styles.statRow}>
+                <View style={styles.statIcon}>
+                  <IconSymbol 
+                    ios_icon_name="chart.bar.fill" 
+                    android_material_icon_name="bar_chart" 
+                    size={24} 
+                    color={colors.primary} 
+                  />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={commonStyles.textSecondary}>Average Skill Level</Text>
+                  <View style={styles.skillLevelContainer}>
+                    <SkillLevelBars 
+                      averageSkillLevel={court.averageSkillLevel} 
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <Text style={[commonStyles.text, { marginLeft: 12 }]}>
+                      {court.averageSkillLevel.toFixed(1)} / 3.0
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
           </View>
         </View>
 
@@ -145,10 +192,10 @@ export default function CourtDetailScreen() {
           <View style={commonStyles.card}>
             <Text style={commonStyles.subtitle}>Check In</Text>
             <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
-              Select your skill level and let others know you&apos;re here!
+              Select your skill level and let others know you're here!
             </Text>
 
-            <View style={styles.skillLevelContainer}>
+            <View style={styles.skillLevelButtons}>
               {(['Beginner', 'Intermediate', 'Advanced'] as const).map((level) => (
                 <TouchableOpacity
                   key={level}
@@ -178,7 +225,7 @@ export default function CourtDetailScreen() {
               {loading ? (
                 <ActivityIndicator color={colors.card} />
               ) : (
-                <Text style={buttonStyles.text}>I&apos;m Here!</Text>
+                <Text style={buttonStyles.text}>Check In</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -191,7 +238,7 @@ export default function CourtDetailScreen() {
                 size={32} 
                 color={colors.success} 
               />
-              <Text style={[commonStyles.subtitle, { marginLeft: 12 }]}>You&apos;re Checked In!</Text>
+              <Text style={[commonStyles.subtitle, { marginLeft: 12 }]}>You're Checked In!</Text>
             </View>
             
             <Text style={[commonStyles.textSecondary, { marginTop: 12, marginBottom: 20 }]}>
@@ -215,7 +262,7 @@ export default function CourtDetailScreen() {
         <View style={commonStyles.card}>
           <Text style={commonStyles.subtitle}>About This Court</Text>
           <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
-            This is a public pickleball court. Check in to let others know you&apos;re playing and see who else is here!
+            This is a public pickleball court. Check in to let others know you're playing and see who else is here!
           </Text>
         </View>
       </ScrollView>
@@ -248,14 +295,14 @@ const styles = StyleSheet.create({
   },
   addressContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginTop: 8,
   },
   activityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   activityBadge: {
     paddingVertical: 6,
@@ -267,11 +314,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.card,
   },
-  playerInfo: {
+  statsContainer: {
+    gap: 16,
+  },
+  statRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.highlight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   skillLevelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  skillLevelButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 8,

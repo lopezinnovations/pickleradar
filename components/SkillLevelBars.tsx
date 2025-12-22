@@ -4,7 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 
 interface SkillLevelBarsProps {
-  averageSkillLevel: number; // 1-4 representing Beginner to Expert
+  averageSkillLevel: number; // 0-3 representing average skill (0 = no players, 1 = Beginner, 2 = Intermediate, 3 = Advanced)
   size?: number;
   color?: string;
 }
@@ -14,7 +14,9 @@ export const SkillLevelBars: React.FC<SkillLevelBarsProps> = ({
   size = 16,
   color = colors.primary 
 }) => {
-  const barCount = Math.round(averageSkillLevel);
+  // Convert 0-3 scale to 0-4 bars for display
+  const normalizedLevel = Math.min(Math.max(averageSkillLevel, 0), 3);
+  const barCount = Math.round((normalizedLevel / 3) * 4);
   const bars = [1, 2, 3, 4];
 
   return (

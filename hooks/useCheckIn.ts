@@ -77,7 +77,24 @@ export const useCheckIn = (userId?: string) => {
         .single();
 
       if (existing) {
+        setLoading(false);
         return { success: false, error: 'Already checked in at this court' };
+      }
+
+      // Check if user is checked in at any other court
+      const { data: otherCheckIns } = await supabase
+        .from('check_ins')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('expires_at', new Date().toISOString());
+
+      // If user is checked in elsewhere, remove those check-ins first
+      if (otherCheckIns && otherCheckIns.length > 0) {
+        await supabase
+          .from('check_ins')
+          .delete()
+          .eq('user_id', userId)
+          .gte('expires_at', new Date().toISOString());
       }
 
       // Create check-in (expires in 3 hours)
@@ -146,7 +163,13 @@ export const useCheckIn = (userId?: string) => {
         .gte('expires_at', new Date().toISOString())
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If no check-in found, return null (not an error)
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        throw error;
+      }
       return data;
     } catch (error) {
       console.log('Error fetching user check-in:', error);
