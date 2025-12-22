@@ -57,6 +57,7 @@ export const useCourts = (userId?: string) => {
   const [courts, setCourts] = useState<Court[]>([]);
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const hasSetupRealtime = useRef(false);
 
   const fetchCourts = useCallback(async () => {
     console.log('useCourts: Fetching courts...');
@@ -154,13 +155,11 @@ export const useCourts = (userId?: string) => {
     console.log('useCourts: Initializing...');
     fetchCourts();
     
-    if (isSupabaseConfigured()) {
+    // Only setup realtime once
+    if (isSupabaseConfigured() && !hasSetupRealtime.current) {
+      hasSetupRealtime.current = true;
+      
       try {
-        if (channelRef.current?.state === 'subscribed') {
-          console.log('useCourts: Already subscribed to realtime updates');
-          return;
-        }
-
         console.log('useCourts: Setting up realtime subscription for check-ins');
         
         const channel = supabase.channel('check_ins:changes', {
@@ -201,6 +200,7 @@ export const useCourts = (userId?: string) => {
         console.log('useCourts: Cleaning up realtime subscription');
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
+        hasSetupRealtime.current = false;
       }
     };
   }, [fetchCourts]);

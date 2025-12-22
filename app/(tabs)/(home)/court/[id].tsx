@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
@@ -26,6 +26,8 @@ export default function CourtDetailScreen() {
   const [currentCheckIn, setCurrentCheckIn] = useState<any>(null);
   const [isLoadingCourt, setIsLoadingCourt] = useState(true);
   const [remainingTime, setRemainingTime] = useState<{ hours: number; minutes: number } | null>(null);
+  
+  const hasCheckedInitialCheckIn = useRef(false);
 
   const court = courts.find(c => c.id === id);
 
@@ -40,18 +42,20 @@ export default function CourtDetailScreen() {
     }, [refetch])
   );
 
+  // Set loading to false once courts are loaded
   useEffect(() => {
-    // Set loading to false once courts are loaded
     if (courts.length > 0) {
       setIsLoadingCourt(false);
     }
-  }, [courts]);
+  }, [courts.length]);
 
+  // Check current check-in only once when user and court are available
   useEffect(() => {
-    if (user && court) {
+    if (user && court && !hasCheckedInitialCheckIn.current) {
+      hasCheckedInitialCheckIn.current = true;
       checkCurrentCheckIn();
     }
-  }, [user, court]);
+  }, [user?.id, court?.id]);
 
   // Update remaining time every minute
   useEffect(() => {
@@ -66,7 +70,7 @@ export default function CourtDetailScreen() {
       
       return () => clearInterval(interval);
     }
-  }, [currentCheckIn, getRemainingTime]);
+  }, [currentCheckIn?.expires_at]);
 
   const checkCurrentCheckIn = async () => {
     if (!user || !court) return;
@@ -106,6 +110,7 @@ export default function CourtDetailScreen() {
       }
       Alert.alert('Success', `You're checked in at ${court.name} for ${durationText}!`);
       await refetch();
+      hasCheckedInitialCheckIn.current = false;
       await checkCurrentCheckIn();
     } else {
       Alert.alert('Error', result.error || 'Failed to check in');

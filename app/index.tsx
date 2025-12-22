@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
@@ -8,8 +8,14 @@ import { colors } from '@/styles/commonStyles';
 export default function LandingScreen() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
+    // Only check auth once on mount
+    if (hasCheckedAuth.current) {
+      return;
+    }
+    hasCheckedAuth.current = true;
     checkAuthStatus();
   }, []);
 

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { User } from '@/types';
 
@@ -7,8 +7,15 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isConfigured, setIsConfigured] = useState(false);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
+    // Only initialize once
+    if (hasInitialized.current) {
+      return;
+    }
+    hasInitialized.current = true;
+
     console.log('useAuth: Initializing...');
     const configured = isSupabaseConfigured();
     setIsConfigured(configured);
@@ -24,6 +31,7 @@ export const useAuth = () => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.log('useAuth: Error getting session:', error);
+        setLoading(false);
       } else {
         console.log('useAuth: Current session:', session ? 'Active' : 'None');
         if (session?.user) {
@@ -41,7 +49,6 @@ export const useAuth = () => {
         fetchUserProfile(session.user.id, session.user.email || '');
       } else {
         setUser(null);
-        setLoading(false);
       }
     });
 

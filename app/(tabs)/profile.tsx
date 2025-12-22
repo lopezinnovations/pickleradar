@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,26 +12,42 @@ export default function ProfileScreen() {
   const { user, signOut, updateUserProfile, loading: authLoading } = useAuth();
   const { checkInHistory, getUserCheckIn, checkOut, getRemainingTime, loading: historyLoading } = useCheckIn(user?.id);
   
-  const [skillLevel, setSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>(
-    user?.skillLevel || 'Beginner'
-  );
-  const [privacyOptIn, setPrivacyOptIn] = useState(user?.privacyOptIn || false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(user?.notificationsEnabled || false);
-  const [locationEnabled, setLocationEnabled] = useState(user?.locationEnabled || false);
+  const [skillLevel, setSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
+  const [privacyOptIn, setPrivacyOptIn] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(false);
   const [currentCheckIn, setCurrentCheckIn] = useState<any>(null);
   const [remainingTime, setRemainingTime] = useState<{ hours: number; minutes: number } | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  
+  const hasLoadedUserData = useRef(false);
+  const hasLoadedCheckIn = useRef(false);
 
+  // Load user data only once when user changes
   useEffect(() => {
-    if (user) {
+    if (user && !hasLoadedUserData.current) {
       console.log('ProfileScreen: User data loaded:', user);
       setSkillLevel(user.skillLevel || 'Beginner');
       setPrivacyOptIn(user.privacyOptIn);
       setNotificationsEnabled(user.notificationsEnabled);
       setLocationEnabled(user.locationEnabled);
-      loadCurrentCheckIn();
+      hasLoadedUserData.current = true;
+    } else if (!user) {
+      hasLoadedUserData.current = false;
     }
-  }, [user]);
+  }, [user?.id]);
+
+  // Load current check-in only once when user changes
+  useEffect(() => {
+    if (user && !hasLoadedCheckIn.current) {
+      loadCurrentCheckIn();
+      hasLoadedCheckIn.current = true;
+    } else if (!user) {
+      hasLoadedCheckIn.current = false;
+      setCurrentCheckIn(null);
+      setRemainingTime(null);
+    }
+  }, [user?.id]);
 
   const loadCurrentCheckIn = async () => {
     if (!user) return;
@@ -55,6 +71,7 @@ export default function ProfileScreen() {
         
         // If time has expired, reload check-in status
         if (time.totalMinutes <= 0) {
+          hasLoadedCheckIn.current = false;
           loadCurrentCheckIn();
         }
       };
@@ -64,7 +81,7 @@ export default function ProfileScreen() {
       
       return () => clearInterval(interval);
     }
-  }, [currentCheckIn, getRemainingTime]);
+  }, [currentCheckIn?.expires_at]);
 
   const handleManualCheckOut = () => {
     if (!currentCheckIn || !user) return;
@@ -83,6 +100,7 @@ export default function ProfileScreen() {
               const result = await checkOut(user.id, currentCheckIn.court_id);
               if (result.success) {
                 Alert.alert('Success', 'You have been checked out successfully!');
+                hasLoadedCheckIn.current = false;
                 await loadCurrentCheckIn();
               } else {
                 Alert.alert('Error', result.error || 'Failed to check out. Please try again.');
