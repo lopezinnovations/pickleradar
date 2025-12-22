@@ -27,7 +27,7 @@ export const useAuth = () => {
       } else {
         console.log('useAuth: Current session:', session ? 'Active' : 'None');
         if (session?.user) {
-          fetchUserProfile(session.user.id);
+          fetchUserProfile(session.user.id, session.user.email || '');
         } else {
           setLoading(false);
         }
@@ -38,7 +38,7 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('useAuth: Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id, session.user.email || '');
       } else {
         setUser(null);
         setLoading(false);
@@ -51,7 +51,7 @@ export const useAuth = () => {
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string, email: string) => {
     console.log('useAuth: Fetching user profile for:', userId);
     try {
       const { data, error } = await supabase
@@ -62,18 +62,52 @@ export const useAuth = () => {
 
       if (error) {
         console.log('useAuth: Error fetching user profile:', error);
-        throw error;
+        
+        // If user profile doesn't exist, create it
+        if (error.code === 'PGRST116') {
+          console.log('useAuth: User profile not found, creating new profile...');
+          const { data: newProfile, error: createError } = await supabase
+            .from('users')
+            .insert([
+              {
+                id: userId,
+                email: email,
+                privacy_opt_in: false,
+                notifications_enabled: false,
+                location_enabled: false,
+              },
+            ])
+            .select()
+            .single();
+
+          if (createError) {
+            console.log('useAuth: Error creating user profile:', createError);
+            throw createError;
+          }
+
+          console.log('useAuth: User profile created successfully');
+          setUser({
+            id: newProfile.id,
+            email: newProfile.email,
+            skillLevel: newProfile.skill_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
+            privacyOptIn: newProfile.privacy_opt_in || false,
+            notificationsEnabled: newProfile.notifications_enabled || false,
+            locationEnabled: newProfile.location_enabled || false,
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        console.log('useAuth: User profile fetched successfully');
+        setUser({
+          id: data.id,
+          email: data.email,
+          skillLevel: data.skill_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
+          privacyOptIn: data.privacy_opt_in || false,
+          notificationsEnabled: data.notifications_enabled || false,
+          locationEnabled: data.location_enabled || false,
+        });
       }
-      
-      console.log('useAuth: User profile fetched successfully');
-      setUser({
-        id: data.id,
-        email: data.email,
-        skillLevel: data.skill_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
-        privacyOptIn: data.privacy_opt_in || false,
-        notificationsEnabled: data.notifications_enabled || false,
-        locationEnabled: data.location_enabled || false,
-      });
     } catch (error) {
       console.log('useAuth: Error in fetchUserProfile:', error);
     } finally {
@@ -116,7 +150,10 @@ export const useAuth = () => {
 
         if (profileError) {
           console.log('useAuth: Profile creation error:', profileError);
-          throw profileError;
+          // Don't throw error if profile already exists
+          if (profileError.code !== '23505') {
+            throw profileError;
+          }
         }
 
         console.log('useAuth: User profile created successfully');
