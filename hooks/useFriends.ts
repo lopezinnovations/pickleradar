@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { Friend, FriendWithDetails } from '@/types';
 
@@ -8,16 +8,11 @@ export const useFriends = (userId: string | undefined) => {
   const [pendingRequests, setPendingRequests] = useState<FriendWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (userId && isSupabaseConfigured()) {
-      fetchFriends();
-    } else {
+  const fetchFriends = useCallback(async () => {
+    if (!userId || !isSupabaseConfigured()) {
       setLoading(false);
+      return;
     }
-  }, [userId]);
-
-  const fetchFriends = async () => {
-    if (!userId || !isSupabaseConfigured()) return;
 
     try {
       // Fetch accepted friends
@@ -91,7 +86,15 @@ export const useFriends = (userId: string | undefined) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (userId && isSupabaseConfigured()) {
+      fetchFriends();
+    } else {
+      setLoading(false);
+    }
+  }, [userId, fetchFriends]);
 
   const sendFriendRequest = async (friendEmail: string) => {
     if (!userId || !isSupabaseConfigured()) {

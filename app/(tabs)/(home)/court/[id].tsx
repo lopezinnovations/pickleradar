@@ -97,6 +97,8 @@ export default function CourtDetailScreen() {
     }
   };
 
+  const skillLevels: Array<'Beginner' | 'Intermediate' | 'Advanced'> = ['Beginner', 'Intermediate', 'Advanced'];
+
   return (
     <View style={commonStyles.container}>
       <ScrollView 
@@ -192,13 +194,13 @@ export default function CourtDetailScreen() {
           <View style={commonStyles.card}>
             <Text style={commonStyles.subtitle}>Check In</Text>
             <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
-              Select your skill level and let others know you're here!
+              Select your skill level and let others know you&apos;re here!
             </Text>
 
             <View style={styles.skillLevelButtons}>
-              {(['Beginner', 'Intermediate', 'Advanced'] as const).map((level) => (
+              {skillLevels.map((level, index) => (
                 <TouchableOpacity
-                  key={level}
+                  key={index}
                   style={[
                     styles.skillLevelButton,
                     selectedSkillLevel === level && styles.skillLevelButtonActive,
@@ -238,7 +240,7 @@ export default function CourtDetailScreen() {
                 size={32} 
                 color={colors.success} 
               />
-              <Text style={[commonStyles.subtitle, { marginLeft: 12 }]}>You're Checked In!</Text>
+              <Text style={[commonStyles.subtitle, { marginLeft: 12 }]}>You&apos;re Checked In!</Text>
             </View>
             
             <Text style={[commonStyles.textSecondary, { marginTop: 12, marginBottom: 20 }]}>
@@ -262,7 +264,7 @@ export default function CourtDetailScreen() {
         <View style={commonStyles.card}>
           <Text style={commonStyles.subtitle}>About This Court</Text>
           <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
-            This is a public pickleball court. Check in to let others know you're playing and see who else is here!
+            This is a public pickleball court. Check in to let others know you&apos;re playing and see who else is here!
           </Text>
         </View>
       </ScrollView>

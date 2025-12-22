@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { Court } from '@/types';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -57,70 +57,7 @@ export const useCourts = () => {
   const [loading, setLoading] = useState(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
-  useEffect(() => {
-    console.log('useCourts: Initializing...');
-    fetchCourts();
-    
-    // Set up real-time subscription for check-ins
-    if (isSupabaseConfigured()) {
-      setupRealtimeSubscription();
-    }
-
-    return () => {
-      // Cleanup subscription on unmount
-      if (channelRef.current) {
-        console.log('useCourts: Cleaning up realtime subscription');
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, []);
-
-  const setupRealtimeSubscription = async () => {
-    try {
-      // Check if already subscribed
-      if (channelRef.current?.state === 'subscribed') {
-        console.log('useCourts: Already subscribed to realtime updates');
-        return;
-      }
-
-      console.log('useCourts: Setting up realtime subscription for check-ins');
-      
-      const channel = supabase.channel('check_ins:changes', {
-        config: { broadcast: { self: true } }
-      });
-      
-      channelRef.current = channel;
-
-      // Listen for all check-in changes
-      channel
-        .on('broadcast', { event: 'INSERT' }, (payload) => {
-          console.log('useCourts: Check-in created', payload);
-          fetchCourts();
-        })
-        .on('broadcast', { event: 'DELETE' }, (payload) => {
-          console.log('useCourts: Check-in deleted', payload);
-          fetchCourts();
-        })
-        .on('broadcast', { event: 'UPDATE' }, (payload) => {
-          console.log('useCourts: Check-in updated', payload);
-          fetchCourts();
-        })
-        .subscribe((status, err) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('useCourts: Successfully subscribed to check-in updates');
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error('useCourts: Channel error:', err);
-          } else if (status === 'CLOSED') {
-            console.log('useCourts: Channel closed');
-          }
-        });
-    } catch (error) {
-      console.error('useCourts: Error setting up realtime subscription:', error);
-    }
-  };
-
-  const fetchCourts = async () => {
+  const fetchCourts = useCallback(async () => {
     console.log('useCourts: Fetching courts...');
     setLoading(true);
     
@@ -196,7 +133,70 @@ export const useCourts = () => {
       setLoading(false);
       console.log('useCourts: Fetch complete');
     }
-  };
+  }, []);
+
+  const setupRealtimeSubscription = useCallback(() => {
+    try {
+      // Check if already subscribed
+      if (channelRef.current?.state === 'subscribed') {
+        console.log('useCourts: Already subscribed to realtime updates');
+        return;
+      }
+
+      console.log('useCourts: Setting up realtime subscription for check-ins');
+      
+      const channel = supabase.channel('check_ins:changes', {
+        config: { broadcast: { self: true } }
+      });
+      
+      channelRef.current = channel;
+
+      // Listen for all check-in changes
+      channel
+        .on('broadcast', { event: 'INSERT' }, (payload) => {
+          console.log('useCourts: Check-in created', payload);
+          fetchCourts();
+        })
+        .on('broadcast', { event: 'DELETE' }, (payload) => {
+          console.log('useCourts: Check-in deleted', payload);
+          fetchCourts();
+        })
+        .on('broadcast', { event: 'UPDATE' }, (payload) => {
+          console.log('useCourts: Check-in updated', payload);
+          fetchCourts();
+        })
+        .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('useCourts: Successfully subscribed to check-in updates');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('useCourts: Channel error:', err);
+          } else if (status === 'CLOSED') {
+            console.log('useCourts: Channel closed');
+          }
+        });
+    } catch (error) {
+      console.error('useCourts: Error setting up realtime subscription:', error);
+    }
+  }, [fetchCourts]);
+
+  useEffect(() => {
+    console.log('useCourts: Initializing...');
+    fetchCourts();
+    
+    // Set up real-time subscription for check-ins
+    if (isSupabaseConfigured()) {
+      setupRealtimeSubscription();
+    }
+
+    return () => {
+      // Cleanup subscription on unmount
+      if (channelRef.current) {
+        console.log('useCourts: Cleaning up realtime subscription');
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [fetchCourts, setupRealtimeSubscription]);
 
   return { courts, loading, refetch: fetchCourts };
 };
