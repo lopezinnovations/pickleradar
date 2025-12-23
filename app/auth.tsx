@@ -63,26 +63,39 @@ export default function AuthScreen() {
         const result = await signUp(email, password, consentAccepted);
         
         if (result.success) {
+          // Show success message and redirect
           Alert.alert(
             'Success',
-            'Account created successfully. Welcome to PickleRadar!',
+            result.message || 'Account created successfully. Welcome to PickleRadar.',
             [
               {
                 text: 'OK',
-                onPress: () => router.replace('/(tabs)/(home)/'),
+                onPress: () => {
+                  // Clear form
+                  setEmail('');
+                  setPassword('');
+                  setConsentAccepted(false);
+                  // Redirect to home
+                  router.replace('/(tabs)/(home)/');
+                },
               },
             ]
           );
         } else {
+          // Show error message
           Alert.alert('Error', result.message || 'Failed to create account. Please try again.');
         }
       } else {
         const result = await signIn(email, password);
         
         if (result.success) {
+          // Clear form and redirect
+          setEmail('');
+          setPassword('');
           router.replace('/(tabs)/(home)/');
         } else {
-          Alert.alert('Error', result.message || 'Failed to sign in. Please try again.');
+          // Show error message for invalid credentials only
+          Alert.alert('Error', result.message || 'Invalid email or password. Please try again.');
         }
       }
     } catch (error: any) {
@@ -161,12 +174,13 @@ export default function AuthScreen() {
               style={styles.eyeButton}
               onPress={() => setShowPassword(!showPassword)}
               disabled={loading}
+              activeOpacity={0.7}
             >
               <IconSymbol 
                 ios_icon_name={showPassword ? "eye.slash.fill" : "eye.fill"} 
                 android_material_icon_name={showPassword ? "visibility_off" : "visibility"} 
                 size={24} 
-                color={colors.textSecondary} 
+                color={colors.text} 
               />
             </TouchableOpacity>
           </View>
@@ -177,6 +191,7 @@ export default function AuthScreen() {
                 style={styles.checkboxContainer}
                 onPress={() => setConsentAccepted(!consentAccepted)}
                 disabled={loading}
+                activeOpacity={0.7}
               >
                 <View style={[styles.checkbox, consentAccepted && styles.checkboxChecked]}>
                   {consentAccepted && (
@@ -224,6 +239,7 @@ export default function AuthScreen() {
             ]}
             onPress={handleAuth}
             disabled={loading || (isSignUp && !consentAccepted)}
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color={colors.card} />
@@ -241,6 +257,7 @@ export default function AuthScreen() {
               setConsentAccepted(false);
             }}
             disabled={loading}
+            activeOpacity={0.7}
           >
             <Text style={commonStyles.textSecondary}>
               {isSignUp ? 'Already have an account? ' : 'Don\'t have an account? '}
@@ -322,6 +339,7 @@ const styles = StyleSheet.create({
     right: 16,
     top: 16,
     padding: 4,
+    zIndex: 10,
   },
   consentContainer: {
     marginTop: 16,

@@ -48,6 +48,7 @@ export const useAuth = () => {
         fetchUserProfile(session.user.id, session.user.email || '');
       } else {
         setUser(null);
+        setLoading(false);
       }
     });
 
@@ -158,6 +159,7 @@ export const useAuth = () => {
         };
       }
 
+      // Sign up the user - with email verification disabled, this will return both user and session
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -165,13 +167,26 @@ export const useAuth = () => {
 
       if (error) {
         console.log('useAuth: Sign up error:', error);
+        
+        // Handle specific error cases
+        if (error.message.toLowerCase().includes('user already registered')) {
+          return {
+            success: false,
+            error: error.message,
+            message: 'An account with this email already exists. Please sign in instead.',
+          };
+        }
+        
         throw error;
       }
 
       console.log('useAuth: Sign up response:', data);
 
-      if (data.user) {
-        console.log('useAuth: Creating user profile with consent...');
+      // Check if we have both user and session (email verification disabled)
+      if (data.user && data.session) {
+        console.log('useAuth: User signed up and automatically logged in (email verification disabled)');
+        
+        // Create user profile with consent
         const now = new Date().toISOString();
         
         const { error: profileError } = await supabase
@@ -194,20 +209,36 @@ export const useAuth = () => {
 
         if (profileError) {
           console.log('useAuth: Profile creation error:', profileError);
+          // Ignore duplicate key errors (user profile already exists)
           if (profileError.code !== '23505') {
             throw profileError;
           }
         }
 
         console.log('useAuth: User profile created successfully with consent');
+        
+        // The auth state change listener will handle setting the user
+        return { 
+          success: true, 
+          error: null, 
+          message: 'Account created successfully. Welcome to PickleRadar.',
+        };
+      } else if (data.user && !data.session) {
+        // This shouldn't happen with email verification disabled, but handle it just in case
+        console.log('useAuth: User created but no session (email verification may be enabled)');
+        return {
+          success: false,
+          error: 'Email verification required',
+          message: 'Please check your email to verify your account before signing in.',
+        };
+      } else {
+        console.log('useAuth: Unexpected signup response - no user returned');
+        return {
+          success: false,
+          error: 'Signup failed',
+          message: 'Failed to create account. Please try again.',
+        };
       }
-
-      console.log('useAuth: Sign up successful');
-      return { 
-        success: true, 
-        error: null, 
-        message: 'Account created successfully!',
-      };
     } catch (error: any) {
       console.log('useAuth: Sign up error:', error);
       const errorMessage = error?.message || 'Failed to create account. Please try again.';
@@ -232,6 +263,7 @@ export const useAuth = () => {
       if (error) {
         console.log('useAuth: Sign in error:', error);
         
+        // Provide clear error messages for common issues
         if (error.message.toLowerCase().includes('invalid login credentials')) {
           return { 
             success: false, 
@@ -240,10 +272,19 @@ export const useAuth = () => {
           };
         }
         
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          return {
+            success: false,
+            error: error.message,
+            message: 'Please verify your email address before signing in.',
+          };
+        }
+        
         throw error;
       }
 
       console.log('useAuth: Sign in successful');
+      // The auth state change listener will handle setting the user
       return { 
         success: true, 
         error: null, 
