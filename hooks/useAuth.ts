@@ -35,7 +35,7 @@ export const useAuth = () => {
       } else {
         console.log('useAuth: Current session:', session ? 'Active' : 'None');
         if (session?.user) {
-          fetchUserProfile(session.user.id, session.user.email || '');
+          fetchUserProfile(session.user.id, session.user.phone || '');
         } else {
           setLoading(false);
         }
@@ -45,7 +45,7 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('useAuth: Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
       if (session?.user) {
-        fetchUserProfile(session.user.id, session.user.email || '');
+        fetchUserProfile(session.user.id, session.user.phone || '');
       } else {
         setUser(null);
         setLoading(false);
@@ -58,7 +58,7 @@ export const useAuth = () => {
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string, email: string) => {
+  const fetchUserProfile = async (userId: string, phone: string) => {
     console.log('useAuth: Fetching user profile for:', userId);
     try {
       const { data, error } = await supabase
@@ -77,8 +77,8 @@ export const useAuth = () => {
             .insert([
               {
                 id: userId,
-                email: email || null,
-                phone: null,
+                email: null,
+                phone: phone || null,
                 privacy_opt_in: false,
                 notifications_enabled: false,
                 location_enabled: false,
@@ -147,58 +147,96 @@ export const useAuth = () => {
     }
   };
 
-  const signUp = async (email: string, password: string, consentAccepted: boolean = false) => {
+  const sendOtp = async (phone: string) => {
     try {
-      console.log('useAuth: Attempting to sign up user:', email);
+      console.log('useAuth: Sending OTP to:', phone);
       
-      if (!consentAccepted) {
-        return {
-          success: false,
-          error: 'Consent required',
-          message: 'You must accept the Privacy Policy and Terms of Service to create an account.',
-        };
-      }
-
-      // Sign up the user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: 'https://natively.dev/email-confirmed',
-        },
+      const { data, error } = await supabase.auth.signInWithOtp({
+        phone,
       });
 
       if (error) {
-        console.log('useAuth: Sign up error:', error);
+        console.log('useAuth: Send OTP error:', error);
         
         // Handle specific error cases
-        if (error.message.toLowerCase().includes('user already registered')) {
+        if (error.message.toLowerCase().includes('rate limit')) {
           return {
             success: false,
             error: error.message,
-            message: 'An account with this email already exists. Please sign in instead.',
+            message: 'Too many requests. Please wait a few minutes before trying again.',
           };
         }
         
         throw error;
       }
 
-      console.log('useAuth: Sign up response:', data);
+      console.log('useAuth: OTP sent successfully:', data);
+      
+      return { 
+        success: true, 
+        error: null, 
+        message: 'Verification code sent successfully.',
+      };
+    } catch (error: any) {
+      console.log('useAuth: Send OTP error:', error);
+      const errorMessage = error?.message || 'Failed to send verification code. Please try again.';
+      return { 
+        success: false, 
+        error: errorMessage, 
+        message: errorMessage,
+      };
+    }
+  };
 
-      // Check if we have both user and session (email verification disabled)
-      if (data.user && data.session) {
-        console.log('useAuth: User signed up and automatically logged in (email verification disabled)');
+  const verifyOtp = async (phone: string, token: string, consentAccepted: boolean = false) => {
+    try {
+      console.log('useAuth: Verifying OTP for:', phone);
+      
+      if (!consentAccepted) {
+        return {
+          success: false,
+          error: 'Consent required',
+          message: 'You must accept the Privacy Policy and Terms of Service to continue.',
+        };
+      }
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone,
+        token,
+        type: 'sms',
+      });
+
+      if (error) {
+        console.log('useAuth: Verify OTP error:', error);
         
-        // Create user profile with consent
+        // Handle specific error cases
+        if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('expired')) {
+          return {
+            success: false,
+            error: error.message,
+            message: 'Invalid or expired verification code. Please try again.',
+          };
+        }
+        
+        throw error;
+      }
+
+      console.log('useAuth: OTP verified successfully:', data);
+
+      // Check if we have both user and session
+      if (data.user && data.session) {
+        console.log('useAuth: User verified and logged in');
+        
+        // Create or update user profile with consent
         const now = new Date().toISOString();
         
         const { error: profileError } = await supabase
           .from('users')
-          .insert([
+          .upsert([
             {
               id: data.user.id,
-              email: data.user.email || email,
-              phone: null,
+              email: null,
+              phone: data.user.phone || phone,
               privacy_opt_in: false,
               notifications_enabled: false,
               location_enabled: false,
@@ -208,110 +246,34 @@ export const useAuth = () => {
               accepted_at: now,
               accepted_version: CURRENT_TERMS_VERSION,
             },
-          ]);
+          ], {
+            onConflict: 'id',
+          });
 
         if (profileError) {
-          console.log('useAuth: Profile creation error:', profileError);
-          // Ignore duplicate key errors (user profile already exists)
-          if (profileError.code !== '23505') {
-            throw profileError;
-          }
+          console.log('useAuth: Profile creation/update error:', profileError);
+          // Don't throw error, just log it - user is still authenticated
+        } else {
+          console.log('useAuth: User profile created/updated successfully with consent');
         }
-
-        console.log('useAuth: User profile created successfully with consent');
         
         // The auth state change listener will handle setting the user
         return { 
           success: true, 
           error: null, 
-          message: 'Account created successfully. Welcome to PickleRadar.',
-        };
-      } else if (data.user && !data.session) {
-        // Email verification is enabled - user needs to confirm email
-        console.log('useAuth: User created but email verification required');
-        return {
-          success: false,
-          error: 'Email verification required',
-          message: 'Please check your email and click the verification link to complete signup. If you don\'t see the email, check your spam folder.',
-          requiresEmailVerification: true,
+          message: 'Phone number verified. Welcome to PickleRadar.',
         };
       } else {
-        console.log('useAuth: Unexpected signup response - no user returned');
+        console.log('useAuth: Unexpected verify response - no user or session returned');
         return {
           success: false,
-          error: 'Signup failed',
-          message: 'Failed to create account. Please try again.',
+          error: 'Verification failed',
+          message: 'Failed to verify code. Please try again.',
         };
       }
     } catch (error: any) {
-      console.log('useAuth: Sign up error:', error);
-      const errorMessage = error?.message || 'Failed to create account. Please try again.';
-      return { 
-        success: false, 
-        error: errorMessage, 
-        message: errorMessage,
-      };
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      console.log('useAuth: Attempting to sign in user:', email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      console.log('useAuth: Sign in response:', { 
-        hasData: !!data, 
-        hasSession: !!data?.session,
-        hasUser: !!data?.user,
-        error: error?.message 
-      });
-
-      if (error) {
-        console.log('useAuth: Sign in error:', error);
-        
-        // Provide clear error messages for common issues
-        if (error.message.toLowerCase().includes('invalid login credentials')) {
-          return { 
-            success: false, 
-            error: error.message, 
-            message: 'Invalid email or password. Please check your credentials and try again.',
-          };
-        }
-        
-        if (error.message.toLowerCase().includes('email not confirmed')) {
-          return {
-            success: false,
-            error: error.message,
-            message: 'Please verify your email address before signing in. Check your inbox for the verification link.',
-            requiresEmailVerification: true,
-          };
-        }
-        
-        throw error;
-      }
-
-      if (!data.session) {
-        console.log('useAuth: Sign in succeeded but no session returned');
-        return {
-          success: false,
-          error: 'No session',
-          message: 'Sign in failed. Please try again.',
-        };
-      }
-
-      console.log('useAuth: Sign in successful');
-      // The auth state change listener will handle setting the user
-      return { 
-        success: true, 
-        error: null, 
-        message: 'Successfully signed in!',
-      };
-    } catch (error: any) {
-      console.log('useAuth: Sign in error:', error);
-      const errorMessage = error?.message || 'Failed to sign in. Please try again.';
+      console.log('useAuth: Verify OTP error:', error);
+      const errorMessage = error?.message || 'Failed to verify code. Please try again.';
       return { 
         success: false, 
         error: errorMessage, 
@@ -444,8 +406,8 @@ export const useAuth = () => {
     user,
     loading,
     isConfigured,
-    signUp,
-    signIn,
+    sendOtp,
+    verifyOtp,
     signOut,
     updateUserProfile,
     uploadProfilePicture,

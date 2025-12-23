@@ -9,42 +9,52 @@ import { LegalFooter } from '@/components/LegalFooter';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signUp, signIn, isConfigured } = useAuth();
+  const { sendOtp, verifyOtp, isConfigured } = useAuth();
   
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const formatPhoneNumber = (text: string) => {
+    // Remove all non-numeric characters
+    const cleaned = text.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX-XXXX
+    if (cleaned.length <= 3) {
+      return cleaned;
+    } else if (cleaned.length <= 6) {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+    } else {
+      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+    }
   };
 
-  const validatePassword = (password: string) => {
-    return password.length >= 6;
+  const getCleanPhoneNumber = (formatted: string) => {
+    // Remove all non-numeric characters and add +1 prefix
+    const cleaned = formatted.replace(/\D/g, '');
+    return `+1${cleaned}`;
   };
 
-  const handleAuth = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter both email and password');
+  const validatePhoneNumber = (phone: string) => {
+    const cleaned = phone.replace(/\D/g, '');
+    return cleaned.length === 10;
+  };
+
+  const handleSendOtp = async () => {
+    if (!phoneNumber.trim()) {
+      Alert.alert('Error', 'Please enter your phone number');
       return;
     }
 
-    if (!validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+    if (!validatePhoneNumber(phoneNumber)) {
+      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
       return;
     }
 
-    if (!validatePassword(password)) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
-      return;
-    }
-
-    if (isSignUp && !consentAccepted) {
-      Alert.alert('Consent Required', 'You must agree to the Privacy Policy and Terms of Service to create an account.');
+    if (!consentAccepted) {
+      Alert.alert('Consent Required', 'You must agree to the Privacy Policy and Terms of Service to continue.');
       return;
     }
 
@@ -59,76 +69,72 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        const result = await signUp(email, password, consentAccepted);
-        
-        if (result.success) {
-          // Show success message and redirect
-          Alert.alert(
-            'Success',
-            result.message || 'Account created successfully. Welcome to PickleRadar.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Clear form
-                  setEmail('');
-                  setPassword('');
-                  setConsentAccepted(false);
-                  // Redirect to home
-                  router.replace('/(tabs)/(home)/');
-                },
-              },
-            ]
-          );
-        } else if ((result as any).requiresEmailVerification) {
-          // Email verification required
-          Alert.alert(
-            'Verify Your Email',
-            result.message || 'Please check your email and click the verification link to complete signup.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Clear form and switch to sign in
-                  setEmail('');
-                  setPassword('');
-                  setConsentAccepted(false);
-                  setIsSignUp(false);
-                },
-              },
-            ]
-          );
-        } else {
-          // Show error message
-          Alert.alert('Error', result.message || 'Failed to create account. Please try again.');
-        }
+      const cleanPhone = getCleanPhoneNumber(phoneNumber);
+      console.log('Sending OTP to:', cleanPhone);
+      
+      const result = await sendOtp(cleanPhone);
+      
+      if (result.success) {
+        setOtpSent(true);
+        Alert.alert(
+          'Verification Code Sent',
+          'Please check your phone for the verification code.',
+          [{ text: 'OK' }]
+        );
       } else {
-        const result = await signIn(email, password);
-        
-        if (result.success) {
-          // Clear form and redirect
-          setEmail('');
-          setPassword('');
-          router.replace('/(tabs)/(home)/');
-        } else if ((result as any).requiresEmailVerification) {
-          // Email not verified
-          Alert.alert(
-            'Email Not Verified',
-            result.message || 'Please verify your email address before signing in. Check your inbox for the verification link.',
-            [
-              {
-                text: 'OK',
-              },
-            ]
-          );
-        } else {
-          // Show error message for invalid credentials
-          Alert.alert('Sign In Failed', result.message || 'Invalid email or password. Please try again.');
-        }
+        Alert.alert('Error', result.message || 'Failed to send verification code. Please try again.');
       }
     } catch (error: any) {
-      console.log('Auth error:', error);
+      console.log('Send OTP error:', error);
+      Alert.alert('Error', error?.message || 'An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode.trim()) {
+      Alert.alert('Error', 'Please enter the verification code');
+      return;
+    }
+
+    if (otpCode.length !== 6) {
+      Alert.alert('Error', 'Verification code must be 6 digits');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const cleanPhone = getCleanPhoneNumber(phoneNumber);
+      console.log('Verifying OTP for:', cleanPhone);
+      
+      const result = await verifyOtp(cleanPhone, otpCode, consentAccepted);
+      
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          'Phone number verified. Welcome to PickleRadar.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Clear form
+                setPhoneNumber('');
+                setOtpCode('');
+                setOtpSent(false);
+                setConsentAccepted(false);
+                // Redirect to home
+                router.replace('/(tabs)/(home)/');
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Verification Failed', result.message || 'Invalid or expired verification code. Please try again.');
+      }
+    } catch (error: any) {
+      console.log('Verify OTP error:', error);
       Alert.alert('Error', error?.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -136,7 +142,18 @@ export default function AuthScreen() {
   };
 
   const handleBack = () => {
-    router.back();
+    if (otpSent) {
+      // Go back to phone number entry
+      setOtpSent(false);
+      setOtpCode('');
+    } else {
+      router.back();
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setOtpCode('');
+    await handleSendOtp();
   };
 
   return (
@@ -167,134 +184,139 @@ export default function AuthScreen() {
             resizeMode="contain"
           />
           <Text style={[commonStyles.title, { color: colors.primary }]}>
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
+            {otpSent ? 'Verify Your Phone' : 'Welcome to PickleRadar'}
           </Text>
           <Text style={commonStyles.textSecondary}>
-            {isSignUp ? 'Sign up to start finding courts' : 'Sign in to continue'}
+            {otpSent 
+              ? 'Enter the 6-digit code sent to your phone' 
+              : 'Sign in with your phone number'}
           </Text>
         </View>
 
         <View style={styles.form}>
-          <TextInput
-            style={commonStyles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.textSecondary}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
-          />
-
-          <View style={styles.passwordContainer}>
-            <TextInput
-              style={[commonStyles.input, styles.passwordInput]}
-              placeholder="Password (min. 6 characters)"
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-            <TouchableOpacity
-              style={styles.eyeButton}
-              onPress={() => setShowPassword(!showPassword)}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <IconSymbol 
-                ios_icon_name={showPassword ? "eye.slash.fill" : "eye.fill"} 
-                android_material_icon_name={showPassword ? "visibility_off" : "visibility"} 
-                size={24} 
-                color={colors.text} 
+          {!otpSent ? (
+            <>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={commonStyles.input}
+                placeholder="(555) 123-4567"
+                placeholderTextColor={colors.textSecondary}
+                value={phoneNumber}
+                onChangeText={(text) => setPhoneNumber(formatPhoneNumber(text))}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+                maxLength={14}
               />
-            </TouchableOpacity>
-          </View>
 
-          {isSignUp && (
-            <View style={styles.consentContainer}>
+              <View style={styles.consentContainer}>
+                <TouchableOpacity
+                  style={styles.checkboxContainer}
+                  onPress={() => setConsentAccepted(!consentAccepted)}
+                  disabled={loading}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, consentAccepted && styles.checkboxChecked]}>
+                    {consentAccepted && (
+                      <IconSymbol 
+                        ios_icon_name="checkmark" 
+                        android_material_icon_name="check" 
+                        size={16} 
+                        color={colors.card} 
+                      />
+                    )}
+                  </View>
+                  <View style={styles.consentTextContainer}>
+                    <Text style={styles.consentText}>
+                      I agree to the{' '}
+                      <Text 
+                        style={styles.consentLink}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          router.push('/legal/privacy-policy');
+                        }}
+                      >
+                        Privacy Policy
+                      </Text>
+                      {' '}and{' '}
+                      <Text 
+                        style={styles.consentLink}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          router.push('/legal/terms-of-service');
+                        }}
+                      >
+                        Terms of Service
+                      </Text>
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                style={styles.checkboxContainer}
-                onPress={() => setConsentAccepted(!consentAccepted)}
+                style={[
+                  buttonStyles.primary, 
+                  { marginTop: 8 }, 
+                  (loading || !consentAccepted) && { opacity: 0.6 }
+                ]}
+                onPress={handleSendOtp}
+                disabled={loading || !consentAccepted}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.card} />
+                ) : (
+                  <Text style={buttonStyles.text}>Send Verification Code</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Verification Code</Text>
+              <TextInput
+                style={[commonStyles.input, styles.otpInput]}
+                placeholder="000000"
+                placeholderTextColor={colors.textSecondary}
+                value={otpCode}
+                onChangeText={setOtpCode}
+                keyboardType="number-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+                maxLength={6}
+              />
+
+              <TouchableOpacity
+                style={[
+                  buttonStyles.primary, 
+                  { marginTop: 8 }, 
+                  loading && { opacity: 0.6 }
+                ]}
+                onPress={handleVerifyOtp}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.card} />
+                ) : (
+                  <Text style={buttonStyles.text}>Verify Code</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={handleResendOtp}
                 disabled={loading}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkbox, consentAccepted && styles.checkboxChecked]}>
-                  {consentAccepted && (
-                    <IconSymbol 
-                      ios_icon_name="checkmark" 
-                      android_material_icon_name="check" 
-                      size={16} 
-                      color={colors.card} 
-                    />
-                  )}
-                </View>
-                <View style={styles.consentTextContainer}>
-                  <Text style={styles.consentText}>
-                    I agree to the{' '}
-                    <Text 
-                      style={styles.consentLink}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        router.push('/legal/privacy-policy');
-                      }}
-                    >
-                      Privacy Policy
-                    </Text>
-                    {' '}and{' '}
-                    <Text 
-                      style={styles.consentLink}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        router.push('/legal/terms-of-service');
-                      }}
-                    >
-                      Terms of Service
-                    </Text>
-                  </Text>
-                </View>
+                <Text style={styles.resendText}>
+                  Didn&apos;t receive the code?{' '}
+                  <Text style={styles.resendLink}>Resend</Text>
+                </Text>
               </TouchableOpacity>
-            </View>
+            </>
           )}
-
-          <TouchableOpacity
-            style={[
-              buttonStyles.primary, 
-              { marginTop: 8 }, 
-              (loading || (isSignUp && !consentAccepted)) && { opacity: 0.6 }
-            ]}
-            onPress={handleAuth}
-            disabled={loading || (isSignUp && !consentAccepted)}
-            activeOpacity={0.8}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.card} />
-            ) : (
-              <Text style={buttonStyles.text}>
-                {isSignUp ? 'Create Account' : 'Sign In'}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.switchButton}
-            onPress={() => {
-              setIsSignUp(!isSignUp);
-              setConsentAccepted(false);
-            }}
-            disabled={loading}
-            activeOpacity={0.7}
-          >
-            <Text style={commonStyles.textSecondary}>
-              {isSignUp ? 'Already have an account? ' : 'Don\'t have an account? '}
-              <Text style={styles.switchButtonText}>
-                {isSignUp ? 'Sign In' : 'Sign Up'}
-              </Text>
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {!isConfigured && (
@@ -355,20 +377,16 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
-  passwordContainer: {
-    position: 'relative',
-    marginTop: 16,
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
   },
-  passwordInput: {
-    paddingRight: 50,
-    marginTop: 0,
-  },
-  eyeButton: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-    padding: 4,
-    zIndex: 10,
+  otpInput: {
+    fontSize: 24,
+    letterSpacing: 8,
+    textAlign: 'center',
   },
   consentContainer: {
     marginTop: 16,
@@ -407,11 +425,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
-  switchButton: {
+  resendButton: {
     marginTop: 20,
     alignItems: 'center',
   },
-  switchButtonText: {
+  resendText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  resendLink: {
     color: colors.primary,
     fontWeight: '600',
   },
