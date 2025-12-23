@@ -35,7 +35,7 @@ export const useAuth = () => {
       } else {
         console.log('useAuth: Current session:', session ? 'Active' : 'None');
         if (session?.user) {
-          fetchUserProfile(session.user.id, session.user.phone || '', session.user.email || '');
+          fetchUserProfile(session.user.id, session.user.email || '');
         } else {
           setLoading(false);
         }
@@ -45,7 +45,7 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('useAuth: Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
       if (session?.user) {
-        fetchUserProfile(session.user.id, session.user.phone || '', session.user.email || '');
+        fetchUserProfile(session.user.id, session.user.email || '');
       } else {
         setUser(null);
       }
@@ -57,7 +57,7 @@ export const useAuth = () => {
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string, phone: string, email: string) => {
+  const fetchUserProfile = async (userId: string, email: string) => {
     console.log('useAuth: Fetching user profile for:', userId);
     try {
       const { data, error } = await supabase
@@ -76,8 +76,8 @@ export const useAuth = () => {
             .insert([
               {
                 id: userId,
-                phone: phone || null,
                 email: email || null,
+                phone: null,
                 privacy_opt_in: false,
                 notifications_enabled: false,
                 location_enabled: false,
@@ -97,8 +97,8 @@ export const useAuth = () => {
           console.log('useAuth: User profile created successfully');
           setUser({
             id: newProfile.id,
-            phone: newProfile.phone,
             email: newProfile.email,
+            phone: newProfile.phone,
             skillLevel: newProfile.skill_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
             privacyOptIn: newProfile.privacy_opt_in || false,
             notificationsEnabled: newProfile.notifications_enabled || false,
@@ -121,8 +121,8 @@ export const useAuth = () => {
         console.log('useAuth: User profile fetched successfully');
         setUser({
           id: data.id,
-          phone: data.phone,
           email: data.email,
+          phone: data.phone,
           skillLevel: data.skill_level as 'Beginner' | 'Intermediate' | 'Advanced' | undefined,
           privacyOptIn: data.privacy_opt_in || false,
           notificationsEnabled: data.notifications_enabled || false,
@@ -146,103 +146,6 @@ export const useAuth = () => {
     }
   };
 
-  const signInWithPhone = async (phone: string, isSignUp: boolean = false) => {
-    try {
-      console.log('useAuth: Sending OTP to phone:', phone, 'isSignUp:', isSignUp);
-      
-      const { data, error } = await supabase.auth.signInWithOtp({
-        phone: phone,
-        options: {
-          shouldCreateUser: isSignUp,
-        }
-      });
-
-      if (error) {
-        console.log('useAuth: OTP send error:', error);
-        throw error;
-      }
-
-      console.log('useAuth: OTP sent successfully');
-      return { 
-        success: true, 
-        error: null, 
-        message: 'Verification code sent successfully!'
-      };
-    } catch (error: any) {
-      console.log('useAuth: Send OTP error:', error);
-      const errorMessage = error?.message || 'Failed to send verification code. Please try again.';
-      return { 
-        success: false, 
-        error: errorMessage, 
-        message: errorMessage
-      };
-    }
-  };
-
-  const verifyOtp = async (phone: string, token: string, isSignUp: boolean = false, consentAccepted: boolean = false) => {
-    try {
-      console.log('useAuth: Verifying OTP for phone:', phone);
-      
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: phone,
-        token: token,
-        type: 'sms'
-      });
-
-      if (error) {
-        console.log('useAuth: OTP verification error:', error);
-        throw error;
-      }
-
-      console.log('useAuth: OTP verified successfully');
-
-      // If this is a sign up, update the user profile with consent
-      if (isSignUp && data.user && consentAccepted) {
-        console.log('useAuth: Updating user profile with consent...');
-        const now = new Date().toISOString();
-        
-        const { error: profileError } = await supabase
-          .from('users')
-          .upsert({
-            id: data.user.id,
-            phone: phone,
-            email: data.user.email || null,
-            privacy_opt_in: false,
-            notifications_enabled: false,
-            location_enabled: false,
-            location_permission_requested: false,
-            terms_accepted: true,
-            privacy_accepted: true,
-            accepted_at: now,
-            accepted_version: CURRENT_TERMS_VERSION,
-          }, {
-            onConflict: 'id'
-          });
-
-        if (profileError) {
-          console.log('useAuth: Profile update error:', profileError);
-        } else {
-          console.log('useAuth: User profile updated successfully with consent');
-        }
-      }
-
-      return { 
-        success: true, 
-        error: null, 
-        message: isSignUp ? 'Account created successfully!' : 'Successfully signed in!'
-      };
-    } catch (error: any) {
-      console.log('useAuth: Verify OTP error:', error);
-      const errorMessage = error?.message || 'Invalid verification code. Please try again.';
-      return { 
-        success: false, 
-        error: errorMessage, 
-        message: errorMessage
-      };
-    }
-  };
-
-  // Legacy email methods - kept for backward compatibility but not used
   const signUp = async (email: string, password: string, consentAccepted: boolean = false) => {
     try {
       console.log('useAuth: Attempting to sign up user:', email);
@@ -252,16 +155,12 @@ export const useAuth = () => {
           success: false,
           error: 'Consent required',
           message: 'You must accept the Privacy Policy and Terms of Service to create an account.',
-          requiresEmailVerification: false
         };
       }
 
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: 'https://natively.dev/email-confirmed'
-        }
       });
 
       if (error) {
@@ -301,16 +200,6 @@ export const useAuth = () => {
         }
 
         console.log('useAuth: User profile created successfully with consent');
-
-        if (!data.session) {
-          console.log('useAuth: Email verification required');
-          return { 
-            success: true, 
-            error: null, 
-            message: 'Account created successfully! Please check your email to verify your account before signing in.',
-            requiresEmailVerification: true
-          };
-        }
       }
 
       console.log('useAuth: Sign up successful');
@@ -318,7 +207,6 @@ export const useAuth = () => {
         success: true, 
         error: null, 
         message: 'Account created successfully!',
-        requiresEmailVerification: false
       };
     } catch (error: any) {
       console.log('useAuth: Sign up error:', error);
@@ -327,7 +215,6 @@ export const useAuth = () => {
         success: false, 
         error: errorMessage, 
         message: errorMessage,
-        requiresEmailVerification: false
       };
     }
   };
@@ -345,21 +232,11 @@ export const useAuth = () => {
       if (error) {
         console.log('useAuth: Sign in error:', error);
         
-        if (error.message.toLowerCase().includes('email not confirmed')) {
-          return { 
-            success: false, 
-            error: error.message, 
-            message: 'Please verify your email address before signing in. Check your inbox for the verification link.',
-            requiresEmailVerification: true
-          };
-        }
-        
         if (error.message.toLowerCase().includes('invalid login credentials')) {
           return { 
             success: false, 
             error: error.message, 
             message: 'Invalid email or password. Please check your credentials and try again.',
-            requiresEmailVerification: false
           };
         }
         
@@ -371,7 +248,6 @@ export const useAuth = () => {
         success: true, 
         error: null, 
         message: 'Successfully signed in!',
-        requiresEmailVerification: false
       };
     } catch (error: any) {
       console.log('useAuth: Sign in error:', error);
@@ -380,7 +256,6 @@ export const useAuth = () => {
         success: false, 
         error: errorMessage, 
         message: errorMessage,
-        requiresEmailVerification: false
       };
     }
   };
@@ -445,20 +320,17 @@ export const useAuth = () => {
     try {
       console.log('useAuth: Uploading profile picture...');
       
-      // Fetch the image as a blob
       const response = await fetch(uri);
       const blob = await response.blob();
       
-      // Create a unique filename
       const fileExt = uri.split('.').pop() || 'jpg';
       const fileName = `${user.id}/profile.${fileExt}`;
       
-      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from('profile-pictures')
         .upload(fileName, blob, {
           contentType: `image/${fileExt}`,
-          upsert: true, // Replace existing file
+          upsert: true,
         });
 
       if (error) {
@@ -466,14 +338,12 @@ export const useAuth = () => {
         throw error;
       }
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('profile-pictures')
         .getPublicUrl(fileName);
 
       console.log('useAuth: Profile picture uploaded successfully:', publicUrl);
 
-      // Update user profile with new URL
       await updateUserProfile({ profilePictureUrl: publicUrl });
 
       return { success: true, url: publicUrl };
@@ -514,8 +384,6 @@ export const useAuth = () => {
     user,
     loading,
     isConfigured,
-    signInWithPhone,
-    verifyOtp,
     signUp,
     signIn,
     signOut,
