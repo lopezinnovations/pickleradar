@@ -32,7 +32,6 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [skillLevel, setSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced' | undefined>();
   const [submitting, setSubmitting] = useState(false);
 
   const resetForm = () => {
@@ -41,7 +40,6 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
     setCity('');
     setZipCode('');
     setPhotoUri(null);
-    setSkillLevel(undefined);
   };
 
   const pickImage = async () => {
@@ -129,8 +127,6 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
           latitude,
           longitude,
           photo_url: photoUrl,
-          skill_level: skillLevel,
-          dupr_rating: user.duprRating,
         });
 
       if (insertError) {
@@ -156,8 +152,6 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
               city: city.trim(),
               zip_code: zipCode.trim(),
               user_email: user.email,
-              skill_level: skillLevel,
-              dupr_rating: user.duprRating,
               photo_url: photoUrl,
             },
           }),
@@ -268,46 +262,6 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Your Skill Level (Optional)</Text>
-            <View style={styles.skillLevelButtons}>
-              {(['Beginner', 'Intermediate', 'Advanced'] as const).map((level) => (
-                <TouchableOpacity
-                  key={level}
-                  style={[
-                    styles.skillLevelButton,
-                    skillLevel === level && styles.skillLevelButtonActive,
-                  ]}
-                  onPress={() => setSkillLevel(skillLevel === level ? undefined : level)}
-                  disabled={submitting}
-                >
-                  <Text
-                    style={[
-                      styles.skillLevelButtonText,
-                      skillLevel === level && styles.skillLevelButtonTextActive,
-                    ]}
-                  >
-                    {level}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {user?.duprRating && (
-            <View style={styles.duprInfo}>
-              <IconSymbol
-                ios_icon_name="chart.bar.fill"
-                android_material_icon_name="bar_chart"
-                size={20}
-                color={colors.accent}
-              />
-              <Text style={styles.duprText}>
-                Your DUPR rating ({user.duprRating.toFixed(1)}) will be included
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.inputGroup}>
             <Text style={styles.label}>Court Photo (Optional)</Text>
             <TouchableOpacity
               style={styles.photoButton}
@@ -413,46 +367,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: colors.text,
-  },
-  skillLevelButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  skillLevelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: colors.highlight,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  skillLevelButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  skillLevelButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  skillLevelButtonTextActive: {
-    color: colors.card,
-  },
-  duprInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.highlight,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 20,
-    gap: 8,
-  },
-  duprText: {
-    flex: 1,
-    fontSize: 14,
     color: colors.text,
   },
   photoButton: {
