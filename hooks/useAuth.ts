@@ -159,10 +159,13 @@ export const useAuth = () => {
         };
       }
 
-      // Sign up the user - with email verification disabled, this will return both user and session
+      // Sign up the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: 'https://natively.dev/email-confirmed',
+        },
       });
 
       if (error) {
@@ -224,12 +227,13 @@ export const useAuth = () => {
           message: 'Account created successfully. Welcome to PickleRadar.',
         };
       } else if (data.user && !data.session) {
-        // This shouldn't happen with email verification disabled, but handle it just in case
-        console.log('useAuth: User created but no session (email verification may be enabled)');
+        // Email verification is enabled - user needs to confirm email
+        console.log('useAuth: User created but email verification required');
         return {
           success: false,
           error: 'Email verification required',
-          message: 'Please check your email to verify your account before signing in.',
+          message: 'Please check your email and click the verification link to complete signup. If you don\'t see the email, check your spam folder.',
+          requiresEmailVerification: true,
         };
       } else {
         console.log('useAuth: Unexpected signup response - no user returned');
@@ -258,7 +262,12 @@ export const useAuth = () => {
         password,
       });
 
-      console.log('useAuth: Sign in response:', { data, error });
+      console.log('useAuth: Sign in response:', { 
+        hasData: !!data, 
+        hasSession: !!data?.session,
+        hasUser: !!data?.user,
+        error: error?.message 
+      });
 
       if (error) {
         console.log('useAuth: Sign in error:', error);
@@ -276,11 +285,21 @@ export const useAuth = () => {
           return {
             success: false,
             error: error.message,
-            message: 'Please verify your email address before signing in.',
+            message: 'Please verify your email address before signing in. Check your inbox for the verification link.',
+            requiresEmailVerification: true,
           };
         }
         
         throw error;
+      }
+
+      if (!data.session) {
+        console.log('useAuth: Sign in succeeded but no session returned');
+        return {
+          success: false,
+          error: 'No session',
+          message: 'Sign in failed. Please try again.',
+        };
       }
 
       console.log('useAuth: Sign in successful');

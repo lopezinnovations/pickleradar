@@ -81,6 +81,24 @@ export default function AuthScreen() {
               },
             ]
           );
+        } else if ((result as any).requiresEmailVerification) {
+          // Email verification required
+          Alert.alert(
+            'Verify Your Email',
+            result.message || 'Please check your email and click the verification link to complete signup.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Clear form and switch to sign in
+                  setEmail('');
+                  setPassword('');
+                  setConsentAccepted(false);
+                  setIsSignUp(false);
+                },
+              },
+            ]
+          );
         } else {
           // Show error message
           Alert.alert('Error', result.message || 'Failed to create account. Please try again.');
@@ -93,9 +111,20 @@ export default function AuthScreen() {
           setEmail('');
           setPassword('');
           router.replace('/(tabs)/(home)/');
+        } else if ((result as any).requiresEmailVerification) {
+          // Email not verified
+          Alert.alert(
+            'Email Not Verified',
+            result.message || 'Please verify your email address before signing in. Check your inbox for the verification link.',
+            [
+              {
+                text: 'OK',
+              },
+            ]
+          );
         } else {
-          // Show error message for invalid credentials only
-          Alert.alert('Error', result.message || 'Invalid email or password. Please try again.');
+          // Show error message for invalid credentials
+          Alert.alert('Sign In Failed', result.message || 'Invalid email or password. Please try again.');
         }
       }
     } catch (error: any) {
