@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, TextInput, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { useCheckIn } from '@/hooks/useCheckIn';
 import { IconSymbol } from '@/components/IconSymbol';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut, updateUserProfile, loading: authLoading } = useAuth();
+  const { user, signOut, updateUserProfile, uploadProfilePicture, loading: authLoading } = useAuth();
   const { checkInHistory, getUserCheckIn, checkOut, getRemainingTime, loading: historyLoading } = useCheckIn(user?.id);
   
   const [skillLevel, setSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const [currentCheckIn, setCurrentCheckIn] = useState<any>(null);
   const [remainingTime, setRemainingTime] = useState<{ hours: number; minutes: number } | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
@@ -80,6 +82,42 @@ export default function ProfileScreen() {
       return () => clearInterval(interval);
     }
   }, [currentCheckIn?.expires_at]);
+
+  const handlePickImage = async () => {
+    try {
+      // Request permission
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your photo library to upload a profile picture.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setUploadingImage(true);
+        const uploadResult = await uploadProfilePicture(result.assets[0].uri);
+        
+        if (uploadResult.success) {
+          Alert.alert('Success', 'Profile picture updated successfully!');
+        } else {
+          Alert.alert('Error', uploadResult.error || 'Failed to upload profile picture');
+        }
+        setUploadingImage(false);
+      }
+    } catch (error) {
+      console.log('ProfileScreen: Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      setUploadingImage(false);
+    }
+  };
 
   const handleManualCheckOut = () => {
     if (!currentCheckIn || !user) return;
@@ -195,14 +233,35 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <IconSymbol 
-              ios_icon_name="person.crop.circle.fill" 
-              android_material_icon_name="account_circle" 
-              size={64} 
-              color={colors.primary} 
-            />
-          </View>
+          <TouchableOpacity 
+            style={styles.avatarContainer}
+            onPress={handlePickImage}
+            disabled={uploadingImage}
+          >
+            {uploadingImage ? (
+              <ActivityIndicator size="large" color={colors.primary} />
+            ) : user.profilePictureUrl ? (
+              <Image 
+                source={{ uri: user.profilePictureUrl }} 
+                style={styles.avatarImage}
+              />
+            ) : (
+              <IconSymbol 
+                ios_icon_name="person.crop.circle.fill" 
+                android_material_icon_name="account_circle" 
+                size={64} 
+                color={colors.primary} 
+              />
+            )}
+            <View style={styles.editIconContainer}>
+              <IconSymbol 
+                ios_icon_name="camera.fill" 
+                android_material_icon_name="photo_camera" 
+                size={16} 
+                color={colors.card} 
+              />
+            </View>
+          </TouchableOpacity>
           <Text style={[commonStyles.title, { color: colors.primary, fontSize: 22 }]}>
             {user.email}
           </Text>
@@ -461,11 +520,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 48,
+  },
+  editIconContainer: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.card,
   },
   userStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 24,
     paddingHorizontal: 32,
   },
   statItem: {
@@ -482,7 +561,7 @@ const styles = StyleSheet.create({
     width: 1,
     height: 40,
     backgroundColor: colors.border,
-    marginHorizontal: 16,
+    marginHorizontal: 20,
   },
   currentCheckInHeader: {
     flexDirection: 'row',

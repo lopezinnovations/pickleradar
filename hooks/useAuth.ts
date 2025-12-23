@@ -102,6 +102,7 @@ export const useAuth = () => {
             zipCode: newProfile.zip_code,
             duprRating: newProfile.dupr_rating,
             locationPermissionRequested: newProfile.location_permission_requested || false,
+            profilePictureUrl: newProfile.profile_picture_url,
           });
         } else {
           throw error;
@@ -120,6 +121,7 @@ export const useAuth = () => {
           zipCode: data.zip_code,
           duprRating: data.dupr_rating,
           locationPermissionRequested: data.location_permission_requested || false,
+          profilePictureUrl: data.profile_picture_url,
         });
       }
     } catch (error) {
@@ -285,6 +287,7 @@ export const useAuth = () => {
       if (updates.zipCode !== undefined) dbUpdates.zip_code = updates.zipCode;
       if (updates.duprRating !== undefined) dbUpdates.dupr_rating = updates.duprRating;
       if (updates.locationPermissionRequested !== undefined) dbUpdates.location_permission_requested = updates.locationPermissionRequested;
+      if (updates.profilePictureUrl !== undefined) dbUpdates.profile_picture_url = updates.profilePictureUrl;
 
       const { error } = await supabase
         .from('users')
@@ -299,6 +302,52 @@ export const useAuth = () => {
     }
   };
 
+  const uploadProfilePicture = async (uri: string): Promise<{ success: boolean; url?: string; error?: string }> => {
+    if (!user) {
+      return { success: false, error: 'No user logged in' };
+    }
+
+    try {
+      console.log('useAuth: Uploading profile picture...');
+      
+      // Fetch the image as a blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Create a unique filename
+      const fileExt = uri.split('.').pop() || 'jpg';
+      const fileName = `${user.id}/profile.${fileExt}`;
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('profile-pictures')
+        .upload(fileName, blob, {
+          contentType: `image/${fileExt}`,
+          upsert: true, // Replace existing file
+        });
+
+      if (error) {
+        console.log('useAuth: Upload error:', error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('profile-pictures')
+        .getPublicUrl(fileName);
+
+      console.log('useAuth: Profile picture uploaded successfully:', publicUrl);
+
+      // Update user profile with new URL
+      await updateUserProfile({ profilePictureUrl: publicUrl });
+
+      return { success: true, url: publicUrl };
+    } catch (error: any) {
+      console.log('useAuth: Upload profile picture error:', error);
+      return { success: false, error: error.message || 'Failed to upload profile picture' };
+    }
+  };
+
   return {
     user,
     loading,
@@ -307,5 +356,6 @@ export const useAuth = () => {
     signIn,
     signOut,
     updateUserProfile,
+    uploadProfilePicture,
   };
 };

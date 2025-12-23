@@ -31,6 +31,7 @@ export interface User {
   zipCode?: string;
   duprRating?: number;
   locationPermissionRequested?: boolean;
+  profilePictureUrl?: string;
 }
 
 export interface CheckIn {
