@@ -266,7 +266,7 @@ export default function ProfileScreen() {
             {user.email}
           </Text>
           
-          {/* Updated user stats with flex layout */}
+          {/* Updated user stats with flex layout and self-stretching dividers */}
           <View style={styles.userStats}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{checkInHistory?.length || 0}</Text>
@@ -559,16 +559,19 @@ const styles = StyleSheet.create({
   },
   userStats: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     justifyContent: 'center',
     marginTop: 24,
     width: '100%',
     paddingHorizontal: 20,
+    minHeight: 60,
   },
   statItem: {
     alignItems: 'center',
+    justifyContent: 'center',
     flex: 1,
     paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   statValue: {
     fontSize: 24,
@@ -578,8 +581,9 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    height: 48,
     backgroundColor: colors.border,
+    alignSelf: 'stretch',
+    marginVertical: 4,
   },
   skillLevelBarContainer: {
     width: '80%',
