@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { User } from '@/types';
+import { registerPushToken } from '@/utils/notifications';
 
 const CURRENT_TERMS_VERSION = 'v1.0';
 
@@ -155,6 +156,12 @@ export const useAuth = () => {
           acceptedVersion: data.accepted_version,
         });
       }
+
+      // Register push token after user profile is loaded
+      console.log('useAuth: Registering push token for user:', userId);
+      registerPushToken(userId).catch(err => {
+        console.log('useAuth: Failed to register push token:', err);
+      });
     } catch (error) {
       console.log('useAuth: Error in fetchUserProfile:', error);
     } finally {

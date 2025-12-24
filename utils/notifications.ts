@@ -1,6 +1,7 @@
 
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -40,6 +41,47 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
   } catch (error) {
     console.log('Error requesting notification permissions:', error);
     return false;
+  }
+};
+
+export const registerPushToken = async (userId: string): Promise<string | null> => {
+  try {
+    if (!isSupabaseConfigured()) {
+      console.log('Supabase not configured, skipping push token registration');
+      return null;
+    }
+
+    // Request permissions first
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) {
+      console.log('No notification permission, skipping push token registration');
+      return null;
+    }
+
+    // Get the Expo push token
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: 'your-project-id', // This will be auto-detected in most cases
+    });
+    
+    const pushToken = tokenData.data;
+    console.log('Got push token:', pushToken);
+
+    // Save the push token to the user's profile
+    const { error } = await supabase
+      .from('users')
+      .update({ push_token: pushToken })
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error saving push token:', error);
+      return null;
+    }
+
+    console.log('Push token registered successfully');
+    return pushToken;
+  } catch (error) {
+    console.log('Error registering push token:', error);
+    return null;
   }
 };
 
@@ -153,5 +195,26 @@ export const sendFriendCheckInNotification = async (friendEmail: string, courtNa
     });
   } catch (error) {
     console.log('Error sending friend check-in notification:', error);
+  }
+};
+
+export const sendFriendRequestNotification = async (requesterIdentifier: string) => {
+  try {
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) {
+      console.log('No notification permission, skipping notification');
+      return;
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'New Friend Request! 👋',
+        body: `${requesterIdentifier} wants to connect with you on PickleRadar`,
+        data: { requesterIdentifier, type: 'friend_request' },
+      },
+      trigger: null, // Immediate
+    });
+  } catch (error) {
+    console.log('Error sending friend request notification:', error);
   }
 };
