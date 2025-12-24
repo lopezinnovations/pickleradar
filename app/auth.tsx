@@ -184,7 +184,7 @@ export default function AuthScreen() {
       if (result.success) {
         Alert.alert(
           'Check Your Email',
-          'Password reset instructions have been sent to your email address.',
+          result.message || 'If an account exists with this email, you will receive password reset instructions shortly.',
           [
             {
               text: 'OK',
@@ -197,11 +197,36 @@ export default function AuthScreen() {
         );
       } else {
         console.log('AuthScreen: Password reset failed:', result.message);
-        Alert.alert('Error', result.message || 'Failed to send password reset email. Please try again.');
+        
+        // Check if it's an SMTP configuration error
+        if (result.error === 'SMTP_NOT_CONFIGURED') {
+          Alert.alert(
+            'Email Service Unavailable',
+            'The email service is currently not configured. Please contact support for assistance with password recovery.\n\nTechnical details: SMTP authentication is not properly set up on the server.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setIsForgotPassword(false);
+                },
+              },
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Error',
+            result.message || 'Unable to send password reset email. Please try again later.',
+            [
+              {
+                text: 'OK',
+              },
+            ]
+          );
+        }
       }
     } catch (error: any) {
       console.log('AuthScreen: Password reset error:', error);
-      Alert.alert('Error', error?.message || 'An unexpected error occurred. Please try again.');
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     } finally {
       setLoading(false);
     }

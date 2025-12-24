@@ -360,6 +360,21 @@ export const useAuth = () => {
 
       if (error) {
         console.log('useAuth: Password reset error:', error);
+        console.log('useAuth: Error details:', JSON.stringify(error, null, 2));
+        
+        // Check for SMTP configuration errors
+        if (error.message.includes('Error sending recovery email') || 
+            error.message.includes('authentication failed') ||
+            error.status === 500) {
+          console.log('useAuth: SMTP configuration error detected');
+          return {
+            success: false,
+            error: 'SMTP_NOT_CONFIGURED',
+            message: 'Email service is not configured. Please contact support or try again later.',
+            technicalDetails: 'The email server (SMTP) is not properly configured. This is a server configuration issue that needs to be fixed by the administrator.',
+          };
+        }
+        
         throw error;
       }
 
@@ -367,15 +382,16 @@ export const useAuth = () => {
       return { 
         success: true, 
         error: null, 
-        message: 'Password reset instructions have been sent to your email.',
+        message: 'If an account exists with this email, you will receive password reset instructions shortly.',
       };
     } catch (error: any) {
       console.log('useAuth: Password reset error:', error);
-      const errorMessage = error?.message || 'Failed to send password reset email. Please try again.';
+      
+      // Provide a generic message for security (don't reveal if email exists)
       return { 
         success: false, 
-        error: errorMessage, 
-        message: errorMessage,
+        error: error?.message || 'Failed to process password reset request', 
+        message: 'Unable to send password reset email. Please try again later or contact support.',
       };
     }
   };
