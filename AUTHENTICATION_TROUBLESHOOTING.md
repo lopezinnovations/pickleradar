@@ -1,127 +1,298 @@
 
 # Authentication Troubleshooting Guide
 
-## Current Authentication Method
+This guide helps resolve common authentication issues in PickleRadar.
 
-**PickleRadar now uses PHONE NUMBER + SMS OTP authentication only.**
+## Common Issues
 
-Email/password authentication has been disabled.
+### 1. "Error sending confirmation email"
 
-## Common Issues and Solutions
+**Symptoms:**
+- Users can't sign up
+- Error message: "Error sending confirmation email"
+- Logs show: "535 5.7.8 Error: authentication failed"
 
-### Issue 1: "Invalid login credentials" Error
-
-**Cause:** You're trying to log in with an old email/password account.
-
-**Solution:** 
-- The app now only supports phone number authentication
-- You'll need to create a new account using your phone number
-- Your old email-based account data is still in the database but cannot be accessed through the current app
-
-### Issue 2: "SMS service is not configured" Error
-
-**Cause:** Supabase SMS provider is not set up.
-
-**Solution:**
-1. Go to your Supabase Dashboard
-2. Navigate to Authentication → Providers
-3. Enable Phone authentication
-4. Configure an SMS provider (Twilio, MessageBird, or Vonage):
-   - **Twilio** (Recommended):
-     - Sign up at https://www.twilio.com
-     - Get your Account SID and Auth Token
-     - Get a Twilio phone number
-     - Add credentials to Supabase
-   - **MessageBird**:
-     - Sign up at https://www.messagebird.com
-     - Get your API key
-     - Add to Supabase
-   - **Vonage**:
-     - Sign up at https://www.vonage.com
-     - Get your API key and secret
-     - Add to Supabase
-
-### Issue 3: "Failed to send verification code"
-
-**Possible Causes:**
-- SMS provider not configured
-- SMS provider credentials invalid
-- SMS provider account has no credits
-- Rate limiting (too many requests)
-- Invalid phone number format
+**Cause:**
+Email verification is enabled in Supabase but SMTP is not configured.
 
 **Solutions:**
-- Verify SMS provider is configured correctly
-- Check SMS provider account balance
-- Wait a few minutes if rate limited
-- Ensure phone number is in format: +1XXXXXXXXXX (US numbers)
 
-### Issue 4: "Invalid or expired verification code"
+#### Quick Fix (Development):
+1. Go to Supabase Dashboard → Authentication → Providers → Email
+2. Disable "Confirm email"
+3. Save changes
 
-**Possible Causes:**
-- Code entered incorrectly
-- Code has expired (usually 5-10 minutes)
-- Code already used
+#### Proper Fix (Production):
+1. Go to Supabase Dashboard → Project Settings → Auth → SMTP Settings
+2. Configure your SMTP provider (Gmail, SendGrid, AWS SES, etc.)
+3. Test the configuration
+4. Save changes
+
+See [EMAIL_CONFIGURATION_GUIDE.md](./EMAIL_CONFIGURATION_GUIDE.md) for detailed instructions.
+
+---
+
+### 2. "Email not confirmed"
+
+**Symptoms:**
+- User can sign up but can't sign in
+- Error: "Please verify your email address before signing in"
+
+**Cause:**
+Email verification is enabled but user hasn't clicked the verification link.
 
 **Solutions:**
-- Double-check the code from your SMS
-- Request a new code if expired
-- Ensure you're entering the 6-digit code correctly
+- Check spam/junk folder for verification email
+- If no email received, SMTP may not be configured (see issue #1)
+- Admin can manually verify users in Supabase Dashboard
 
-## Testing Phone Authentication
+---
 
-### Test Phone Numbers (Supabase Development)
+### 3. "Invalid login credentials"
 
-You can configure test phone numbers in Supabase that don't require actual SMS:
+**Symptoms:**
+- User can't sign in
+- Error: "Invalid email or password"
 
-1. Go to Supabase Dashboard → Authentication → Settings
-2. Scroll to "Phone Auth"
-3. Add test phone numbers with fixed OTP codes
-4. Example: `+15555550100` with OTP `123456`
+**Possible Causes:**
+- Wrong password
+- Email not verified (if email confirmation is enabled)
+- User doesn't exist
 
-### Production Setup Checklist
+**Solutions:**
+- Double-check email and password
+- Ensure email is verified
+- Try password reset
+- Check if user exists in Supabase Dashboard
 
-- [ ] SMS provider configured in Supabase
-- [ ] SMS provider account has credits
-- [ ] Phone authentication enabled in Supabase
-- [ ] Test with real phone number
-- [ ] Verify OTP codes are being sent
-- [ ] Check Supabase auth logs for errors
+---
 
-## Current Database State
+### 4. Session not persisting
 
-The database contains:
-- **Phone users:** Can sign in with current app
-- **Email users:** Cannot sign in (authentication method changed)
+**Symptoms:**
+- User signs in successfully but is logged out on app restart
+- Session doesn't persist between app launches
 
-## Migration Path for Email Users
+**Cause:**
+AsyncStorage not properly configured or session storage failing.
 
-If you need to migrate email users to phone authentication:
+**Solutions:**
+- Check that AsyncStorage is properly installed
+- Clear app data and try again
+- Check console logs for storage errors
 
-1. **Option A:** Have users create new accounts with phone numbers
-2. **Option B:** Implement a migration flow:
-   - Add temporary email login
-   - Let users link phone number to existing account
-   - Remove email login after migration
+---
 
-## Checking Supabase Logs
+### 5. "Supabase Required" warning
 
-To debug authentication issues:
+**Symptoms:**
+- Warning message about Supabase not being configured
+- Authentication buttons disabled
+
+**Cause:**
+Supabase environment variables not set.
+
+**Solutions:**
+1. Create `.env` file in project root
+2. Add:
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=your-project-url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+3. Restart the development server
+
+---
+
+## Checking Logs
+
+### Supabase Logs:
+1. Go to Supabase Dashboard
+2. Navigate to Logs → Auth
+3. Look for error messages
+4. Common errors:
+   - SMTP authentication failures
+   - Invalid credentials
+   - Rate limiting
+
+### App Logs:
+Check the console for messages starting with:
+- `useAuth:`
+- `AuthScreen:`
+
+These provide detailed information about authentication flow.
+
+---
+
+## Email Verification Flow
+
+### Normal Flow:
+1. User signs up with email and password
+2. Supabase sends verification email
+3. User clicks link in email
+4. Email is verified
+5. User can now sign in
+
+### If SMTP Not Configured:
+1. User signs up
+2. Email sending fails
+3. User account is created but not verified
+4. User cannot sign in until email is verified
+5. Admin must manually verify or disable email confirmation
+
+---
+
+## Manual User Verification
+
+If you need to manually verify a user:
 
 1. Go to Supabase Dashboard
-2. Navigate to Logs → Auth Logs
-3. Look for:
-   - `user_confirmation_requested` - OTP sent successfully
-   - `token` errors - OTP verification failed
-   - `invalid_credentials` - Wrong authentication method
-   - `rate_limit` - Too many requests
+2. Navigate to Authentication → Users
+3. Find the user
+4. Click on the user
+5. Look for "Email Confirmed" field
+6. Manually set it to confirmed
 
-## Support
+---
 
-If you continue to have issues:
+## Testing Authentication
 
-1. Check the browser/app console logs
-2. Check Supabase auth logs
-3. Verify SMS provider configuration
-4. Ensure phone number format is correct (+1XXXXXXXXXX)
-5. Try with a test phone number first
+### Test Sign Up:
+```javascript
+// In your app
+1. Enter email: test@example.com
+2. Enter password: test123456
+3. Accept terms
+4. Click Sign Up
+5. Check for success message
+6. Check email for verification link
+```
+
+### Test Sign In:
+```javascript
+// In your app
+1. Enter verified email
+2. Enter correct password
+3. Click Sign In
+4. Should redirect to home screen
+```
+
+---
+
+## Environment Setup
+
+Required environment variables:
+```bash
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Get these from:
+1. Supabase Dashboard
+2. Project Settings → API
+3. Copy URL and anon/public key
+
+---
+
+## Database Setup
+
+Ensure the `users` table exists with proper columns:
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
+  email TEXT,
+  phone TEXT,
+  skill_level TEXT,
+  privacy_opt_in BOOLEAN DEFAULT FALSE,
+  notifications_enabled BOOLEAN DEFAULT FALSE,
+  location_enabled BOOLEAN DEFAULT FALSE,
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  zip_code TEXT,
+  dupr_rating DOUBLE PRECISION,
+  location_permission_requested BOOLEAN DEFAULT FALSE,
+  profile_picture_url TEXT,
+  terms_accepted BOOLEAN DEFAULT FALSE,
+  privacy_accepted BOOLEAN DEFAULT FALSE,
+  accepted_at TIMESTAMP WITH TIME ZONE,
+  accepted_version TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Users can view their own profile"
+  ON users FOR SELECT
+  USING (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile"
+  ON users FOR UPDATE
+  USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile"
+  ON users FOR INSERT
+  WITH CHECK (auth.uid() = id);
+```
+
+---
+
+## Common Error Messages
+
+### "Error sending confirmation email"
+→ See [EMAIL_CONFIGURATION_GUIDE.md](./EMAIL_CONFIGURATION_GUIDE.md)
+
+### "Email not confirmed"
+→ User needs to verify email or admin needs to disable email confirmation
+
+### "Invalid login credentials"
+→ Wrong email/password or email not verified
+
+### "User already registered"
+→ Email already exists, user should sign in instead
+
+### "Failed to create account"
+→ Check Supabase logs for specific error
+
+---
+
+## Getting Help
+
+1. Check this troubleshooting guide
+2. Check [EMAIL_CONFIGURATION_GUIDE.md](./EMAIL_CONFIGURATION_GUIDE.md)
+3. Review Supabase logs
+4. Check app console logs
+5. Review Supabase documentation
+6. Contact support with:
+   - Error message
+   - Steps to reproduce
+   - Console logs
+   - Supabase logs
+
+---
+
+## Best Practices
+
+### Development:
+- Disable email confirmation for faster testing
+- Use test email addresses
+- Clear app data between tests
+
+### Production:
+- Enable email confirmation
+- Configure proper SMTP
+- Use custom domain for emails
+- Monitor email delivery rates
+- Set up proper error tracking
+
+---
+
+## Security Notes
+
+- Never commit `.env` file to version control
+- Keep Supabase keys secure
+- Use Row Level Security (RLS) policies
+- Validate user input
+- Use HTTPS for all API calls
+- Implement rate limiting
+- Monitor for suspicious activity

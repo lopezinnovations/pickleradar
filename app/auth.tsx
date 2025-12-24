@@ -17,6 +17,7 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Clear any existing sessions on mount to ensure clean state
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function AuthScreen() {
       if (result.success) {
         Alert.alert(
           'Check Your Email',
-          'We sent you a verification link. Please check your email and click the link to verify your account before signing in.',
+          result.message || 'We sent you a verification link. Please check your email and click the link to verify your account before signing in.',
           [{ text: 'OK' }]
         );
         // Clear form
@@ -98,7 +99,18 @@ export default function AuthScreen() {
         setIsSignUp(false);
       } else {
         console.log('AuthScreen: Sign up failed:', result.message);
-        Alert.alert('Sign Up Failed', result.message || 'Failed to create account. Please try again.');
+        
+        // Special handling for email configuration issues
+        if (result.message?.includes('email verification is currently unavailable') || 
+            result.message?.includes('Email service is not configured')) {
+          Alert.alert(
+            'Email Configuration Issue',
+            result.message + '\n\nNote: This is a server configuration issue. The administrator needs to either:\n\n1. Configure SMTP settings in Supabase\n2. Disable email confirmation in Authentication settings',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert('Sign Up Failed', result.message || 'Failed to create account. Please try again.');
+        }
       }
     } catch (error: any) {
       console.log('AuthScreen: Sign up error:', error);
@@ -231,17 +243,31 @@ export default function AuthScreen() {
           />
 
           <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={commonStyles.input}
-            placeholder={isSignUp ? 'At least 6 characters' : 'Enter your password'}
-            placeholderTextColor={colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            editable={!loading}
-          />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={[commonStyles.input, styles.passwordInput]}
+              placeholder={isSignUp ? 'At least 6 characters' : 'Enter your password'}
+              placeholderTextColor={colors.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+            />
+            <TouchableOpacity
+              style={styles.showPasswordButton}
+              onPress={() => setShowPassword(!showPassword)}
+              disabled={loading}
+            >
+              <IconSymbol
+                ios_icon_name={showPassword ? 'eye.slash.fill' : 'eye.fill'}
+                android_material_icon_name={showPassword ? 'visibility_off' : 'visibility'}
+                size={20}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
 
           {isSignUp && (
             <View style={styles.consentContainer}>
@@ -343,6 +369,26 @@ export default function AuthScreen() {
           </View>
         )}
 
+        <View style={[commonStyles.card, { backgroundColor: colors.border, marginTop: 20, padding: 16 }]}>
+          <View style={styles.infoHeader}>
+            <IconSymbol 
+              ios_icon_name="info.circle.fill" 
+              android_material_icon_name="info" 
+              size={20} 
+              color={colors.primary} 
+            />
+            <Text style={[styles.infoTitle, { marginLeft: 8 }]}>
+              Email Verification
+            </Text>
+          </View>
+          <Text style={[styles.infoText, { marginTop: 8 }]}>
+            After signing up, you&apos;ll receive a verification email. Please check your inbox and click the link to verify your account before signing in.
+          </Text>
+          <Text style={[styles.infoText, { marginTop: 8, fontSize: 12, fontStyle: 'italic' }]}>
+            Note: If you don&apos;t receive an email, the email service may need to be configured by the administrator.
+          </Text>
+        </View>
+
         <LegalFooter />
       </ScrollView>
     </View>
@@ -387,6 +433,18 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
     marginTop: 12,
+  },
+  passwordContainer: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 48,
+  },
+  showPasswordButton: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+    padding: 8,
   },
   consentContainer: {
     marginTop: 16,
@@ -440,5 +498,19 @@ const styles = StyleSheet.create({
   warningHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
   },
 });

@@ -194,6 +194,56 @@ export const useAuth = () => {
             message: 'This email is already registered. Please sign in instead.',
           };
         }
+
+        // Handle SMTP/email sending errors
+        if (error.message.includes('Error sending confirmation email') || 
+            error.message.includes('authentication failed') ||
+            error.status === 500) {
+          console.log('useAuth: SMTP error detected - email confirmation may not be working');
+          
+          // Check if user was created despite the email error
+          if (data?.user) {
+            console.log('useAuth: User created despite email error, creating profile...');
+            
+            // Create user profile with consent
+            const now = new Date().toISOString();
+            
+            const { error: profileError } = await supabase
+              .from('users')
+              .insert([
+                {
+                  id: data.user.id,
+                  email: data.user.email || email,
+                  phone: null,
+                  privacy_opt_in: false,
+                  notifications_enabled: false,
+                  location_enabled: false,
+                  location_permission_requested: false,
+                  terms_accepted: true,
+                  privacy_accepted: true,
+                  accepted_at: now,
+                  accepted_version: CURRENT_TERMS_VERSION,
+                },
+              ]);
+
+            if (profileError) {
+              console.log('useAuth: Profile creation error:', profileError);
+            }
+
+            return {
+              success: false,
+              error: 'Email configuration issue',
+              message: 'Account created but email verification is currently unavailable. Please contact support or try signing in directly. Your account may need to be manually verified.',
+              requiresManualVerification: true,
+            };
+          }
+          
+          return {
+            success: false,
+            error: error.message,
+            message: 'Unable to send verification email. Email service is not configured. Please contact the administrator to set up SMTP or disable email confirmation.',
+          };
+        }
         
         throw error;
       }
@@ -233,7 +283,7 @@ export const useAuth = () => {
       return { 
         success: true, 
         error: null, 
-        message: 'Account created successfully. Please check your email to verify your account.',
+        message: 'Account created successfully! Please check your email to verify your account before signing in.',
       };
     } catch (error: any) {
       console.log('useAuth: Sign up error:', error);
@@ -264,7 +314,7 @@ export const useAuth = () => {
           return {
             success: false,
             error: error.message,
-            message: 'Please verify your email address before signing in. Check your inbox for the verification link.',
+            message: 'Please verify your email address before signing in. Check your inbox for the verification link. If you did not receive an email, the email service may not be configured.',
           };
         }
         
