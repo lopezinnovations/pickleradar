@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
+import { supabase } from '@/app/integrations/supabase/client';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -16,6 +17,22 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
+
+  // Clear any existing sessions on mount to ensure clean state
+  useEffect(() => {
+    const clearOldSessions = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && !session.user.phone) {
+          console.log('AuthScreen: Clearing old non-phone session');
+          await supabase.auth.signOut();
+        }
+      } catch (error) {
+        console.log('AuthScreen: Error clearing old sessions:', error);
+      }
+    };
+    clearOldSessions();
+  }, []);
 
   const formatPhoneNumber = (text: string) => {
     // Remove all non-numeric characters
@@ -70,7 +87,7 @@ export default function AuthScreen() {
 
     try {
       const cleanPhone = getCleanPhoneNumber(phoneNumber);
-      console.log('Sending OTP to:', cleanPhone);
+      console.log('AuthScreen: Sending OTP to:', cleanPhone);
       
       const result = await sendOtp(cleanPhone);
       
@@ -82,10 +99,11 @@ export default function AuthScreen() {
           [{ text: 'OK' }]
         );
       } else {
+        console.log('AuthScreen: Send OTP failed:', result.message);
         Alert.alert('Error', result.message || 'Failed to send verification code. Please try again.');
       }
     } catch (error: any) {
-      console.log('Send OTP error:', error);
+      console.log('AuthScreen: Send OTP error:', error);
       Alert.alert('Error', error?.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -107,7 +125,8 @@ export default function AuthScreen() {
 
     try {
       const cleanPhone = getCleanPhoneNumber(phoneNumber);
-      console.log('Verifying OTP for:', cleanPhone);
+      console.log('AuthScreen: Verifying OTP for:', cleanPhone);
+      console.log('AuthScreen: OTP code:', otpCode);
       
       const result = await verifyOtp(cleanPhone, otpCode, consentAccepted);
       
@@ -131,10 +150,11 @@ export default function AuthScreen() {
           ]
         );
       } else {
+        console.log('AuthScreen: Verify OTP failed:', result.message);
         Alert.alert('Verification Failed', result.message || 'Invalid or expired verification code. Please try again.');
       }
     } catch (error: any) {
-      console.log('Verify OTP error:', error);
+      console.log('AuthScreen: Verify OTP error:', error);
       Alert.alert('Error', error?.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -285,6 +305,7 @@ export default function AuthScreen() {
                 autoCorrect={false}
                 editable={!loading}
                 maxLength={6}
+                autoFocus
               />
 
               <TouchableOpacity

@@ -93,6 +93,7 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="welcome" />
               <Stack.Screen name="auth" />
+              <Stack.Screen name="auth-migration-notice" />
               <Stack.Screen name="(tabs)" />
             </Stack>
             <SystemBars style={"auto"} />

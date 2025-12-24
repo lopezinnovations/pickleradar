@@ -1,119 +1,127 @@
 
 # Authentication Troubleshooting Guide
 
-## Issue: Sign In Not Working
+## Current Authentication Method
 
-### Problem
-Users are unable to sign in after creating an account. The error message shows "Invalid login credentials" even though the email and password are correct.
+**PickleRadar now uses PHONE NUMBER + SMS OTP authentication only.**
 
-### Root Cause
-**Email verification is enabled in Supabase**, but the app was designed to work with email verification disabled. When email verification is enabled:
+Email/password authentication has been disabled.
 
-1. Users can create accounts successfully
-2. However, they cannot sign in until they verify their email
-3. The verification email may fail to send due to SMTP configuration issues
-4. Users get stuck unable to access their accounts
+## Common Issues and Solutions
 
-### Solution Options
+### Issue 1: "Invalid login credentials" Error
 
-#### Option 1: Disable Email Verification (Recommended for Development)
+**Cause:** You're trying to log in with an old email/password account.
 
+**Solution:** 
+- The app now only supports phone number authentication
+- You'll need to create a new account using your phone number
+- Your old email-based account data is still in the database but cannot be accessed through the current app
+
+### Issue 2: "SMS service is not configured" Error
+
+**Cause:** Supabase SMS provider is not set up.
+
+**Solution:**
 1. Go to your Supabase Dashboard
-2. Navigate to **Authentication** → **Providers** → **Email**
-3. Uncheck **"Confirm email"**
-4. Save changes
+2. Navigate to Authentication → Providers
+3. Enable Phone authentication
+4. Configure an SMS provider (Twilio, MessageBird, or Vonage):
+   - **Twilio** (Recommended):
+     - Sign up at https://www.twilio.com
+     - Get your Account SID and Auth Token
+     - Get a Twilio phone number
+     - Add credentials to Supabase
+   - **MessageBird**:
+     - Sign up at https://www.messagebird.com
+     - Get your API key
+     - Add to Supabase
+   - **Vonage**:
+     - Sign up at https://www.vonage.com
+     - Get your API key and secret
+     - Add to Supabase
 
-This allows users to sign in immediately after creating an account without email verification.
+### Issue 3: "Failed to send verification code"
 
-#### Option 2: Fix Existing Unverified Users (Quick Fix)
+**Possible Causes:**
+- SMS provider not configured
+- SMS provider credentials invalid
+- SMS provider account has no credits
+- Rate limiting (too many requests)
+- Invalid phone number format
 
-If you already have users who can't sign in because their email isn't verified, run this SQL query in the Supabase SQL Editor:
+**Solutions:**
+- Verify SMS provider is configured correctly
+- Check SMS provider account balance
+- Wait a few minutes if rate limited
+- Ensure phone number is in format: +1XXXXXXXXXX (US numbers)
 
-```sql
--- Confirm all unverified users
-UPDATE auth.users 
-SET email_confirmed_at = NOW()
-WHERE email_confirmed_at IS NULL;
-```
+### Issue 4: "Invalid or expired verification code"
 
-Or for a specific user:
+**Possible Causes:**
+- Code entered incorrectly
+- Code has expired (usually 5-10 minutes)
+- Code already used
 
-```sql
--- Confirm a specific user by email
-UPDATE auth.users 
-SET email_confirmed_at = NOW()
-WHERE email = 'user@example.com' 
-  AND email_confirmed_at IS NULL;
-```
+**Solutions:**
+- Double-check the code from your SMS
+- Request a new code if expired
+- Ensure you're entering the 6-digit code correctly
 
-#### Option 3: Configure SMTP for Email Verification (Production)
+## Testing Phone Authentication
 
-If you want to keep email verification enabled:
+### Test Phone Numbers (Supabase Development)
 
-1. Go to **Project Settings** → **Auth** → **SMTP Settings**
-2. Configure your SMTP provider (SendGrid, Mailgun, AWS SES, etc.)
-3. Test the email sending functionality
-4. Ensure the email templates are configured correctly
+You can configure test phone numbers in Supabase that don't require actual SMS:
 
-### Current App Behavior
+1. Go to Supabase Dashboard → Authentication → Settings
+2. Scroll to "Phone Auth"
+3. Add test phone numbers with fixed OTP codes
+4. Example: `+15555550100` with OTP `123456`
 
-The app now handles both scenarios:
+### Production Setup Checklist
 
-**Email Verification Disabled:**
-- Users are automatically logged in after signup
-- Redirected to the home screen immediately
-- Success message: "Account created successfully. Welcome to PickleRadar."
+- [ ] SMS provider configured in Supabase
+- [ ] SMS provider account has credits
+- [ ] Phone authentication enabled in Supabase
+- [ ] Test with real phone number
+- [ ] Verify OTP codes are being sent
+- [ ] Check Supabase auth logs for errors
 
-**Email Verification Enabled:**
-- Users receive a message to check their email
-- Cannot sign in until email is verified
-- Clear error messages guide users through the process
+## Current Database State
 
-### Testing Authentication
+The database contains:
+- **Phone users:** Can sign in with current app
+- **Email users:** Cannot sign in (authentication method changed)
 
-To test if authentication is working:
+## Migration Path for Email Users
 
-1. **Create a new account** with a test email
-2. **Check the Supabase logs** for any errors:
-   - Go to **Logs** → **Auth Logs**
-   - Look for "Invalid login credentials" or "Email not confirmed" errors
-3. **Verify the user in the database**:
-   ```sql
-   SELECT email, email_confirmed_at, confirmed_at 
-   FROM auth.users 
-   ORDER BY created_at DESC 
-   LIMIT 5;
-   ```
-4. **Try signing in** with the test account
+If you need to migrate email users to phone authentication:
 
-### Common Error Messages
+1. **Option A:** Have users create new accounts with phone numbers
+2. **Option B:** Implement a migration flow:
+   - Add temporary email login
+   - Let users link phone number to existing account
+   - Remove email login after migration
 
-- **"Invalid login credentials"**: Usually means email is not verified (if verification is enabled)
-- **"Email not confirmed"**: Email verification is enabled and user hasn't clicked the verification link
-- **"User already registered"**: Account exists, try signing in instead
-- **"Error sending confirmation email"**: SMTP is not configured properly
+## Checking Supabase Logs
 
-### Logs to Check
+To debug authentication issues:
 
-When debugging authentication issues, check:
+1. Go to Supabase Dashboard
+2. Navigate to Logs → Auth Logs
+3. Look for:
+   - `user_confirmation_requested` - OTP sent successfully
+   - `token` errors - OTP verification failed
+   - `invalid_credentials` - Wrong authentication method
+   - `rate_limit` - Too many requests
 
-1. **Supabase Auth Logs**: Shows all authentication attempts and errors
-2. **App Console Logs**: Look for messages starting with "useAuth:"
-3. **Network Tab**: Check the actual API responses from Supabase
+## Support
 
-### Prevention
+If you continue to have issues:
 
-To avoid this issue in the future:
-
-1. **Decide early** whether you want email verification enabled or disabled
-2. **Configure SMTP** if you enable email verification
-3. **Test the full signup/signin flow** before deploying
-4. **Monitor auth logs** for any errors
-
-### Current Status
-
-✅ **Fixed**: The user `cdlopez8@gmail.com` has been manually verified and can now sign in.
-
-✅ **Updated**: The app now provides clear error messages for email verification issues.
-
-⚠️ **Recommendation**: Disable email verification in Supabase for development, or configure SMTP for production.
+1. Check the browser/app console logs
+2. Check Supabase auth logs
+3. Verify SMS provider configuration
+4. Ensure phone number format is correct (+1XXXXXXXXXX)
+5. Try with a test phone number first

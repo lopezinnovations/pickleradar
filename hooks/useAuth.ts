@@ -35,7 +35,16 @@ export const useAuth = () => {
       } else {
         console.log('useAuth: Current session:', session ? 'Active' : 'None');
         if (session?.user) {
-          fetchUserProfile(session.user.id, session.user.phone || '');
+          // Verify this is a phone-based session
+          if (session.user.phone) {
+            console.log('useAuth: Valid phone session found');
+            fetchUserProfile(session.user.id, session.user.phone);
+          } else {
+            console.log('useAuth: Session exists but no phone number - clearing invalid session');
+            supabase.auth.signOut().then(() => {
+              setLoading(false);
+            });
+          }
         } else {
           setLoading(false);
         }
@@ -45,7 +54,13 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('useAuth: Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
       if (session?.user) {
-        fetchUserProfile(session.user.id, session.user.phone || '');
+        if (session.user.phone) {
+          fetchUserProfile(session.user.id, session.user.phone);
+        } else {
+          console.log('useAuth: Invalid session without phone number');
+          setUser(null);
+          setLoading(false);
+        }
       } else {
         setUser(null);
         setLoading(false);
@@ -151,12 +166,17 @@ export const useAuth = () => {
     try {
       console.log('useAuth: Sending OTP to:', phone);
       
+      // Ensure we're using phone OTP, not email
       const { data, error } = await supabase.auth.signInWithOtp({
         phone,
+        options: {
+          channel: 'sms',
+        },
       });
 
       if (error) {
         console.log('useAuth: Send OTP error:', error);
+        console.log('useAuth: Error details:', JSON.stringify(error, null, 2));
         
         // Handle specific error cases
         if (error.message.toLowerCase().includes('rate limit')) {
@@ -164,6 +184,14 @@ export const useAuth = () => {
             success: false,
             error: error.message,
             message: 'Too many requests. Please wait a few minutes before trying again.',
+          };
+        }
+        
+        if (error.message.toLowerCase().includes('sms') || error.message.toLowerCase().includes('provider')) {
+          return {
+            success: false,
+            error: error.message,
+            message: 'SMS service is not configured. Please contact support or check your Supabase SMS provider settings.',
           };
         }
         
@@ -191,6 +219,7 @@ export const useAuth = () => {
   const verifyOtp = async (phone: string, token: string, consentAccepted: boolean = false) => {
     try {
       console.log('useAuth: Verifying OTP for:', phone);
+      console.log('useAuth: Token:', token);
       
       if (!consentAccepted) {
         return {
@@ -208,6 +237,7 @@ export const useAuth = () => {
 
       if (error) {
         console.log('useAuth: Verify OTP error:', error);
+        console.log('useAuth: Error details:', JSON.stringify(error, null, 2));
         
         // Handle specific error cases
         if (error.message.toLowerCase().includes('invalid') || error.message.toLowerCase().includes('expired')) {
@@ -215,6 +245,14 @@ export const useAuth = () => {
             success: false,
             error: error.message,
             message: 'Invalid or expired verification code. Please try again.',
+          };
+        }
+        
+        if (error.message.toLowerCase().includes('token')) {
+          return {
+            success: false,
+            error: error.message,
+            message: 'The verification code you entered is incorrect. Please check and try again.',
           };
         }
         
@@ -226,6 +264,7 @@ export const useAuth = () => {
       // Check if we have both user and session
       if (data.user && data.session) {
         console.log('useAuth: User verified and logged in');
+        console.log('useAuth: User phone:', data.user.phone);
         
         // Create or update user profile with consent
         const now = new Date().toISOString();
@@ -265,6 +304,7 @@ export const useAuth = () => {
         };
       } else {
         console.log('useAuth: Unexpected verify response - no user or session returned');
+        console.log('useAuth: Data:', JSON.stringify(data, null, 2));
         return {
           success: false,
           error: 'Verification failed',
