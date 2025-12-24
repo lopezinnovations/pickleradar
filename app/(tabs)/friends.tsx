@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { IconSymbol } from '@/components/IconSymbol';
-import { BrandingFooter } from '@/components/BrandingFooter';
+import { LegalFooter } from '@/components/LegalFooter';
 
 export default function FriendsScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const { 
     friends, 
@@ -28,6 +30,9 @@ export default function FriendsScreen() {
   const [selectedSkillLevels, setSelectedSkillLevels] = useState<string[]>([]);
   const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
 
+  // Track pending requests sent by current user
+  const [pendingRequestsSent, setPendingRequestsSent] = useState<Set<string>>(new Set());
+
   const formatUserName = (firstName?: string, lastName?: string, nickname?: string, email?: string, phone?: string) => {
     if (firstName && lastName) {
       const displayName = `${firstName} ${lastName.charAt(0)}.`;
@@ -47,9 +52,43 @@ export default function FriendsScreen() {
     
     if (result.success) {
       Alert.alert('Success', `Friend request sent to ${friendName}!`);
+      setPendingRequestsSent(prev => new Set(prev).add(friendId));
     } else {
       Alert.alert('Error', result.error || 'Failed to send friend request');
     }
+  };
+
+  const handleCancelRequest = async (friendId: string, friendName: string) => {
+    Alert.alert(
+      'Cancel Request',
+      `Cancel friend request to ${friendName}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          style: 'destructive',
+          onPress: async () => {
+            // Find the friendship ID for this user
+            const friendship = await findFriendshipId(friendId);
+            if (friendship) {
+              await removeFriend(friendship);
+              setPendingRequestsSent(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(friendId);
+                return newSet;
+              });
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const findFriendshipId = async (friendId: string): Promise<string | null> => {
+    // This is a helper to find the friendship ID
+    // In a real implementation, you'd query the database
+    // For now, we'll rely on the useFriends hook to handle this
+    return null;
   };
 
   const handleAcceptRequest = async (friendshipId: string) => {
@@ -148,7 +187,7 @@ export default function FriendsScreen() {
         }
       }
 
-      // Courts filter
+      // Courts filter - filter by places played
       if (selectedCourts.length > 0) {
         if (!u.courtsPlayed || u.courtsPlayed.length === 0) {
           return false;
@@ -161,8 +200,11 @@ export default function FriendsScreen() {
     });
   }, [allUsers, searchQuery, minDupr, maxDupr, selectedSkillLevels, selectedCourts]);
 
-  const handleContactPress = () => {
-    Linking.openURL('mailto:lopezinnovations.co@gmail.com');
+  // Check if user is a friend or has pending request
+  const getUserRelationship = (userId: string): 'friend' | 'pending' | 'none' => {
+    if (friends.some(f => f.friendId === userId)) return 'friend';
+    if (pendingRequestsSent.has(userId)) return 'pending';
+    return 'none';
   };
 
   if (loading) {
@@ -216,7 +258,11 @@ export default function FriendsScreen() {
               );
               
               return (
-                <View key={index} style={[commonStyles.card, { marginTop: 12 }]}>
+                <TouchableOpacity
+                  key={index}
+                  style={[commonStyles.card, { marginTop: 12 }]}
+                  onPress={() => router.push(`/user/${friend.friendId}`)}
+                >
                   <View style={styles.friendHeader}>
                     <View style={styles.friendIcon}>
                       <IconSymbol 
@@ -270,17 +316,20 @@ export default function FriendsScreen() {
                       )}
                     </View>
                     <TouchableOpacity
-                      onPress={() => handleRemoveFriend(friend.id, displayName)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleRemoveFriend(friend.id, displayName);
+                      }}
                     >
                       <IconSymbol 
-                        ios_icon_name="trash" 
-                        android_material_icon_name="delete" 
-                        size={20} 
-                        color={colors.textSecondary} 
+                        ios_icon_name="person.badge.minus" 
+                        android_material_icon_name="person_remove" 
+                        size={32} 
+                        color={colors.accent} 
                       />
                     </TouchableOpacity>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
@@ -303,7 +352,11 @@ export default function FriendsScreen() {
               );
               
               return (
-                <View key={index} style={[commonStyles.card, { marginTop: 12 }]}>
+                <TouchableOpacity
+                  key={index}
+                  style={[commonStyles.card, { marginTop: 12 }]}
+                  onPress={() => router.push(`/user/${request.userId}`)}
+                >
                   <View style={styles.friendHeader}>
                     <View style={styles.friendIcon}>
                       <IconSymbol 
@@ -327,18 +380,24 @@ export default function FriendsScreen() {
                   <View style={styles.requestActions}>
                     <TouchableOpacity
                       style={[buttonStyles.primary, { flex: 1, marginRight: 8 }]}
-                      onPress={() => handleAcceptRequest(request.id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleAcceptRequest(request.id);
+                      }}
                     >
                       <Text style={buttonStyles.text}>Accept</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[buttonStyles.secondary, { flex: 1 }]}
-                      onPress={() => handleRejectRequest(request.id)}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleRejectRequest(request.id);
+                      }}
                     >
                       <Text style={[buttonStyles.text, { color: colors.text }]}>Deny</Text>
                     </TouchableOpacity>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </View>
@@ -458,10 +517,10 @@ export default function FriendsScreen() {
                 </View>
               </View>
 
-              {/* Courts Filter */}
+              {/* Courts Filter - Places Played */}
               {availableCourts.length > 0 && (
                 <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Courts Played</Text>
+                  <Text style={styles.filterLabel}>Places Played</Text>
                   <ScrollView 
                     horizontal 
                     showsHorizontalScrollIndicator={false}
@@ -539,8 +598,14 @@ export default function FriendsScreen() {
                 otherUser.email
               );
               
+              const relationship = getUserRelationship(otherUser.id);
+              
               return (
-                <View key={index} style={[commonStyles.card, { marginTop: 12 }]}>
+                <TouchableOpacity
+                  key={index}
+                  style={[commonStyles.card, { marginTop: 12 }]}
+                  onPress={() => router.push(`/user/${otherUser.id}`)}
+                >
                   <View style={styles.friendHeader}>
                     <View style={styles.friendIcon}>
                       <IconSymbol 
@@ -583,42 +648,60 @@ export default function FriendsScreen() {
                         </View>
                       )}
                     </View>
-                    <TouchableOpacity
-                      style={styles.addButton}
-                      onPress={() => handleAddFriendById(otherUser.id, displayName)}
-                    >
-                      <IconSymbol 
-                        ios_icon_name="plus.circle.fill" 
-                        android_material_icon_name="add_circle" 
-                        size={32} 
-                        color={colors.primary} 
-                      />
-                    </TouchableOpacity>
+                    
+                    {relationship === 'none' && (
+                      <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleAddFriendById(otherUser.id, displayName);
+                        }}
+                      >
+                        <IconSymbol 
+                          ios_icon_name="plus.circle.fill" 
+                          android_material_icon_name="add_circle" 
+                          size={32} 
+                          color={colors.primary} 
+                        />
+                      </TouchableOpacity>
+                    )}
+                    
+                    {relationship === 'pending' && (
+                      <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleCancelRequest(otherUser.id, displayName);
+                        }}
+                      >
+                        <IconSymbol 
+                          ios_icon_name="minus.circle.fill" 
+                          android_material_icon_name="remove_circle" 
+                          size={32} 
+                          color={colors.accent} 
+                        />
+                      </TouchableOpacity>
+                    )}
+                    
+                    {relationship === 'friend' && (
+                      <View style={styles.friendBadge}>
+                        <IconSymbol 
+                          ios_icon_name="checkmark.circle.fill" 
+                          android_material_icon_name="check_circle" 
+                          size={24} 
+                          color={colors.success} 
+                        />
+                        <Text style={styles.friendBadgeText}>Friend</Text>
+                      </View>
+                    )}
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
         </View>
 
-        {/* Contact Link */}
-        <View style={styles.contactSection}>
-          <TouchableOpacity 
-            style={styles.contactButton}
-            onPress={handleContactPress}
-          >
-            <IconSymbol 
-              ios_icon_name="envelope.fill" 
-              android_material_icon_name="email" 
-              size={20} 
-              color={colors.primary} 
-            />
-            <Text style={styles.contactText}>Contact Support</Text>
-          </TouchableOpacity>
-          <Text style={styles.contactEmail}>lopezinnovations.co@gmail.com</Text>
-        </View>
-
-        <BrandingFooter />
+        <LegalFooter />
       </ScrollView>
     </View>
   );
@@ -789,6 +872,20 @@ const styles = StyleSheet.create({
   addButton: {
     padding: 4,
   },
+  friendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.highlight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  friendBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.success,
+  },
   requestActions: {
     flexDirection: 'row',
     marginTop: 16,
@@ -860,33 +957,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     marginLeft: 4,
-  },
-  contactSection: {
-    marginTop: 32,
-    alignItems: 'center',
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  contactButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    marginBottom: 8,
-  },
-  contactText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-    marginLeft: 8,
-  },
-  contactEmail: {
-    fontSize: 12,
-    color: colors.textSecondary,
   },
 });

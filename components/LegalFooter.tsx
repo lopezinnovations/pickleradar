@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { BrandingFooter } from './BrandingFooter';
@@ -8,9 +8,19 @@ import { BrandingFooter } from './BrandingFooter';
 export function LegalFooter() {
   const router = useRouter();
 
+  const handleContactPress = () => {
+    Linking.openURL('mailto:lopezinnovations.co@gmail.com');
+  };
+
   return (
     <View style={styles.footer}>
       <View style={styles.linksContainer}>
+        <TouchableOpacity onPress={handleContactPress}>
+          <Text style={styles.link}>Contact Support</Text>
+        </TouchableOpacity>
+        
+        <Text style={styles.separator}>•</Text>
+        
         <TouchableOpacity onPress={() => router.push('/legal/privacy-policy')}>
           <Text style={styles.link}>Privacy Policy</Text>
         </TouchableOpacity>

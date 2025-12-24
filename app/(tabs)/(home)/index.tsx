@@ -9,6 +9,7 @@ import { useLocation } from '@/hooks/useLocation';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars } from '@/components/SkillLevelBars';
 import { AddCourtModal } from '@/components/AddCourtModal';
+import { LegalFooter } from '@/components/LegalFooter';
 import { SortOption, FilterOptions } from '@/types';
 import { calculateDistance } from '@/utils/locationUtils';
 
@@ -630,6 +631,8 @@ export default function HomeScreen() {
             </View>
           </>
         )}
+
+        <LegalFooter />
       </ScrollView>
 
       <AddCourtModal
