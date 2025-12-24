@@ -13,6 +13,7 @@ interface UserWithStatus {
   experience_level?: string;
   dupr_rating?: number;
   isAtCourt: boolean;
+  courtsPlayed?: string[];
 }
 
 export const useFriends = (userId: string | undefined) => {
@@ -68,12 +69,33 @@ export const useFriends = (userId: string | undefined) => {
         (existingRelationships || []).flatMap(r => [r.user_id, r.friend_id]).filter(id => id !== userId)
       );
 
+      // Get courts played by each user
+      const { data: userCheckIns, error: userCheckInsError } = await supabase
+        .from('check_ins')
+        .select('user_id, court_id, courts(name)');
+
+      if (userCheckInsError) throw userCheckInsError;
+
+      // Create a map of user_id to courts played
+      const userCourtsMap = new Map<string, Set<string>>();
+      (userCheckIns || []).forEach((checkIn: any) => {
+        if (checkIn.courts?.name) {
+          if (!userCourtsMap.has(checkIn.user_id)) {
+            userCourtsMap.set(checkIn.user_id, new Set());
+          }
+          userCourtsMap.get(checkIn.user_id)?.add(checkIn.courts.name);
+        }
+      });
+
       // Filter out users who are already friends or have pending requests
       const usersWithStatus: UserWithStatus[] = (users || [])
         .filter(user => !relatedUserIds.has(user.id))
         .map(user => ({
           ...user,
           isAtCourt: checkedInUserIds.has(user.id),
+          courtsPlayed: userCourtsMap.has(user.id) 
+            ? Array.from(userCourtsMap.get(user.id)!) 
+            : [],
         }));
 
       setAllUsers(usersWithStatus);

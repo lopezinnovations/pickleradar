@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, ActivityIndicator, Linking } from 'react-native';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
@@ -20,6 +20,13 @@ export default function FriendsScreen() {
     removeFriend 
   } = useFriends(user?.id);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Filter states
+  const [minDupr, setMinDupr] = useState('');
+  const [maxDupr, setMaxDupr] = useState('');
+  const [selectedSkillLevels, setSelectedSkillLevels] = useState<string[]>([]);
+  const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
 
   const formatUserName = (firstName?: string, lastName?: string, nickname?: string, email?: string, phone?: string) => {
     if (firstName && lastName) {
@@ -69,21 +76,94 @@ export default function FriendsScreen() {
     );
   };
 
-  // Filter users based on search query
-  const filteredUsers = allUsers.filter(u => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    const firstName = u.first_name?.toLowerCase() || '';
-    const lastName = u.last_name?.toLowerCase() || '';
-    const nickname = u.pickleballer_nickname?.toLowerCase() || '';
-    const email = u.email?.toLowerCase() || '';
-    
-    return firstName.includes(query) || 
-           lastName.includes(query) || 
-           nickname.includes(query) || 
-           email.includes(query);
-  });
+  const toggleSkillLevel = (level: string) => {
+    setSelectedSkillLevels(prev => 
+      prev.includes(level) 
+        ? prev.filter(l => l !== level)
+        : [...prev, level]
+    );
+  };
+
+  const toggleCourt = (courtName: string) => {
+    setSelectedCourts(prev => 
+      prev.includes(courtName) 
+        ? prev.filter(c => c !== courtName)
+        : [...prev, courtName]
+    );
+  };
+
+  const clearFilters = () => {
+    setMinDupr('');
+    setMaxDupr('');
+    setSelectedSkillLevels([]);
+    setSelectedCourts([]);
+  };
+
+  const hasActiveFilters = minDupr || maxDupr || selectedSkillLevels.length > 0 || selectedCourts.length > 0;
+
+  // Get unique courts from all users
+  const availableCourts = useMemo(() => {
+    const courts = new Set<string>();
+    allUsers.forEach(user => {
+      if (user.courtsPlayed && user.courtsPlayed.length > 0) {
+        user.courtsPlayed.forEach(court => courts.add(court));
+      }
+    });
+    return Array.from(courts).sort();
+  }, [allUsers]);
+
+  // Filter users based on search query and filters
+  const filteredUsers = useMemo(() => {
+    return allUsers.filter(u => {
+      // Search query filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const firstName = u.first_name?.toLowerCase() || '';
+        const lastName = u.last_name?.toLowerCase() || '';
+        const nickname = u.pickleballer_nickname?.toLowerCase() || '';
+        const email = u.email?.toLowerCase() || '';
+        
+        const matchesSearch = firstName.includes(query) || 
+               lastName.includes(query) || 
+               nickname.includes(query) || 
+               email.includes(query);
+        
+        if (!matchesSearch) return false;
+      }
+
+      // DUPR filter
+      if (minDupr && u.dupr_rating !== undefined && u.dupr_rating !== null) {
+        const min = parseFloat(minDupr);
+        if (!isNaN(min) && u.dupr_rating < min) return false;
+      }
+      if (maxDupr && u.dupr_rating !== undefined && u.dupr_rating !== null) {
+        const max = parseFloat(maxDupr);
+        if (!isNaN(max) && u.dupr_rating > max) return false;
+      }
+
+      // Skill level filter
+      if (selectedSkillLevels.length > 0) {
+        if (!u.experience_level || !selectedSkillLevels.includes(u.experience_level)) {
+          return false;
+        }
+      }
+
+      // Courts filter
+      if (selectedCourts.length > 0) {
+        if (!u.courtsPlayed || u.courtsPlayed.length === 0) {
+          return false;
+        }
+        const hasMatchingCourt = u.courtsPlayed.some(court => selectedCourts.includes(court));
+        if (!hasMatchingCourt) return false;
+      }
+
+      return true;
+    });
+  }, [allUsers, searchQuery, minDupr, maxDupr, selectedSkillLevels, selectedCourts]);
+
+  const handleContactPress = () => {
+    Linking.openURL('mailto:lopezinnovations.co@gmail.com');
+  };
 
   if (loading) {
     return (
@@ -298,6 +378,135 @@ export default function FriendsScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Filter Toggle Button */}
+          <TouchableOpacity 
+            style={[styles.filterButton, hasActiveFilters && styles.filterButtonActive]}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <IconSymbol 
+              ios_icon_name="line.3.horizontal.decrease.circle" 
+              android_material_icon_name="filter_list" 
+              size={20} 
+              color={hasActiveFilters ? colors.card : colors.text} 
+            />
+            <Text style={[styles.filterButtonText, hasActiveFilters && styles.filterButtonTextActive]}>
+              Filters {hasActiveFilters && `(${[minDupr, maxDupr, ...selectedSkillLevels, ...selectedCourts].filter(Boolean).length})`}
+            </Text>
+            <IconSymbol 
+              ios_icon_name={showFilters ? "chevron.up" : "chevron.down"} 
+              android_material_icon_name={showFilters ? "expand_less" : "expand_more"} 
+              size={20} 
+              color={hasActiveFilters ? colors.card : colors.text} 
+            />
+          </TouchableOpacity>
+
+          {/* Filters Panel */}
+          {showFilters && (
+            <View style={styles.filtersPanel}>
+              {/* DUPR Rating Filter */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>DUPR Rating</Text>
+                <View style={styles.duprInputs}>
+                  <View style={styles.duprInputContainer}>
+                    <Text style={styles.duprInputLabel}>Min</Text>
+                    <TextInput
+                      style={styles.duprInput}
+                      placeholder="0.0"
+                      placeholderTextColor={colors.textSecondary}
+                      value={minDupr}
+                      onChangeText={setMinDupr}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <Text style={styles.duprSeparator}>-</Text>
+                  <View style={styles.duprInputContainer}>
+                    <Text style={styles.duprInputLabel}>Max</Text>
+                    <TextInput
+                      style={styles.duprInput}
+                      placeholder="8.0"
+                      placeholderTextColor={colors.textSecondary}
+                      value={maxDupr}
+                      onChangeText={setMaxDupr}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Skill Level Filter */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterLabel}>Skill Level</Text>
+                <View style={styles.chipContainer}>
+                  {['Beginner', 'Intermediate', 'Advanced'].map((level) => (
+                    <TouchableOpacity
+                      key={level}
+                      style={[
+                        styles.chip,
+                        selectedSkillLevels.includes(level) && styles.chipSelected
+                      ]}
+                      onPress={() => toggleSkillLevel(level)}
+                    >
+                      <Text style={[
+                        styles.chipText,
+                        selectedSkillLevels.includes(level) && styles.chipTextSelected
+                      ]}>
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Courts Filter */}
+              {availableCourts.length > 0 && (
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Courts Played</Text>
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.courtsScrollView}
+                  >
+                    <View style={styles.chipContainer}>
+                      {availableCourts.map((court) => (
+                        <TouchableOpacity
+                          key={court}
+                          style={[
+                            styles.chip,
+                            selectedCourts.includes(court) && styles.chipSelected
+                          ]}
+                          onPress={() => toggleCourt(court)}
+                        >
+                          <Text style={[
+                            styles.chipText,
+                            selectedCourts.includes(court) && styles.chipTextSelected
+                          ]}>
+                            {court}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <TouchableOpacity 
+                  style={styles.clearFiltersButton}
+                  onPress={clearFilters}
+                >
+                  <IconSymbol 
+                    ios_icon_name="xmark.circle" 
+                    android_material_icon_name="clear" 
+                    size={18} 
+                    color={colors.primary} 
+                  />
+                  <Text style={styles.clearFiltersText}>Clear All Filters</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         {/* All Users List */}
@@ -306,7 +515,7 @@ export default function FriendsScreen() {
             All Users ({filteredUsers.length})
           </Text>
           <Text style={[commonStyles.textSecondary, { marginTop: 4, marginBottom: 8 }]}>
-            {searchQuery.trim() ? 'Search results' : 'All players in the app'}
+            {searchQuery.trim() || hasActiveFilters ? 'Search results' : 'All players in the app'}
           </Text>
           
           {filteredUsers.length === 0 ? (
@@ -318,7 +527,7 @@ export default function FriendsScreen() {
                 color={colors.textSecondary} 
               />
               <Text style={[commonStyles.textSecondary, { marginTop: 16, textAlign: 'center' }]}>
-                {searchQuery.trim() ? 'No users found matching your search' : 'No other users in the app yet'}
+                {searchQuery.trim() || hasActiveFilters ? 'No users found matching your criteria' : 'No other users in the app yet'}
               </Text>
             </View>
           ) : (
@@ -349,6 +558,19 @@ export default function FriendsScreen() {
                           {otherUser.dupr_rating && ` • DUPR: ${otherUser.dupr_rating}`}
                         </Text>
                       )}
+                      {otherUser.courtsPlayed && otherUser.courtsPlayed.length > 0 && (
+                        <View style={styles.courtsPlayedContainer}>
+                          <IconSymbol 
+                            ios_icon_name="location.fill" 
+                            android_material_icon_name="location_on" 
+                            size={12} 
+                            color={colors.textSecondary} 
+                          />
+                          <Text style={styles.courtsPlayedText}>
+                            Played at {otherUser.courtsPlayed.length} court{otherUser.courtsPlayed.length !== 1 ? 's' : ''}
+                          </Text>
+                        </View>
+                      )}
                       {otherUser.isAtCourt ? (
                         <View style={styles.offlineContainer}>
                           <View style={styles.onlineDot} />
@@ -377,6 +599,23 @@ export default function FriendsScreen() {
               );
             })
           )}
+        </View>
+
+        {/* Contact Link */}
+        <View style={styles.contactSection}>
+          <TouchableOpacity 
+            style={styles.contactButton}
+            onPress={handleContactPress}
+          >
+            <IconSymbol 
+              ios_icon_name="envelope.fill" 
+              android_material_icon_name="email" 
+              size={20} 
+              color={colors.primary} 
+            />
+            <Text style={styles.contactText}>Contact Support</Text>
+          </TouchableOpacity>
+          <Text style={styles.contactEmail}>lopezinnovations.co@gmail.com</Text>
         </View>
 
         <BrandingFooter />
@@ -416,6 +655,120 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginLeft: 12,
     marginRight: 12,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  filterButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 8,
+    marginRight: 8,
+  },
+  filterButtonTextActive: {
+    color: colors.card,
+  },
+  filtersPanel: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  duprInputs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  duprInputContainer: {
+    flex: 1,
+  },
+  duprInputLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  duprInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: colors.text,
+  },
+  duprSeparator: {
+    fontSize: 18,
+    color: colors.textSecondary,
+    marginHorizontal: 12,
+    marginTop: 18,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  chipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  chipText: {
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  chipTextSelected: {
+    color: colors.card,
+    fontWeight: '600',
+  },
+  courtsScrollView: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 6,
   },
   friendHeader: {
     flexDirection: 'row',
@@ -497,5 +850,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.success,
     fontWeight: '600',
+  },
+  courtsPlayedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  courtsPlayedText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginLeft: 4,
+  },
+  contactSection: {
+    marginTop: 32,
+    alignItems: 'center',
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  contactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  contactText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 8,
+  },
+  contactEmail: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 });
