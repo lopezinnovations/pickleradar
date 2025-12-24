@@ -223,6 +223,31 @@ export default function ProfileScreen() {
     Alert.alert('Success', 'Profile updated successfully!');
   };
 
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('ProfileScreen: Signing out...');
+              await signOut();
+              console.log('ProfileScreen: Sign out successful');
+              router.replace('/auth');
+            } catch (error) {
+              console.log('ProfileScreen: Sign out error:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
     const date = new Date(dateString);
@@ -743,7 +768,13 @@ export default function ProfileScreen() {
             style={[buttonStyles.secondary, { marginTop: 12 }]}
             onPress={handleSignOut}
           >
-            <Text style={[buttonStyles.text, { color: colors.accent }]}>Sign Out</Text>
+            <IconSymbol 
+              ios_icon_name="rectangle.portrait.and.arrow.right" 
+              android_material_icon_name="logout" 
+              size={20} 
+              color={colors.accent} 
+            />
+            <Text style={[buttonStyles.text, { color: colors.accent, marginLeft: 8 }]}>Sign Out</Text>
           </TouchableOpacity>
         )}
 

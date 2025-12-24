@@ -281,17 +281,17 @@ export default function FriendsScreen() {
                           {friend.friendDuprRating && ` • DUPR: ${friend.friendDuprRating}`}
                         </Text>
                       )}
-                      {friend.currentCourtName && (
+                      {friend.currentCourtName ? (
                         <View style={styles.playingContainer}>
-                          <View style={styles.playingBadge}>
+                          <View style={styles.atCourtBadge}>
                             <IconSymbol 
                               ios_icon_name="location.fill" 
                               android_material_icon_name="location_on" 
-                              size={14} 
-                              color={colors.accent} 
+                              size={16} 
+                              color={colors.card} 
                             />
-                            <Text style={styles.playingText}>
-                              Playing at {friend.currentCourtName}
+                            <Text style={styles.atCourtText}>
+                              At {friend.currentCourtName}
                             </Text>
                           </View>
                           {friend.remainingTime && (
@@ -308,6 +308,11 @@ export default function FriendsScreen() {
                               </Text>
                             </View>
                           )}
+                        </View>
+                      ) : (
+                        <View style={styles.offlineContainer}>
+                          <View style={styles.offlineDot} />
+                          <Text style={styles.offlineText}>Not at a court</Text>
                         </View>
                       )}
                     </View>
@@ -373,28 +378,49 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   playingContainer: {
-    marginTop: 4,
+    marginTop: 8,
   },
-  playingBadge: {
+  atCourtBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    backgroundColor: colors.success,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
   },
-  playingText: {
-    fontSize: 12,
-    color: colors.accent,
-    fontWeight: '600',
+  atCourtText: {
+    fontSize: 13,
+    color: colors.card,
+    fontWeight: '700',
     marginLeft: 4,
   },
   timeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
   timeText: {
     fontSize: 12,
     color: colors.primary,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  offlineContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  offlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.textSecondary,
+    marginRight: 6,
+  },
+  offlineText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
 });
