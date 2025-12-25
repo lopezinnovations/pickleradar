@@ -13,7 +13,7 @@ import { supabase } from '@/app/integrations/supabase/client';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, signOut, updateUserProfile, uploadProfilePicture, loading: authLoading, needsConsentUpdate, acceptConsent, refetchUser } = useAuth();
+  const { user, signOut, updateUserProfile, uploadProfilePicture, authLoading, needsConsentUpdate, acceptConsent, refetchUser } = useAuth();
   const { checkInHistory, getUserCheckIn, checkOut, getRemainingTime, loading: historyLoading, refetch: refetchCheckIns } = useCheckIn(user?.id);
   
   const [firstName, setFirstName] = useState('');
@@ -36,16 +36,16 @@ export default function ProfileScreen() {
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
 
-  // Auto-refresh when screen comes into focus
+  // Auto-refresh when screen comes into focus - only refetch if user exists
   useFocusEffect(
     useCallback(() => {
+      if (!user) return;
+      
       console.log('ProfileScreen: Screen focused, refreshing data');
-      if (user) {
-        refetchUser();
-        refetchCheckIns();
-        loadCurrentCheckIn();
-      }
-    }, [user, refetchUser, refetchCheckIns])
+      refetchUser();
+      refetchCheckIns();
+      loadCurrentCheckIn();
+    }, [user?.id])
   );
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
       setCurrentCheckIn(null);
       setRemainingTime(null);
     }
-  }, [user, getUserCheckIn, getRemainingTime]);
+  }, [user?.id, getUserCheckIn, getRemainingTime]);
 
   useEffect(() => {
     if (user && !hasLoadedCheckIn.current) {

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { User } from '@/types';
 import { registerPushToken } from '@/utils/notifications';
@@ -13,84 +13,7 @@ export const useAuth = () => {
   const hasInitialized = useRef(false);
   const isInitializing = useRef(false);
 
-  useEffect(() => {
-    // Prevent multiple simultaneous initializations
-    if (hasInitialized.current || isInitializing.current) {
-      return;
-    }
-    
-    isInitializing.current = true;
-    console.log('useAuth: Initializing...');
-    
-    const configured = isSupabaseConfigured();
-    setIsConfigured(configured);
-    console.log('useAuth: Supabase configured:', configured);
-    
-    if (!configured) {
-      console.log('useAuth: Supabase not configured, skipping auth');
-      setLoading(false);
-      isInitializing.current = false;
-      hasInitialized.current = true;
-      return;
-    }
-
-    const initAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.log('useAuth: Error getting session:', error);
-          setLoading(false);
-        } else {
-          console.log('useAuth: Current session:', session ? 'Active' : 'None');
-          if (session?.user) {
-            // Verify this is an email-based session
-            if (session.user.email) {
-              console.log('useAuth: Valid email session found');
-              await fetchUserProfile(session.user.id, session.user.email);
-            } else {
-              console.log('useAuth: Session exists but no email - clearing invalid session');
-              await supabase.auth.signOut();
-              setLoading(false);
-            }
-          } else {
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        console.log('useAuth: Error in initAuth:', error);
-        setLoading(false);
-      } finally {
-        isInitializing.current = false;
-        hasInitialized.current = true;
-      }
-    };
-
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('useAuth: Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
-      if (session?.user) {
-        if (session.user.email) {
-          await fetchUserProfile(session.user.id, session.user.email);
-        } else {
-          console.log('useAuth: Invalid session without email');
-          setUser(null);
-          setLoading(false);
-        }
-      } else {
-        setUser(null);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      console.log('useAuth: Cleaning up subscription');
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const fetchUserProfile = async (userId: string, email: string) => {
+  const fetchUserProfile = useCallback(async (userId: string, email: string) => {
     console.log('useAuth: Fetching user profile for:', userId);
     try {
       const { data, error } = await supabase
@@ -184,24 +107,100 @@ export const useAuth = () => {
       // Register push token after user profile is loaded
       console.log('useAuth: Registering push token for user:', userId);
       registerPushToken(userId).catch(err => {
-        console.log('useAuth: Failed to register push token:', err);
+        console.log('Error registering push token:', err);
       });
     } catch (error) {
       console.log('useAuth: Error in fetchUserProfile:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const refetchUser = async () => {
+  useEffect(() => {
+    // Prevent multiple simultaneous initializations
+    if (hasInitialized.current || isInitializing.current) {
+      return;
+    }
+    
+    isInitializing.current = true;
+    console.log('useAuth: Initializing...');
+    
+    const configured = isSupabaseConfigured();
+    setIsConfigured(configured);
+    console.log('useAuth: Supabase configured:', configured);
+    
+    if (!configured) {
+      console.log('useAuth: Supabase not configured, skipping auth');
+      setLoading(false);
+      isInitializing.current = false;
+      hasInitialized.current = true;
+      return;
+    }
+
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.log('useAuth: Error getting session:', error);
+          setLoading(false);
+        } else {
+          console.log('useAuth: Current session:', session ? 'Active' : 'None');
+          if (session?.user) {
+            // Verify this is an email-based session
+            if (session.user.email) {
+              console.log('useAuth: Valid email session found');
+              await fetchUserProfile(session.user.id, session.user.email);
+            } else {
+              console.log('useAuth: Session exists but no email - clearing invalid session');
+              await supabase.auth.signOut();
+              setLoading(false);
+            }
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.log('useAuth: Error in initAuth:', error);
+        setLoading(false);
+      } finally {
+        isInitializing.current = false;
+        hasInitialized.current = true;
+      }
+    };
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      console.log('useAuth: Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
+      if (session?.user) {
+        if (session.user.email) {
+          await fetchUserProfile(session.user.id, session.user.email);
+        } else {
+          console.log('useAuth: Invalid session without email');
+          setUser(null);
+          setLoading(false);
+        }
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      console.log('useAuth: Cleaning up subscription');
+      subscription.unsubscribe();
+    };
+  }, [fetchUserProfile]);
+
+  const refetchUser = useCallback(async () => {
     if (!user) {
       console.log('useAuth: Cannot refetch - no user');
       return;
     }
     console.log('useAuth: Refetching user profile');
-    setLoading(true);
     await fetchUserProfile(user.id, user.email || '');
-  };
+  }, [user, fetchUserProfile]);
 
   const signUp = async (
     email: string, 
@@ -495,7 +494,7 @@ export const useAuth = () => {
     }
   };
 
-  const updateUserProfile = async (updates: Partial<User>) => {
+  const updateUserProfile = useCallback(async (updates: Partial<User>) => {
     if (!user) {
       console.log('useAuth: Cannot update profile - no user');
       return;
@@ -537,7 +536,7 @@ export const useAuth = () => {
     } catch (error) {
       console.log('useAuth: Update profile error:', error);
     }
-  };
+  }, [user]);
 
   const uploadProfilePicture = async (uri: string): Promise<{ success: boolean; url?: string; error?: string }> => {
     if (!user) {
@@ -618,14 +617,14 @@ export const useAuth = () => {
     }
   };
 
-  const needsConsentUpdate = (): boolean => {
+  const needsConsentUpdate = useCallback((): boolean => {
     if (!user) return false;
     if (!user.termsAccepted || !user.privacyAccepted) return true;
     if (user.acceptedVersion !== CURRENT_TERMS_VERSION) return true;
     return false;
-  };
+  }, [user]);
 
-  const acceptConsent = async (): Promise<{ success: boolean; error?: string }> => {
+  const acceptConsent = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!user) {
       return { success: false, error: 'No user logged in' };
     }
@@ -643,11 +642,12 @@ export const useAuth = () => {
       console.log('useAuth: Accept consent error:', error);
       return { success: false, error: error.message || 'Failed to update consent' };
     }
-  };
+  }, [user, updateUserProfile]);
 
   return {
     user,
-    loading,
+    loading: loading,
+    authLoading: loading,
     isConfigured,
     signUp,
     signIn,

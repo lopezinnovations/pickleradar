@@ -29,11 +29,12 @@ export default function HomeScreen() {
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [showAddCourtModal, setShowAddCourtModal] = useState(false);
 
+  // Only refetch when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log('HomeScreen: Screen focused, refreshing courts data');
       refetch();
-    }, [refetch])
+    }, [])
   );
 
   // Calculate distances and apply sorting/filtering

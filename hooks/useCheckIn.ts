@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { scheduleCheckInNotification, cancelCheckOutNotification, sendManualCheckOutNotification } from '@/utils/notifications';
 
@@ -28,13 +28,7 @@ export const useCheckIn = (userId?: string) => {
   const [loading, setLoading] = useState(false);
   const [checkInHistory, setCheckInHistory] = useState<CheckInHistory[]>([]);
 
-  useEffect(() => {
-    if (userId) {
-      fetchCheckInHistory(userId);
-    }
-  }, [userId]);
-
-  const fetchCheckInHistory = async (userId: string) => {
+  const fetchCheckInHistory = useCallback(async (userId: string) => {
     if (!isSupabaseConfigured()) {
       console.log('Supabase not configured - no check-in history');
       return;
@@ -68,14 +62,20 @@ export const useCheckIn = (userId?: string) => {
     } catch (error) {
       console.log('Error fetching check-in history:', error);
     }
-  };
+  }, []);
 
-  const refetch = async () => {
+  useEffect(() => {
+    if (userId) {
+      fetchCheckInHistory(userId);
+    }
+  }, [userId, fetchCheckInHistory]);
+
+  const refetch = useCallback(async () => {
     if (userId) {
       console.log('useCheckIn: Refetching check-in history');
       await fetchCheckInHistory(userId);
     }
-  };
+  }, [userId, fetchCheckInHistory]);
 
   const checkIn = async (
     userId: string,
