@@ -339,7 +339,7 @@ export default function FriendsScreen() {
                               color={colors.card} 
                             />
                             <Text style={styles.atCourtText}>
-                              At {friend.currentCourtName}
+                              Playing at {friend.currentCourtName}
                             </Text>
                           </View>
                           {friend.remainingTime && (
@@ -360,7 +360,7 @@ export default function FriendsScreen() {
                       ) : (
                         <View style={styles.offlineContainer}>
                           <View style={styles.offlineDot} />
-                          <Text style={styles.offlineText}>Not at a court</Text>
+                          <Text style={styles.offlineText}>Not currently on a court</Text>
                         </View>
                       )}
                     </View>
@@ -694,12 +694,12 @@ export default function FriendsScreen() {
                       {otherUser.isAtCourt ? (
                         <View style={styles.offlineContainer}>
                           <View style={styles.onlineDot} />
-                          <Text style={styles.onlineText}>At a court</Text>
+                          <Text style={styles.onlineText}>Currently on a court</Text>
                         </View>
                       ) : (
                         <View style={styles.offlineContainer}>
                           <View style={styles.offlineDot} />
-                          <Text style={styles.offlineText}>Not at a court</Text>
+                          <Text style={styles.offlineText}>Not currently on a court</Text>
                         </View>
                       )}
                     </View>

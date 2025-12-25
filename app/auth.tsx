@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, Image, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,6 +24,7 @@ export default function AuthScreen() {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showEmailConfirmationModal, setShowEmailConfirmationModal] = useState(false);
 
   // Clear any existing sessions on mount to ensure clean state
   useEffect(() => {
@@ -133,8 +134,9 @@ export default function AuthScreen() {
         setDuprRating('');
         setExperienceLevel('Beginner');
         setConsentAccepted(false);
-        // Redirect to home immediately
-        router.replace('/(tabs)/(home)/');
+        
+        // Show email confirmation modal
+        setShowEmailConfirmationModal(true);
       } else {
         console.log('AuthScreen: Sign up failed:', result.message);
         Alert.alert('Sign Up Failed', result.message || 'Failed to create account. Please try again.');
@@ -296,6 +298,12 @@ export default function AuthScreen() {
     setIsSignUp(false);
     setPassword('');
     setConsentAccepted(false);
+  };
+
+  const handleCloseEmailConfirmationModal = () => {
+    setShowEmailConfirmationModal(false);
+    // Redirect to home after closing modal
+    router.replace('/(tabs)/(home)/');
   };
 
   const experienceLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['Beginner', 'Intermediate', 'Advanced'];
@@ -593,6 +601,44 @@ export default function AuthScreen() {
 
         <LegalFooter />
       </ScrollView>
+
+      {/* Email Confirmation Modal */}
+      <Modal
+        visible={showEmailConfirmationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseEmailConfirmationModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <IconSymbol 
+                ios_icon_name="envelope.fill" 
+                android_material_icon_name="mail" 
+                size={64} 
+                color={colors.primary} 
+              />
+            </View>
+            
+            <Text style={styles.modalTitle}>Check Your Email</Text>
+            
+            <Text style={styles.modalMessage}>
+              We&apos;ve sent a confirmation email to verify your account. Please check your inbox and click the confirmation link to complete your registration.
+            </Text>
+            
+            <Text style={[styles.modalMessage, { marginTop: 16, fontSize: 14, fontStyle: 'italic' }]}>
+              Don&apos;t forget to check your spam folder if you don&apos;t see it!
+            </Text>
+            
+            <TouchableOpacity
+              style={[buttonStyles.primary, { marginTop: 24, width: '100%' }]}
+              onPress={handleCloseEmailConfirmationModal}
+            >
+              <Text style={buttonStyles.text}>Got It</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -736,5 +782,50 @@ const styles = StyleSheet.create({
   warningHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });
