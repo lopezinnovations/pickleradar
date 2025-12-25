@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const [acceptingConsent, setAcceptingConsent] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
@@ -60,15 +61,17 @@ export default function ProfileScreen() {
       setNotificationsEnabled(user.notificationsEnabled);
       setLocationEnabled(user.locationEnabled);
       hasLoadedUserData.current = true;
+      setHasInitialized(true);
       
       // Check if consent needs to be updated
       if (needsConsentUpdate()) {
         setShowConsentPrompt(true);
       }
-    } else if (!user) {
+    } else if (!user && !authLoading && hasInitialized) {
+      // Only reset if we've initialized and now there's no user
       hasLoadedUserData.current = false;
     }
-  }, [user, needsConsentUpdate]);
+  }, [user, authLoading, needsConsentUpdate, hasInitialized]);
 
   const loadCurrentCheckIn = useCallback(async () => {
     if (!user) return;
@@ -87,12 +90,12 @@ export default function ProfileScreen() {
     if (user && !hasLoadedCheckIn.current) {
       loadCurrentCheckIn();
       hasLoadedCheckIn.current = true;
-    } else if (!user) {
+    } else if (!user && !authLoading && hasInitialized) {
       hasLoadedCheckIn.current = false;
       setCurrentCheckIn(null);
       setRemainingTime(null);
     }
-  }, [user, loadCurrentCheckIn]);
+  }, [user, authLoading, loadCurrentCheckIn, hasInitialized]);
 
   useEffect(() => {
     if (currentCheckIn?.expires_at) {
@@ -331,7 +334,8 @@ export default function ProfileScreen() {
     });
   };
 
-  if (authLoading) {
+  // Show loading state while auth is initializing OR if we haven't initialized yet
+  if (authLoading || !hasInitialized) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -340,7 +344,8 @@ export default function ProfileScreen() {
     );
   }
 
-  if (!user) {
+  // Only show "Not Logged In" if we're done loading, initialized, and there's no user
+  if (!user && !authLoading && hasInitialized) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
         <View style={styles.emptyStateIcon}>

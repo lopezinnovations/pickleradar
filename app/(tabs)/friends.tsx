@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
@@ -36,11 +36,22 @@ export default function FriendsScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log('FriendsScreen: Screen focused, refreshing data');
+      console.log('FriendsScreen: Current user:', user?.id);
       if (user) {
         refetch();
       }
     }, [user, refetch])
   );
+
+  // Log friends data when it changes
+  useEffect(() => {
+    console.log('FriendsScreen: Friends data updated:', {
+      friendsCount: friends.length,
+      pendingRequestsCount: pendingRequests.length,
+      allUsersCount: allUsers.length,
+      loading
+    });
+  }, [friends, pendingRequests, allUsers, loading]);
 
   const formatUserName = (firstName?: string, lastName?: string, nickname?: string, email?: string, phone?: string) => {
     if (firstName && lastName) {
@@ -57,11 +68,11 @@ export default function FriendsScreen() {
   };
 
   const handleAddFriendById = async (friendId: string, friendName: string) => {
-    console.log('handleAddFriendById called for:', friendId, friendName);
+    console.log('FriendsScreen: handleAddFriendById called for:', friendId, friendName);
     
     // Prevent multiple simultaneous requests
     if (sendingRequestTo) {
-      console.log('Already sending a request, ignoring');
+      console.log('FriendsScreen: Already sending a request, ignoring');
       return;
     }
     
@@ -69,7 +80,7 @@ export default function FriendsScreen() {
     
     try {
       const result = await sendFriendRequestById(friendId);
-      console.log('sendFriendRequestById result:', result);
+      console.log('FriendsScreen: sendFriendRequestById result:', result);
       
       if (result.success) {
         Alert.alert('Success', `Friend request sent to ${friendName}!`);
@@ -77,7 +88,7 @@ export default function FriendsScreen() {
         Alert.alert('Error', result.error || 'Failed to send friend request');
       }
     } catch (error) {
-      console.error('Error in handleAddFriendById:', error);
+      console.error('FriendsScreen: Error in handleAddFriendById:', error);
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setSendingRequestTo(null);
@@ -214,6 +225,34 @@ export default function FriendsScreen() {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading friends...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <View style={styles.emptyStateIcon}>
+          <IconSymbol 
+            ios_icon_name="person.2.slash" 
+            android_material_icon_name="people_outline" 
+            size={64} 
+            color={colors.textSecondary} 
+          />
+        </View>
+        <Text style={[commonStyles.title, { marginTop: 16, textAlign: 'center' }]}>
+          Not Logged In
+        </Text>
+        <Text style={[commonStyles.textSecondary, { marginTop: 8, textAlign: 'center' }]}>
+          Sign in to view and manage your friends
+        </Text>
+        <TouchableOpacity
+          style={[buttonStyles.primary, { marginTop: 24 }]}
+          onPress={() => router.push('/auth')}
+        >
+          <Text style={buttonStyles.text}>Sign In</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -969,5 +1008,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     marginLeft: 4,
+  },
+  emptyStateIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
