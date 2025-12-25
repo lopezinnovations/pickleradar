@@ -10,12 +10,12 @@ import { LegalFooter } from '@/components/LegalFooter';
 
 export default function FriendsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { 
     friends, 
     pendingRequests, 
     allUsers, 
-    loading, 
+    loading: friendsLoading, 
     sendFriendRequestById, 
     acceptFriendRequest, 
     rejectFriendRequest, 
@@ -49,9 +49,9 @@ export default function FriendsScreen() {
       friendsCount: friends.length,
       pendingRequestsCount: pendingRequests.length,
       allUsersCount: allUsers.length,
-      loading
+      loading: friendsLoading
     });
-  }, [friends, pendingRequests, allUsers, loading]);
+  }, [friends, pendingRequests, allUsers, friendsLoading]);
 
   const formatUserName = (firstName?: string, lastName?: string, nickname?: string, email?: string, phone?: string) => {
     if (firstName && lastName) {
@@ -221,15 +221,17 @@ export default function FriendsScreen() {
     });
   }, [allUsers, searchQuery, minDupr, maxDupr, selectedSkillLevels, selectedCourts]);
 
-  if (loading) {
+  // Show loading state only while auth is initializing
+  if (authLoading) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading friends...</Text>
+        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading...</Text>
       </View>
     );
   }
 
+  // Show "Not Logged In" only after auth has finished loading
   if (!user) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
@@ -277,7 +279,12 @@ export default function FriendsScreen() {
             My Friends ({friends.length})
           </Text>
           
-          {friends.length === 0 ? (
+          {friendsLoading ? (
+            <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading friends...</Text>
+            </View>
+          ) : friends.length === 0 ? (
             <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
               <IconSymbol 
                 ios_icon_name="person.2.slash" 
@@ -619,7 +626,12 @@ export default function FriendsScreen() {
             {searchQuery.trim() || hasActiveFilters ? 'Search results' : 'All players in the app'}
           </Text>
           
-          {filteredUsers.length === 0 ? (
+          {friendsLoading ? (
+            <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading users...</Text>
+            </View>
+          ) : filteredUsers.length === 0 ? (
             <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
               <IconSymbol 
                 ios_icon_name="person.crop.circle.badge.questionmark" 
