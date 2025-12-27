@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Linking, ActivityIndicator } 
 import { useRouter } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 import { BrandingFooter } from './BrandingFooter';
-import { IconSymbol } from './IconSymbol';
 
 interface LegalFooterProps {
   showLegalCompliance?: boolean;
@@ -56,15 +55,7 @@ export function LegalFooter({
           <React.Fragment>
             <Text style={styles.separator}>•</Text>
             <TouchableOpacity onPress={onLegalCompliancePress}>
-              <View style={styles.linkWithIcon}>
-                <IconSymbol 
-                  ios_icon_name="checkmark.shield.fill" 
-                  android_material_icon_name="verified_user" 
-                  size={14} 
-                  color={colors.success} 
-                />
-                <Text style={[styles.link, { color: colors.success }]}>Legal Compliance</Text>
-              </View>
+              <Text style={[styles.link, { color: colors.success }]}>Legal Compliance</Text>
             </TouchableOpacity>
           </React.Fragment>
         )}
@@ -73,21 +64,11 @@ export function LegalFooter({
           <React.Fragment>
             <Text style={styles.separator}>•</Text>
             <TouchableOpacity onPress={onDeleteAccountPress} disabled={deletingAccount}>
-              <View style={styles.linkWithIcon}>
-                {deletingAccount ? (
-                  <ActivityIndicator color={colors.accent} size="small" />
-                ) : (
-                  <React.Fragment>
-                    <IconSymbol 
-                      ios_icon_name="trash.fill" 
-                      android_material_icon_name="delete_forever" 
-                      size={14} 
-                      color={colors.accent} 
-                    />
-                    <Text style={[styles.link, { color: colors.accent }]}>Delete Account</Text>
-                  </React.Fragment>
-                )}
-              </View>
+              {deletingAccount ? (
+                <ActivityIndicator color={colors.accent} size="small" />
+              ) : (
+                <Text style={[styles.link, { color: colors.accent }]}>Delete Account</Text>
+              )}
             </TouchableOpacity>
           </React.Fragment>
         )}
@@ -121,13 +102,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primary,
     fontWeight: '500',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  linkWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },

@@ -868,12 +868,6 @@ export default function ProfileScreen() {
               style={styles.signOutButton}
               onPress={handleSignOut}
             >
-              <IconSymbol 
-                ios_icon_name="rectangle.portrait.and.arrow.right" 
-                android_material_icon_name="logout" 
-                size={20} 
-                color={colors.card} 
-              />
               <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
           </View>
