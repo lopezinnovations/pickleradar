@@ -434,7 +434,7 @@ export const useAuth = () => {
       const { data, error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: 'https://natively.dev/magic-link',
+          emailRedirectTo: 'natively://magic-link',
         },
       });
 
@@ -479,9 +479,9 @@ export const useAuth = () => {
     try {
       console.log('useAuth: Requesting password reset for:', email);
       
-      // Use the natively.dev redirect URL
+      // Use the natively://magic-link deep link for password reset as well
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://natively.dev/reset-password',
+        redirectTo: 'natively://magic-link',
       });
 
       if (error) {

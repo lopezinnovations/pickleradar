@@ -22,7 +22,7 @@ export default function MagicLinkScreen() {
     
     try {
       // Wait a moment for the session to be established
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Check if user is now authenticated
       const { data: { session }, error } = await supabase.auth.getSession();
@@ -49,10 +49,10 @@ export default function MagicLinkScreen() {
         setSuccess(true);
         setVerifying(false);
         
-        // Redirect to home after 2 seconds
+        // Redirect to home after 2.5 seconds
         setTimeout(() => {
           router.replace('/(tabs)/(home)/');
-        }, 2000);
+        }, 2500);
       } else {
         console.log('MagicLinkScreen: No session found, redirecting to auth...');
         setVerifying(false);
@@ -99,18 +99,14 @@ export default function MagicLinkScreen() {
             />
           </View>
 
-          <Text style={styles.title}>You&apos;re signed in. Welcome back!</Text>
-
-          {firstName && (
-            <View style={styles.welcomeBox}>
-              <Text style={styles.welcomeText}>
+          <View style={styles.bannerContainer}>
+            <Text style={styles.bannerTitle}>You&apos;re signed in. Welcome back!</Text>
+            {firstName && (
+              <Text style={styles.bannerSubtitle}>
                 Welcome back, {firstName}!
               </Text>
-              <Text style={styles.welcomeSubtext}>
-                Enjoy PickleRadar.
-              </Text>
-            </View>
-          )}
+            )}
+          </View>
 
           <Text style={[styles.message, { marginTop: 24 }]}>
             Redirecting you to the app...
@@ -150,15 +146,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
-  title: {
-    fontSize: 24,
+  bannerContainer: {
+    backgroundColor: colors.highlight,
+    paddingVertical: 24,
+    paddingHorizontal: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 400,
+  },
+  bannerTitle: {
+    fontSize: 22,
     fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+    lineHeight: 30,
+  },
+  bannerSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 32,
+    lineHeight: 26,
   },
   message: {
     fontSize: 16,
@@ -166,26 +178,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginTop: 16,
-  },
-  welcomeBox: {
-    backgroundColor: colors.highlight,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 32,
-    alignItems: 'center',
-  },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.primary,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  welcomeSubtext: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    textAlign: 'center',
   },
 });

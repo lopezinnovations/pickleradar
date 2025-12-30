@@ -33,19 +33,8 @@
           "autoVerify": true,
           "data": [
             {
-              "scheme": "https",
-              "host": "natively.dev",
-              "pathPrefix": "/email-confirmed"
-            },
-            {
-              "scheme": "https",
-              "host": "natively.dev",
-              "pathPrefix": "/reset-password"
-            },
-            {
-              "scheme": "https",
-              "host": "natively.dev",
-              "pathPrefix": "/magic-link"
+              "scheme": "natively",
+              "host": "magic-link"
             }
           ],
           "category": [
