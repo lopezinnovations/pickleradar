@@ -15,10 +15,15 @@ export default function RootLayout() {
       // Parse the URL
       const url = Linking.parse(event.url);
       console.log('Parsed URL:', url);
+      console.log('URL path:', url.path);
+      console.log('URL hostname:', url.hostname);
       
       // Check if this is a magic link
       if (url.path === 'magic-link' || url.hostname === 'magic-link') {
         console.log('Magic link deep link detected');
+        
+        // Wait a moment for the session to be established
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Verify we have a valid session
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -27,10 +32,13 @@ export default function RootLayout() {
           console.log('Error getting session:', error);
         } else if (session) {
           console.log('Valid session found for magic link');
+          console.log('User email:', session.user.email);
           // Navigate directly to home with success message
           router.replace('/(tabs)/(home)/');
         } else {
           console.log('No session found - user may need to click the link again');
+          // Navigate to magic-link screen which will handle the flow
+          router.replace('/magic-link');
         }
         return;
       }
@@ -38,6 +46,9 @@ export default function RootLayout() {
       // Check if this is a password reset link
       if (url.path === 'reset-password' || url.hostname === 'reset-password') {
         console.log('Password reset deep link detected');
+        
+        // Wait a moment for the session to be established
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Verify we have a valid session
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -59,6 +70,9 @@ export default function RootLayout() {
       // Check if this is an email confirmation link
       if (url.path === 'email-confirmed' || url.hostname === 'email-confirmed') {
         console.log('Email confirmation deep link detected');
+        
+        // Wait a moment for the session to be established
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         // Verify we have a valid session
         const { data: { session }, error } = await supabase.auth.getSession();

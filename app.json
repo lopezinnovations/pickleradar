@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "PickleRadar",
@@ -40,6 +41,11 @@
               "scheme": "https",
               "host": "natively.dev",
               "pathPrefix": "/reset-password"
+            },
+            {
+              "scheme": "https",
+              "host": "natively.dev",
+              "pathPrefix": "/magic-link"
             }
           ],
           "category": [
@@ -65,6 +71,5 @@
     "extra": {
       "router": {}
     }
-  },
-  "scheme": "PickleRadar"
+  }
 }
