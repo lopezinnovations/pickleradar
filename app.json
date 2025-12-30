@@ -18,7 +18,10 @@
       "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:natively.app"
+      ]
     },
     "android": {
       "adaptiveIcon": {

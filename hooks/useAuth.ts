@@ -171,9 +171,31 @@ export const useAuth = () => {
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('useAuth: Auth state changed:', _event, session ? 'User logged in' : 'User logged out');
-      if (session?.user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('useAuth: Auth state changed:', event, session ? 'User logged in' : 'User logged out');
+      
+      // Handle magic link authentication
+      if (event === 'SIGNED_IN' && session?.user) {
+        console.log('useAuth: User signed in via:', session.user.app_metadata?.provider || 'unknown');
+        
+        if (session.user.email) {
+          await fetchUserProfile(session.user.id, session.user.email);
+        } else {
+          console.log('useAuth: Invalid session without email');
+          setUser(null);
+          setLoading(false);
+        }
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('useAuth: Token refreshed for user:', session.user.email);
+        
+        if (session.user.email) {
+          await fetchUserProfile(session.user.id, session.user.email);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        console.log('useAuth: User signed out');
+        setUser(null);
+        setLoading(false);
+      } else if (session?.user) {
         if (session.user.email) {
           await fetchUserProfile(session.user.id, session.user.email);
         } else {
