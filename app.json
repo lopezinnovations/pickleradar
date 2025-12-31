@@ -36,8 +36,7 @@
           "autoVerify": true,
           "data": [
             {
-              "scheme": "natively",
-              "host": "magic-link"
+              "scheme": "natively"
             }
           ],
           "category": [
