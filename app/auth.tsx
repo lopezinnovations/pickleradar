@@ -261,36 +261,28 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
-      console.log('AuthScreen: Sending login code to:', email);
+      console.log('AuthScreen: Sending OTP code to:', email);
       
-      const { data, error } = await supabase.functions.invoke('send-login-code', {
-        body: { email },
+      // Use Supabase's built-in signInWithOtp function
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false }
       });
 
-      console.log('AuthScreen: Response data:', data);
-      console.log('AuthScreen: Response error:', error);
+      console.log('AuthScreen: OTP Response data:', data);
+      console.log('AuthScreen: OTP Response error:', error);
 
       if (error) {
-        console.error('AuthScreen: Error sending code:', error);
+        console.error('AuthScreen: Error sending OTP code:', error);
         Alert.alert(
           'Error',
-          'Unable to send login code. Please try again or use password login.',
+          error.message || 'Unable to send login code. Please try again or use password login.',
           [{ text: 'OK' }]
         );
         return;
       }
 
-      if (data?.error) {
-        console.error('AuthScreen: API returned error:', data.error, data.message);
-        Alert.alert(
-          'Error',
-          data.message || 'Unable to send login code. Please try again or use password login.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      console.log('AuthScreen: Code sent successfully');
+      console.log('AuthScreen: OTP code sent successfully');
       setShowCodeInput(true);
       Alert.alert(
         'Check Your Email',
@@ -298,7 +290,7 @@ export default function AuthScreen() {
         [{ text: 'OK' }]
       );
     } catch (error: any) {
-      console.error('AuthScreen: Send code exception:', error);
+      console.error('AuthScreen: Send OTP code exception:', error);
       Alert.alert(
         'Error',
         'Unable to send login code. Please try again or use password login.',
@@ -318,34 +310,36 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
-      console.log('AuthScreen: Verifying login code');
+      console.log('AuthScreen: Verifying OTP code');
       
-      const { data, error } = await supabase.functions.invoke('verify-login-code', {
-        body: { email, code: loginCode },
+      // Use Supabase's built-in verifyOtp function
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: loginCode,
+        type: 'email'
       });
 
-      if (error || !data.success) {
-        console.log('AuthScreen: Code verification failed:', error || data.error);
+      if (error) {
+        console.log('AuthScreen: OTP verification failed:', error);
         Alert.alert(
           'Invalid Code',
-          data?.message || 'The code you entered is incorrect. Please try again.',
+          error.message || 'The code you entered is incorrect. Please try again.',
           [{ text: 'OK' }]
         );
         return;
       }
 
-      console.log('AuthScreen: Code verified successfully');
-
-      // Set the session using the tokens from the response
-      const { error: sessionError } = await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
-
-      if (sessionError) {
-        console.log('AuthScreen: Error setting session:', sessionError);
-        throw sessionError;
+      if (!data.session) {
+        console.log('AuthScreen: No session returned after OTP verification');
+        Alert.alert(
+          'Error',
+          'Failed to verify code. Please try again.',
+          [{ text: 'OK' }]
+        );
+        return;
       }
+
+      console.log('AuthScreen: OTP code verified successfully');
 
       // Clear form
       setEmail('');
@@ -367,7 +361,7 @@ export default function AuthScreen() {
         ]
       );
     } catch (error: any) {
-      console.log('AuthScreen: Verify code error:', error);
+      console.log('AuthScreen: Verify OTP code error:', error);
       Alert.alert('Error', 'Failed to verify code. Please try again.');
     } finally {
       setLoading(false);
