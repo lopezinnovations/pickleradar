@@ -2,6 +2,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import Constants from 'expo-constants';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -58,9 +59,13 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
       return null;
     }
 
+    // Get project ID from constants
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId || 
+                     Constants.easConfig?.projectId;
+
     // Get the Expo push token
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: 'your-project-id', // This will be auto-detected in most cases
+      projectId: projectId,
     });
     
     const pushToken = tokenData.data;

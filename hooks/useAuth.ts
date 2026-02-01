@@ -111,6 +111,7 @@ export const useAuth = () => {
       });
     } catch (error) {
       console.log('useAuth: Error in fetchUserProfile:', error);
+      // Don't throw - just log and continue
     } finally {
       setLoading(false);
     }
@@ -153,7 +154,11 @@ export const useAuth = () => {
               await fetchUserProfile(session.user.id, session.user.email);
             } else {
               console.log('useAuth: Session exists but no email - clearing invalid session');
-              await supabase.auth.signOut();
+              try {
+                await supabase.auth.signOut();
+              } catch (signOutError) {
+                console.log('useAuth: Error signing out invalid session:', signOutError);
+              }
               setLoading(false);
             }
           } else {
@@ -174,36 +179,41 @@ export const useAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('useAuth: Auth state changed:', event, session ? 'User logged in' : 'User logged out');
       
-      if (event === 'SIGNED_IN' && session?.user) {
-        console.log('useAuth: User signed in via:', session.user.app_metadata?.provider || 'unknown');
-        
-        if (session.user.email) {
-          await fetchUserProfile(session.user.id, session.user.email);
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('useAuth: User signed in via:', session.user.app_metadata?.provider || 'unknown');
+          
+          if (session.user.email) {
+            await fetchUserProfile(session.user.id, session.user.email);
+          } else {
+            console.log('useAuth: Invalid session without email');
+            setUser(null);
+            setLoading(false);
+          }
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          console.log('useAuth: Token refreshed for user:', session.user.email);
+          
+          if (session.user.email) {
+            await fetchUserProfile(session.user.id, session.user.email);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('useAuth: User signed out');
+          setUser(null);
+          setLoading(false);
+        } else if (session?.user) {
+          if (session.user.email) {
+            await fetchUserProfile(session.user.id, session.user.email);
+          } else {
+            console.log('useAuth: Invalid session without email');
+            setUser(null);
+            setLoading(false);
+          }
         } else {
-          console.log('useAuth: Invalid session without email');
           setUser(null);
           setLoading(false);
         }
-      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        console.log('useAuth: Token refreshed for user:', session.user.email);
-        
-        if (session.user.email) {
-          await fetchUserProfile(session.user.id, session.user.email);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        console.log('useAuth: User signed out');
-        setUser(null);
-        setLoading(false);
-      } else if (session?.user) {
-        if (session.user.email) {
-          await fetchUserProfile(session.user.id, session.user.email);
-        } else {
-          console.log('useAuth: Invalid session without email');
-          setUser(null);
-          setLoading(false);
-        }
-      } else {
-        setUser(null);
+      } catch (error) {
+        console.log('useAuth: Error in auth state change handler:', error);
         setLoading(false);
       }
     });
@@ -292,35 +302,39 @@ export const useAuth = () => {
             // Create user profile with consent and new fields
             const now = new Date().toISOString();
             
-            const { error: profileError } = await supabase
-              .from('users')
-              .upsert([
-                {
-                  id: data.user.id,
-                  email: data.user.email || email,
-                  phone: null,
-                  first_name: firstName || null,
-                  last_name: lastName || null,
-                  pickleballer_nickname: pickleballerNickname || null,
-                  experience_level: experienceLevel || null,
-                  dupr_rating: duprRating || null,
-                  privacy_opt_in: false,
-                  notifications_enabled: false,
-                  location_enabled: false,
-                  location_permission_requested: false,
-                  terms_accepted: true,
-                  privacy_accepted: true,
-                  accepted_at: now,
-                  accepted_version: CURRENT_TERMS_VERSION,
-                },
-              ], {
-                onConflict: 'id'
-              });
+            try {
+              const { error: profileError } = await supabase
+                .from('users')
+                .upsert([
+                  {
+                    id: data.user.id,
+                    email: data.user.email || email,
+                    phone: null,
+                    first_name: firstName || null,
+                    last_name: lastName || null,
+                    pickleballer_nickname: pickleballerNickname || null,
+                    experience_level: experienceLevel || null,
+                    dupr_rating: duprRating || null,
+                    privacy_opt_in: false,
+                    notifications_enabled: false,
+                    location_enabled: false,
+                    location_permission_requested: false,
+                    terms_accepted: true,
+                    privacy_accepted: true,
+                    accepted_at: now,
+                    accepted_version: CURRENT_TERMS_VERSION,
+                  },
+                ], {
+                  onConflict: 'id'
+                });
 
-            if (profileError) {
-              console.log('useAuth: Profile creation error:', profileError);
-            } else {
-              console.log('useAuth: User profile created/updated successfully');
+              if (profileError) {
+                console.log('useAuth: Profile creation error:', profileError);
+              } else {
+                console.log('useAuth: User profile created/updated successfully');
+              }
+            } catch (profileError) {
+              console.log('useAuth: Exception creating profile:', profileError);
             }
 
             // Return success - user can proceed without email verification
@@ -343,36 +357,40 @@ export const useAuth = () => {
       if (data.user) {
         const now = new Date().toISOString();
         
-        const { error: profileError } = await supabase
-          .from('users')
-          .upsert([
-            {
-              id: data.user.id,
-              email: data.user.email || email,
-              phone: null,
-              first_name: firstName || null,
-              last_name: lastName || null,
-              pickleballer_nickname: pickleballerNickname || null,
-              experience_level: experienceLevel || null,
-              dupr_rating: duprRating || null,
-              privacy_opt_in: false,
-              notifications_enabled: false,
-              location_enabled: false,
-              location_permission_requested: false,
-              terms_accepted: true,
-              privacy_accepted: true,
-              accepted_at: now,
-              accepted_version: CURRENT_TERMS_VERSION,
-            },
-          ], {
-            onConflict: 'id'
-          });
+        try {
+          const { error: profileError } = await supabase
+            .from('users')
+            .upsert([
+              {
+                id: data.user.id,
+                email: data.user.email || email,
+                phone: null,
+                first_name: firstName || null,
+                last_name: lastName || null,
+                pickleballer_nickname: pickleballerNickname || null,
+                experience_level: experienceLevel || null,
+                dupr_rating: duprRating || null,
+                privacy_opt_in: false,
+                notifications_enabled: false,
+                location_enabled: false,
+                location_permission_requested: false,
+                terms_accepted: true,
+                privacy_accepted: true,
+                accepted_at: now,
+                accepted_version: CURRENT_TERMS_VERSION,
+              },
+            ], {
+              onConflict: 'id'
+            });
 
-        if (profileError) {
-          console.log('useAuth: Profile creation error:', profileError);
-          // Don't throw error, just log it - user is still created
-        } else {
-          console.log('useAuth: User profile created/updated successfully with consent and profile fields');
+          if (profileError) {
+            console.log('useAuth: Profile creation error:', profileError);
+            // Don't throw error, just log it - user is still created
+          } else {
+            console.log('useAuth: User profile created/updated successfully with consent and profile fields');
+          }
+        } catch (profileError) {
+          console.log('useAuth: Exception creating profile:', profileError);
         }
       }
       
@@ -452,11 +470,15 @@ export const useAuth = () => {
     try {
       console.log('useAuth: Signing out user');
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      if (error) {
+        console.log('useAuth: Sign out error:', error);
+      }
       setUser(null);
       console.log('useAuth: Sign out successful');
     } catch (error) {
       console.log('useAuth: Sign out error:', error);
+      // Always clear user state even if signOut fails
+      setUser(null);
     }
   };
 
@@ -572,18 +594,10 @@ export const useAuth = () => {
         throw deleteError;
       }
 
-      // Delete auth user
-      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
-
-      if (authError) {
-        console.log('useAuth: Error deleting auth user:', authError);
-        throw authError;
-      }
-
-      // Sign out
+      // Sign out (admin delete requires service role key which we don't have in client)
       await signOut();
 
-      console.log('useAuth: Account deleted successfully');
+      console.log('useAuth: Account data deleted successfully');
       return { success: true };
     } catch (error: any) {
       console.log('useAuth: Delete account error:', error);

@@ -12,6 +12,7 @@ export const useLocation = () => {
     console.log('useLocation: User requested location permission');
     if (!user) {
       console.log('useLocation: No user found, cannot request location');
+      Alert.alert('Error', 'You must be logged in to enable location services.');
       return;
     }
 
@@ -44,7 +45,11 @@ export const useLocation = () => {
         'Location Error',
         'Unable to access location. You can still search by ZIP code.'
       );
-      await updateUserProfile({ locationPermissionRequested: true });
+      try {
+        await updateUserProfile({ locationPermissionRequested: true });
+      } catch (updateError) {
+        console.error('useLocation: Error updating permission status:', updateError);
+      }
     } finally {
       setRequestingPermission(false);
     }

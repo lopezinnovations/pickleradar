@@ -2,9 +2,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Database } from './types';
 import { createClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 
-const SUPABASE_URL = "https://biczbxmaisdxpcbplddr.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk";
+// Get Supabase credentials from environment or constants
+const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || "https://biczbxmaisdxpcbplddr.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || "sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk";
 
 // Import the supabase client like this:
 // import { supabase } from "@/app/integrations/supabase/client";
@@ -19,5 +21,13 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 });
 
 export const isSupabaseConfigured = () => {
-  return SUPABASE_URL !== '' && SUPABASE_PUBLISHABLE_KEY !== '';
+  const configured = SUPABASE_URL !== '' && SUPABASE_PUBLISHABLE_KEY !== '' && 
+                     SUPABASE_URL !== 'YOUR_SUPABASE_URL' && 
+                     SUPABASE_PUBLISHABLE_KEY !== 'YOUR_SUPABASE_ANON_KEY';
+  
+  if (!configured) {
+    console.log('Supabase is not properly configured');
+  }
+  
+  return configured;
 };
