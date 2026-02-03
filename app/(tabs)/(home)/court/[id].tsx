@@ -408,7 +408,9 @@ export default function CourtDetailScreen() {
               Select your skill level and how long you plan to stay
             </Text>
 
-            <Text style={[commonStyles.text, { marginBottom: 8, fontWeight: '600' }]}>Skill Level</Text>
+            <Text style={[commonStyles.text, { marginBottom: 8, fontWeight: '600' }]}>
+              Skill Level
+            </Text>
             <View style={styles.skillLevelButtons}>
               {skillLevels.map((level, index) => (
                 <TouchableOpacity
@@ -677,12 +679,13 @@ const styles = StyleSheet.create({
   skillLevelButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.background,
     alignItems: 'center',
+    justifyContent: 'center',
     minWidth: 0,
   },
   skillLevelButtonActive: {
@@ -690,7 +693,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   skillLevelText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.text,
   },

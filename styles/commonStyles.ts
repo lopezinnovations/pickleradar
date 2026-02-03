@@ -1,20 +1,20 @@
 
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
-// Updated color palette to match app icon branding
-// Modern pickleball theme with vibrant teal primary and bright accent colors
+// Updated color palette to match PickleRadar logo branding
+// Logo features: Green text + Yellow pickleball
 export const colors = {
   background: '#ffffff',
   text: '#1a3d1a',
   textSecondary: '#5a7a5a',
-  primary: '#00BCD4', // Bright cyan/teal (matches modern pickleball branding)
-  secondary: '#00E676', // Vibrant green
-  accent: '#FFD600', // Bright yellow (pickleball color)
+  primary: '#2E7D32', // Green from logo text (darker forest green)
+  secondary: '#4CAF50', // Lighter green for accents
+  accent: '#FFC107', // Yellow from pickleball
   card: '#ffffff',
-  highlight: '#E0F7FA', // Light cyan tint
-  border: '#B2EBF2',
+  highlight: '#E8F5E9', // Light green tint
+  border: '#C8E6C9',
   error: '#d32f2f',
-  success: '#00C853',
+  success: '#4CAF50',
   orange: '#ff9800', // For heat map gradient
 };
 
@@ -114,7 +114,7 @@ export const commonStyles = StyleSheet.create({
     padding: 16,
     marginVertical: 8,
     width: '100%',
-    boxShadow: '0px 2px 8px rgba(0, 188, 212, 0.1)',
+    boxShadow: '0px 2px 8px rgba(46, 125, 50, 0.1)',
     elevation: 3,
     borderWidth: 1,
     borderColor: colors.border,
