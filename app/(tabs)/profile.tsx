@@ -376,7 +376,7 @@ export default function ProfileScreen() {
         <View style={styles.emptyStateIcon}>
           <IconSymbol 
             ios_icon_name="person.crop.circle" 
-            android_material_icon_name="account_circle" 
+            android_material_icon_name="account-circle" 
             size={64} 
             color={colors.textSecondary} 
           />
@@ -396,6 +396,10 @@ export default function ProfileScreen() {
       </View>
     );
   }
+
+  const beginnerLabel = 'Beginner';
+  const intermediateLabel = 'Intermediate';
+  const advancedLabel = 'Advanced';
 
   return (
     <View style={commonStyles.container}>
@@ -480,7 +484,7 @@ export default function ProfileScreen() {
                 <React.Fragment>
                   <IconSymbol 
                     ios_icon_name="checkmark.circle.fill" 
-                    android_material_icon_name="check_circle" 
+                    android_material_icon_name="check-circle" 
                     size={20} 
                     color={colors.accent} 
                   />
@@ -510,7 +514,7 @@ export default function ProfileScreen() {
             ) : (
               <IconSymbol 
                 ios_icon_name="person.crop.circle.fill" 
-                android_material_icon_name="account_circle" 
+                android_material_icon_name="account-circle" 
                 size={64} 
                 color={colors.primary} 
               />
@@ -519,7 +523,7 @@ export default function ProfileScreen() {
               <View style={styles.editIconContainer}>
                 <IconSymbol 
                   ios_icon_name="camera.fill" 
-                  android_material_icon_name="photo_camera" 
+                  android_material_icon_name="photo-camera" 
                   size={16} 
                   color={colors.card} 
                 />
@@ -568,7 +572,7 @@ export default function ProfileScreen() {
             <View style={styles.currentCheckInHeader}>
               <IconSymbol 
                 ios_icon_name="checkmark.circle.fill" 
-                android_material_icon_name="check_circle" 
+                android_material_icon_name="check-circle" 
                 size={24} 
                 color={colors.success} 
               />
@@ -681,27 +685,68 @@ export default function ProfileScreen() {
           </Text>
           
           <View style={styles.skillLevelContainer}>
-            {(['Beginner', 'Intermediate', 'Advanced'] as const).map((level, index) => (
-              <TouchableOpacity
-                key={index}
+            <TouchableOpacity
+              style={[
+                styles.skillLevelButton,
+                skillLevel === 'Beginner' && styles.skillLevelButtonActive,
+                !isEditing && styles.buttonDisabled,
+              ]}
+              onPress={() => isEditing && setSkillLevel('Beginner')}
+              disabled={!isEditing}
+            >
+              <Text
                 style={[
-                  styles.skillLevelButton,
-                  skillLevel === level && styles.skillLevelButtonActive,
-                  !isEditing && styles.buttonDisabled,
+                  styles.skillLevelText,
+                  skillLevel === 'Beginner' && styles.skillLevelTextActive,
                 ]}
-                onPress={() => isEditing && setSkillLevel(level)}
-                disabled={!isEditing}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                <Text
-                  style={[
-                    styles.skillLevelText,
-                    skillLevel === level && styles.skillLevelTextActive,
-                  ]}
-                >
-                  {level}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                {beginnerLabel}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.skillLevelButton,
+                skillLevel === 'Intermediate' && styles.skillLevelButtonActive,
+                !isEditing && styles.buttonDisabled,
+              ]}
+              onPress={() => isEditing && setSkillLevel('Intermediate')}
+              disabled={!isEditing}
+            >
+              <Text
+                style={[
+                  styles.skillLevelText,
+                  skillLevel === 'Intermediate' && styles.skillLevelTextActive,
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {intermediateLabel}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.skillLevelButton,
+                skillLevel === 'Advanced' && styles.skillLevelButtonActive,
+                !isEditing && styles.buttonDisabled,
+              ]}
+              onPress={() => isEditing && setSkillLevel('Advanced')}
+              disabled={!isEditing}
+            >
+              <Text
+                style={[
+                  styles.skillLevelText,
+                  skillLevel === 'Advanced' && styles.skillLevelTextActive,
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {advancedLabel}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={[commonStyles.text, { marginTop: 20, marginBottom: 8, fontWeight: '600' }]}>
@@ -794,7 +839,7 @@ export default function ProfileScreen() {
                   <View style={styles.historyIcon}>
                     <IconSymbol 
                       ios_icon_name="location.fill" 
-                      android_material_icon_name="location_on" 
+                      android_material_icon_name="location-on" 
                       size={20} 
                       color={colors.primary} 
                     />
@@ -830,7 +875,7 @@ export default function ProfileScreen() {
             >
               <IconSymbol 
                 ios_icon_name="checkmark.circle.fill" 
-                android_material_icon_name="check_circle" 
+                android_material_icon_name="check-circle" 
                 size={20} 
                 color={colors.card} 
               />
@@ -892,7 +937,7 @@ export default function ProfileScreen() {
             <View style={styles.modalHeader}>
               <IconSymbol 
                 ios_icon_name="checkmark.shield.fill" 
-                android_material_icon_name="verified_user" 
+                android_material_icon_name="verified-user" 
                 size={32} 
                 color={colors.success} 
               />
@@ -1097,15 +1142,17 @@ const styles = StyleSheet.create({
   },
   skillLevelContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
   },
   skillLevelButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    minWidth: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderRadius: 12,
     backgroundColor: colors.highlight,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.border,
   },
@@ -1117,9 +1164,11 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   skillLevelText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.text,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   skillLevelTextActive: {
     color: colors.card,
