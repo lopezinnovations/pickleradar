@@ -1,16 +1,17 @@
+
 {
   "expo": {
     "name": "PickleRadar",
     "slug": "PickleRadar",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/natively-dark.png",
+    "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#1B4D3E"
     },
     "ios": {
       "supportsTablet": true,
@@ -23,8 +24,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/natively-dark.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.PickleRadar",
@@ -34,7 +35,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
+      "favicon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
       "bundler": "metro"
     },
     "plugins": [
