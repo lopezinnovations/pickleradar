@@ -16,6 +16,7 @@ export default function TabLayout() {
       route: '/(tabs)/friends',
       icon: 'people',
       label: 'Friends',
+      iosIcon: 'person.2.fill', // Explicitly set guaranteed SF Symbol for iOS
     },
     {
       name: 'messages',
