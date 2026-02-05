@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -18,6 +18,7 @@ export default function ResetPasswordScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSkipResetModal, setShowSkipResetModal] = useState(false);
 
   // Refs to track loading state for timeout checks
   const isLoadingRef = useRef(false);
@@ -78,8 +79,9 @@ export default function ResetPasswordScreen() {
     resetTimeoutRef.current = setTimeout(() => {
       if (isLoadingRef.current) {
         console.log('Password reset timeout exceeded');
-        setResetError('Unable to finish resetting password. Please try again.');
+        setResetError('This is taking longer than expected. Please try again.');
         setIsLoading(false);
+        setIsSubmitting(false);
       }
     }, 15000);
 
@@ -89,6 +91,11 @@ export default function ResetPasswordScreen() {
         password: newPassword
       });
 
+      // Clear timeout immediately after response
+      if (resetTimeoutRef.current) {
+        clearTimeout(resetTimeoutRef.current);
+      }
+
       if (error) {
         console.log('Password update error:', error);
         
@@ -96,7 +103,7 @@ export default function ResetPasswordScreen() {
         const errorMessage = error.message.toLowerCase();
         
         if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
-          setResetError('Too many attempts. Please wait 30-60 seconds before retrying.');
+          setResetError('Please wait a moment and try again.');
         } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
           setResetError('Network error. Please check your connection and try again.');
         } else {
@@ -112,7 +119,17 @@ export default function ResetPasswordScreen() {
       setConfirmPassword('');
       setResetError(null);
 
-      // Show success message and redirect to sign in
+      // Try to refresh session, but don't treat failure as reset failure
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
+        if (sessionError) {
+          console.log('Session refresh failed (non-critical):', sessionError);
+        }
+      } catch (sessionErr) {
+        console.log('Session refresh error (non-critical):', sessionErr);
+      }
+
+      // Show success message and navigate
       Alert.alert(
         'Password Updated Successfully',
         'Your password has been changed. You can now sign in with your new password.',
@@ -120,10 +137,25 @@ export default function ResetPasswordScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate to sign in screen with prefilled email
-              router.replace({
-                pathname: '/auth',
-                params: { email: email || '' }
+              // Navigate to app if session exists, otherwise to sign in
+              supabase.auth.getSession().then(({ data: { session } }) => {
+                if (session) {
+                  console.log('Session exists, routing to app');
+                  router.replace('/(tabs)/(home)/');
+                } else {
+                  console.log('No session, routing to sign in');
+                  router.replace({
+                    pathname: '/auth',
+                    params: { email: email || '', message: 'Password updated successfully. Please sign in.' }
+                  });
+                }
+              }).catch(() => {
+                // Fallback to sign in on error
+                console.log('Error checking session, routing to sign in');
+                router.replace({
+                  pathname: '/auth',
+                  params: { email: email || '', message: 'Password updated successfully. Please sign in.' }
+                });
               });
             },
           },
@@ -133,13 +165,21 @@ export default function ResetPasswordScreen() {
       console.log('Unexpected error during password reset:', error);
       setResetError(error.message || 'An unexpected error occurred. Please try again.');
     } finally {
-      // Clear timeout
+      // Always clear timeout and loading state
       if (resetTimeoutRef.current) {
         clearTimeout(resetTimeoutRef.current);
       }
       setIsLoading(false);
       setIsSubmitting(false);
     }
+  };
+
+  const handleContinueWithCode = async () => {
+    console.log('User chose to continue with code (skip reset)');
+    setShowSkipResetModal(false);
+    
+    // Navigate to app
+    router.replace('/(tabs)/(home)/');
   };
 
   const handleBack = () => {
@@ -301,8 +341,52 @@ export default function ResetPasswordScreen() {
               </Text>
             )}
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={() => setShowSkipResetModal(true)}
+            disabled={isLoading}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.skipButtonText}>
+              Continue with Code (skip reset)
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Skip Reset Modal */}
+      <Modal
+        visible={showSkipResetModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSkipResetModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Sign in without changing your password?</Text>
+            <Text style={styles.modalBody}>
+              You&apos;ll be signed in using a one-time code. You can reset your password anytime by using &apos;Forgot password&apos; from the sign-in screen.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary]}
+                onPress={() => setShowSkipResetModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary]}
+                onPress={handleContinueWithCode}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalButtonTextPrimary}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -416,5 +500,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skipButton: {
+    marginTop: 16,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  skipButtonText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalBody: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalButtonPrimary: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonSecondary: {
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  modalButtonTextPrimary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.card,
+  },
+  modalButtonTextSecondary: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
 });
