@@ -223,3 +223,13 @@ export const sendFriendRequestNotification = async (requesterIdentifier: string)
     console.log('Error sending friend request notification:', error);
   }
 };
+
+export const checkNotificationPermissionStatus = async (): Promise<'granted' | 'denied' | 'undetermined'> => {
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch (error) {
+    console.log('Error checking notification permission status:', error);
+    return 'undetermined';
+  }
+};

@@ -1,0 +1,510 @@
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { colors, commonStyles } from '@/styles/commonStyles';
+import { useAuth } from '@/hooks/useAuth';
+import { IconSymbol } from '@/components/IconSymbol';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { requestNotificationPermissions, checkNotificationPermissionStatus } from '@/utils/notifications';
+
+interface GroupMessage {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  sender?: {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    pickleballer_nickname?: string;
+  };
+}
+
+interface GroupInfo {
+  id: string;
+  name: string;
+  created_by: string;
+  memberCount: number;
+}
+
+export default function GroupConversationScreen() {
+  const router = useRouter();
+  const { id: groupId } = useLocalSearchParams();
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<GroupMessage[]>([]);
+  const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
+  const [messageText, setMessageText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+
+  const fetchGroupInfo = useCallback(async () => {
+    if (!groupId || !isSupabaseConfigured()) return;
+
+    try {
+      const { data: groupData, error: groupError } = await supabase
+        .from('group_chats')
+        .select('*')
+        .eq('id', groupId)
+        .single();
+
+      if (groupError) {
+        console.log('Error fetching group info:', groupError);
+        throw groupError;
+      }
+
+      const { count: memberCount, error: countError } = await supabase
+        .from('group_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('group_id', groupId);
+
+      if (countError) {
+        console.log('Error counting members:', countError);
+      }
+
+      setGroupInfo({
+        id: groupData.id,
+        name: groupData.name,
+        created_by: groupData.created_by,
+        memberCount: memberCount || 0,
+      });
+    } catch (error) {
+      console.log('Error in fetchGroupInfo:', error);
+      Alert.alert('Error', 'Failed to load group information.');
+    }
+  }, [groupId]);
+
+  const fetchMessages = useCallback(async () => {
+    if (!groupId || !isSupabaseConfigured()) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('group_messages')
+        .select(`
+          *,
+          sender:users!group_messages_sender_id_fkey(id, first_name, last_name, pickleballer_nickname)
+        `)
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.log('Error fetching group messages:', error);
+        throw error;
+      }
+
+      setMessages(data || []);
+    } catch (error) {
+      console.log('Error in fetchMessages:', error);
+      Alert.alert('Error', 'Failed to load messages. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [groupId]);
+
+  useEffect(() => {
+    fetchGroupInfo();
+    fetchMessages();
+
+    // Set up real-time subscription
+    if (groupId && isSupabaseConfigured()) {
+      const subscription = supabase
+        .channel(`group_${groupId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'group_messages',
+            filter: `group_id=eq.${groupId}`,
+          },
+          async (payload) => {
+            console.log('New group message received:', payload.new);
+            // Fetch sender info
+            const { data: senderData } = await supabase
+              .from('users')
+              .select('id, first_name, last_name, pickleballer_nickname')
+              .eq('id', payload.new.sender_id)
+              .single();
+
+            const newMessage = {
+              ...payload.new,
+              sender: senderData,
+            } as GroupMessage;
+
+            setMessages((prev) => [...prev, newMessage]);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [groupId, fetchGroupInfo, fetchMessages]);
+
+  const sendMessage = async () => {
+    if (!messageText.trim() || !user || !groupId || !isSupabaseConfigured()) return;
+
+    console.log('User sending message to group:', groupId);
+    setSending(true);
+
+    try {
+      const { error } = await supabase
+        .from('group_messages')
+        .insert([
+          {
+            group_id: groupId,
+            sender_id: user.id,
+            content: messageText.trim(),
+          },
+        ]);
+
+      if (error) {
+        console.log('Error sending message:', error);
+        throw error;
+      }
+
+      // Check if we should prompt for notifications (first message sent)
+      const permissionStatus = await checkNotificationPermissionStatus();
+      if (permissionStatus !== 'granted') {
+        const granted = await requestNotificationPermissions();
+        if (granted && isSupabaseConfigured()) {
+          await supabase
+            .from('users')
+            .update({ notification_prompt_shown: true })
+            .eq('id', user.id);
+        }
+      }
+
+      setMessageText('');
+      
+      // Scroll to bottom after sending
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error: any) {
+      console.log('Error in sendMessage:', error);
+      Alert.alert('Error', `Failed to send message: ${error.message}`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const timeString = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return timeString;
+  };
+
+  const formatDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return dateString;
+    }
+  };
+
+  const formatSenderName = (message: GroupMessage) => {
+    if (!message.sender) return 'Unknown';
+    if (message.sender_id === user?.id) return 'You';
+    if (message.sender.first_name && message.sender.last_name) {
+      const name = `${message.sender.first_name} ${message.sender.last_name.charAt(0)}.`;
+      return name;
+    }
+    return message.sender.pickleballer_nickname || 'Unknown';
+  };
+
+  const renderMessage = ({ item, index }: { item: GroupMessage; index: number }) => {
+    const isFromMe = item.sender_id === user?.id;
+    const showDateSeparator = index === 0 || 
+      formatDate(item.created_at) !== formatDate(messages[index - 1].created_at);
+    const showSenderName = !isFromMe && (
+      index === 0 ||
+      messages[index - 1].sender_id !== item.sender_id ||
+      showDateSeparator
+    );
+
+    const senderName = formatSenderName(item);
+    const timeText = formatTime(item.created_at);
+    const dateText = formatDate(item.created_at);
+
+    return (
+      <React.Fragment key={item.id}>
+        {showDateSeparator && (
+          <View style={styles.dateSeparator}>
+            <Text style={styles.dateSeparatorText}>{dateText}</Text>
+          </View>
+        )}
+        <View style={[styles.messageContainer, isFromMe && styles.myMessageContainer]}>
+          {showSenderName && (
+            <Text style={styles.senderName}>{senderName}</Text>
+          )}
+          <View style={[styles.messageBubble, isFromMe && styles.myMessageBubble]}>
+            <Text style={[styles.messageText, isFromMe && styles.myMessageText]}>
+              {item.content}
+            </Text>
+            <Text style={[styles.messageTime, isFromMe && styles.myMessageTime]}>
+              {timeText}
+            </Text>
+          </View>
+        </View>
+      </React.Fragment>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading conversation...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={commonStyles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="chevron_left"
+            size={24}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.headerInfo}
+          onPress={() => {
+            console.log('User tapped group header, navigating to group info');
+            router.push(`/group-info/${groupId}`);
+          }}
+        >
+          <View style={styles.headerAvatar}>
+            <IconSymbol
+              ios_icon_name="person.3.fill"
+              android_material_icon_name="group"
+              size={24}
+              color={colors.primary}
+            />
+          </View>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerName}>{groupInfo?.name || 'Group'}</Text>
+            <Text style={styles.headerSubtitle}>
+              {groupInfo?.memberCount} members
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        ref={flatListRef}
+        data={messages}
+        renderItem={renderMessage}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.messagesList}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <IconSymbol
+              ios_icon_name="message"
+              android_material_icon_name="message"
+              size={48}
+              color={colors.textSecondary}
+            />
+            <Text style={[commonStyles.textSecondary, { marginTop: 16, textAlign: 'center' }]}>
+              No messages yet. Start the conversation!
+            </Text>
+          </View>
+        }
+      />
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Type a message..."
+          placeholderTextColor={colors.textSecondary}
+          value={messageText}
+          onChangeText={setMessageText}
+          multiline
+          maxLength={1000}
+        />
+        <TouchableOpacity
+          style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
+          onPress={sendMessage}
+          disabled={!messageText.trim() || sending}
+        >
+          {sending ? (
+            <ActivityIndicator size="small" color={colors.card} />
+          ) : (
+            <IconSymbol
+              ios_icon_name="arrow.up.circle.fill"
+              android_material_icon_name="send"
+              size={32}
+              color={messageText.trim() ? colors.card : colors.textSecondary}
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 48,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backButton: {
+    marginRight: 12,
+  },
+  headerInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  headerName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  messagesList: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexGrow: 1,
+  },
+  dateSeparator: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    backgroundColor: colors.highlight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  messageContainer: {
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  myMessageContainer: {
+    alignItems: 'flex-end',
+  },
+  senderName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 4,
+    marginLeft: 12,
+  },
+  messageBubble: {
+    maxWidth: '75%',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  myMessageBubble: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  messageText: {
+    fontSize: 16,
+    color: colors.text,
+    lineHeight: 22,
+  },
+  myMessageText: {
+    color: colors.card,
+  },
+  messageTime: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  myMessageTime: {
+    color: colors.card,
+    opacity: 0.8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: colors.text,
+    maxHeight: 100,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: colors.highlight,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+});

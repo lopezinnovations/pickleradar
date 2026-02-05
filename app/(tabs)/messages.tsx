@@ -6,16 +6,24 @@ import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
+import { requestNotificationPermissions, checkNotificationPermissionStatus } from '@/utils/notifications';
 
 interface Conversation {
-  userId: string;
-  userName: string;
+  id: string;
+  type: 'direct' | 'group';
+  title: string;
   lastMessage: string;
   lastMessageTime: string;
   unreadCount: number;
+  isMuted: boolean;
+  // For direct messages
+  userId?: string;
   userFirstName?: string;
   userLastName?: string;
   userNickname?: string;
+  // For group chats
+  memberCount?: number;
 }
 
 export default function MessagesScreen() {
@@ -24,6 +32,75 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const [visitCount, setVisitCount] = useState(0);
+
+  const checkAndShowNotificationPrompt = useCallback(async () => {
+    if (!user || !isSupabaseConfigured()) return;
+
+    try {
+      // Get user's notification prompt status
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('messages_visit_count, notification_prompt_shown')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) {
+        console.log('Error fetching user notification status:', userError);
+        return;
+      }
+
+      const currentVisitCount = (userData?.messages_visit_count || 0) + 1;
+      setVisitCount(currentVisitCount);
+
+      // Update visit count
+      await supabase
+        .from('users')
+        .update({ messages_visit_count: currentVisitCount })
+        .eq('id', user.id);
+
+      // Check if we should show the prompt
+      const hasShownPrompt = userData?.notification_prompt_shown || false;
+      const permissionStatus = await checkNotificationPermissionStatus();
+
+      // Show prompt on 2nd visit if not shown before and permission not granted
+      if (currentVisitCount >= 2 && !hasShownPrompt && permissionStatus !== 'granted') {
+        setShowNotificationPrompt(true);
+      }
+    } catch (error) {
+      console.log('Error checking notification prompt:', error);
+    }
+  }, [user]);
+
+  const handleEnableNotifications = async () => {
+    console.log('User tapped Enable Notifications');
+    const granted = await requestNotificationPermissions();
+    
+    if (granted && user && isSupabaseConfigured()) {
+      // Mark prompt as shown
+      await supabase
+        .from('users')
+        .update({ notification_prompt_shown: true })
+        .eq('id', user.id);
+      
+      console.log('Notifications enabled successfully');
+    }
+    
+    setShowNotificationPrompt(false);
+  };
+
+  const handleNotNow = async () => {
+    console.log('User tapped Not Now for notifications');
+    if (user && isSupabaseConfigured()) {
+      // Mark prompt as shown so we don't ask again
+      await supabase
+        .from('users')
+        .update({ notification_prompt_shown: true })
+        .eq('id', user.id);
+    }
+    setShowNotificationPrompt(false);
+  };
 
   const fetchConversations = useCallback(async () => {
     if (!user || !isSupabaseConfigured()) {
@@ -32,8 +109,8 @@ export default function MessagesScreen() {
     }
 
     try {
-      // Get all messages where user is sender or recipient
-      const { data: messages, error } = await supabase
+      // Fetch direct message conversations
+      const { data: messages, error: messagesError } = await supabase
         .from('messages')
         .select(`
           *,
@@ -43,64 +120,151 @@ export default function MessagesScreen() {
         .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        Alert.alert('Error', 'Failed to load conversations. Please try again.');
-        throw error;
+      if (messagesError) {
+        console.log('Error fetching messages:', messagesError);
+        throw messagesError;
       }
 
-      // Group messages by conversation partner
-      const conversationsMap = new Map<string, Conversation>();
+      // Fetch group conversations
+      const { data: groupMemberships, error: groupError } = await supabase
+        .from('group_members')
+        .select(`
+          group_id,
+          group_chats!inner(id, name, created_at, updated_at)
+        `)
+        .eq('user_id', user.id);
 
+      if (groupError) {
+        console.log('Error fetching group memberships:', groupError);
+        throw groupError;
+      }
+
+      // Fetch muted conversations
+      const { data: mutes, error: mutesError } = await supabase
+        .from('conversation_mutes')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (mutesError) {
+        console.log('Error fetching mutes:', mutesError);
+      }
+
+      const mutesMap = new Map<string, boolean>();
+      (mutes || []).forEach((mute: any) => {
+        const key = `${mute.conversation_type}:${mute.conversation_id}`;
+        const isMuted = !mute.muted_until || new Date(mute.muted_until) > new Date();
+        mutesMap.set(key, isMuted);
+      });
+
+      // Process direct messages
+      const directConversationsMap = new Map<string, Conversation>();
       (messages || []).forEach((message: any) => {
         const isFromMe = message.sender_id === user.id;
         const partnerId = isFromMe ? message.recipient_id : message.sender_id;
         const partner = isFromMe ? message.recipient : message.sender;
 
-        if (!conversationsMap.has(partnerId)) {
+        if (!directConversationsMap.has(partnerId)) {
           const displayName = partner.first_name && partner.last_name
             ? `${partner.first_name} ${partner.last_name.charAt(0)}.`
             : partner.pickleballer_nickname || 'Unknown User';
 
-          conversationsMap.set(partnerId, {
+          const muteKey = `direct:${partnerId}`;
+          directConversationsMap.set(partnerId, {
+            id: partnerId,
+            type: 'direct',
+            title: displayName,
             userId: partnerId,
-            userName: displayName,
             userFirstName: partner.first_name,
             userLastName: partner.last_name,
             userNickname: partner.pickleballer_nickname,
             lastMessage: message.content,
             lastMessageTime: message.created_at,
             unreadCount: 0,
+            isMuted: mutesMap.get(muteKey) || false,
           });
         }
 
-        // Count unread messages from this partner
+        // Count unread messages
         if (!isFromMe && !message.read) {
-          const conv = conversationsMap.get(partnerId)!;
+          const conv = directConversationsMap.get(partnerId)!;
           conv.unreadCount += 1;
         }
       });
 
-      setConversations(Array.from(conversationsMap.values()));
+      // Process group conversations
+      const groupConversations: Conversation[] = [];
+      for (const membership of groupMemberships || []) {
+        const groupId = membership.group_chats.id;
+        const groupName = membership.group_chats.name;
+
+        // Fetch last message for this group
+        const { data: lastMessages, error: lastMsgError } = await supabase
+          .from('group_messages')
+          .select('*')
+          .eq('group_id', groupId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (lastMsgError) {
+          console.log('Error fetching group messages:', lastMsgError);
+          continue;
+        }
+
+        // Count members
+        const { count: memberCount, error: countError } = await supabase
+          .from('group_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('group_id', groupId);
+
+        if (countError) {
+          console.log('Error counting group members:', countError);
+        }
+
+        const lastMessage = lastMessages && lastMessages.length > 0 ? lastMessages[0] : null;
+        const muteKey = `group:${groupId}`;
+
+        groupConversations.push({
+          id: groupId,
+          type: 'group',
+          title: groupName,
+          lastMessage: lastMessage?.content || 'No messages yet',
+          lastMessageTime: lastMessage?.created_at || membership.group_chats.created_at,
+          unreadCount: 0, // TODO: Implement unread tracking for groups
+          memberCount: memberCount || 0,
+          isMuted: mutesMap.get(muteKey) || false,
+        });
+      }
+
+      // Combine and sort by last message time
+      const allConversations = [
+        ...Array.from(directConversationsMap.values()),
+        ...groupConversations,
+      ].sort((a, b) => {
+        return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
+      });
+
+      setConversations(allConversations);
     } catch (error) {
-      // Error already shown via Alert
+      console.log('Error in fetchConversations:', error);
+      Alert.alert('Error', 'Failed to load conversations. Please try again.');
     } finally {
       setLoading(false);
     }
   }, [user]);
 
-  // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchConversations();
-    }, [fetchConversations])
+      checkAndShowNotificationPrompt();
+    }, [fetchConversations, checkAndShowNotificationPrompt])
   );
 
   useEffect(() => {
     fetchConversations();
 
-    // Set up real-time subscription for new messages
+    // Set up real-time subscriptions
     if (user && isSupabaseConfigured()) {
-      const subscription = supabase
+      const messagesSubscription = supabase
         .channel('messages')
         .on(
           'postgres_changes',
@@ -111,13 +275,31 @@ export default function MessagesScreen() {
             filter: `recipient_id=eq.${user.id}`,
           },
           () => {
+            console.log('New message received, refreshing conversations');
+            fetchConversations();
+          }
+        )
+        .subscribe();
+
+      const groupMessagesSubscription = supabase
+        .channel('group_messages')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'group_messages',
+          },
+          () => {
+            console.log('New group message received, refreshing conversations');
             fetchConversations();
           }
         )
         .subscribe();
 
       return () => {
-        subscription.unsubscribe();
+        messagesSubscription.unsubscribe();
+        groupMessagesSubscription.unsubscribe();
       };
     }
   }, [user, fetchConversations]);
@@ -131,60 +313,110 @@ export default function MessagesScreen() {
     const diffDays = Math.floor(diffMs / 86400000);
 
     if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffMins < 60) {
+      const minsText = `${diffMins}m ago`;
+      return minsText;
+    }
+    if (diffHours < 24) {
+      const hoursText = `${diffHours}h ago`;
+      return hoursText;
+    }
+    if (diffDays < 7) {
+      const daysText = `${diffDays}d ago`;
+      return daysText;
+    }
     return date.toLocaleDateString();
   };
 
   const filteredConversations = conversations.filter(conv => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
-    return conv.userName.toLowerCase().includes(query) ||
+    return conv.title.toLowerCase().includes(query) ||
            conv.userFirstName?.toLowerCase().includes(query) ||
            conv.userLastName?.toLowerCase().includes(query) ||
            conv.userNickname?.toLowerCase().includes(query);
   });
 
-  const renderConversation = ({ item }: { item: Conversation }) => (
-    <TouchableOpacity
-      style={styles.conversationCard}
-      onPress={() => router.push(`/conversation/${item.userId}`)}
-    >
-      <View style={styles.avatarContainer}>
-        <IconSymbol
-          ios_icon_name="person.fill"
-          android_material_icon_name="person"
-          size={32}
-          color={colors.primary}
-        />
-        {item.unreadCount > 0 && (
-          <View style={styles.unreadBadge}>
-            <Text style={styles.unreadBadgeText}>
-              {item.unreadCount > 9 ? '9+' : item.unreadCount}
-            </Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.conversationInfo}>
-        <View style={styles.conversationHeader}>
-          <Text style={[commonStyles.subtitle, { flex: 1 }]} numberOfLines={1}>
-            {item.userName}
-          </Text>
-          <Text style={styles.timeText}>{formatTime(item.lastMessageTime)}</Text>
+  const renderConversation = ({ item }: { item: Conversation }) => {
+    const handlePress = () => {
+      console.log('User tapped conversation:', item.title);
+      if (item.type === 'group') {
+        router.push(`/group-conversation/${item.id}`);
+      } else {
+        router.push(`/conversation/${item.userId}`);
+      }
+    };
+
+    return (
+      <TouchableOpacity style={styles.conversationCard} onPress={handlePress}>
+        <View style={styles.avatarContainer}>
+          {item.type === 'group' ? (
+            <IconSymbol
+              ios_icon_name="person.3.fill"
+              android_material_icon_name="group"
+              size={32}
+              color={colors.primary}
+            />
+          ) : (
+            <IconSymbol
+              ios_icon_name="person.fill"
+              android_material_icon_name="person"
+              size={32}
+              color={colors.primary}
+            />
+          )}
+          {item.unreadCount > 0 && (
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadBadgeText}>
+                {item.unreadCount > 9 ? '9+' : item.unreadCount}
+              </Text>
+            </View>
+          )}
         </View>
-        <Text
-          style={[
-            commonStyles.textSecondary,
-            item.unreadCount > 0 && styles.unreadMessage,
-          ]}
-          numberOfLines={2}
-        >
-          {item.lastMessage}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.conversationInfo}>
+          <View style={styles.conversationHeader}>
+            <View style={styles.titleRow}>
+              <Text style={[commonStyles.subtitle, { flex: 1 }]} numberOfLines={1}>
+                {item.title}
+              </Text>
+              {item.type === 'group' && (
+                <View style={styles.groupBadge}>
+                  <IconSymbol
+                    ios_icon_name="person.2"
+                    android_material_icon_name="group"
+                    size={12}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.groupBadgeText}>{item.memberCount}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.timeText}>{formatTime(item.lastMessageTime)}</Text>
+          </View>
+          <View style={styles.lastMessageRow}>
+            <Text
+              style={[
+                commonStyles.textSecondary,
+                item.unreadCount > 0 && styles.unreadMessage,
+                { flex: 1 },
+              ]}
+              numberOfLines={2}
+            >
+              {item.lastMessage}
+            </Text>
+            {item.isMuted && (
+              <IconSymbol
+                ios_icon_name="bell.slash.fill"
+                android_material_icon_name="notifications_off"
+                size={16}
+                color={colors.textSecondary}
+              />
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -232,6 +464,22 @@ export default function MessagesScreen() {
         )}
       </View>
 
+      <TouchableOpacity
+        style={styles.createGroupButton}
+        onPress={() => {
+          console.log('User tapped Create Group Chat');
+          router.push('/create-group');
+        }}
+      >
+        <IconSymbol
+          ios_icon_name="plus.circle.fill"
+          android_material_icon_name="add_circle"
+          size={24}
+          color={colors.primary}
+        />
+        <Text style={styles.createGroupText}>Create Group Chat</Text>
+      </TouchableOpacity>
+
       {filteredConversations.length === 0 ? (
         <View style={styles.emptyState}>
           <IconSymbol
@@ -246,18 +494,24 @@ export default function MessagesScreen() {
           <Text style={[commonStyles.textSecondary, { marginTop: 8, textAlign: 'center' }]}>
             {searchQuery.trim()
               ? 'No conversations match your search'
-              : 'Start a conversation by visiting a friend\'s profile'}
+              : 'Start a conversation by visiting a friend\'s profile or create a group chat'}
           </Text>
         </View>
       ) : (
         <FlatList
           data={filteredConversations}
           renderItem={renderConversation}
-          keyExtractor={(item) => item.userId}
+          keyExtractor={(item) => `${item.type}:${item.id}`}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <NotificationPermissionModal
+        visible={showNotificationPrompt}
+        onEnable={handleEnableNotifications}
+        onNotNow={handleNotNow}
+      />
     </View>
   );
 }
@@ -278,7 +532,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   searchInput: {
     flex: 1,
@@ -286,6 +540,24 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginLeft: 12,
     marginRight: 12,
+  },
+  createGroupButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.highlight,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  createGroupText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 12,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -337,10 +609,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  titleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.highlight,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  groupBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginLeft: 4,
+  },
   timeText: {
     fontSize: 12,
     color: colors.textSecondary,
     marginLeft: 8,
+  },
+  lastMessageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   unreadMessage: {
     fontWeight: '600',

@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 
 interface Message {
   id: string;
@@ -41,6 +42,9 @@ export default function ConversationScreen() {
   const [sending, setSending] = useState(false);
   const [messageRequest, setMessageRequest] = useState<MessageRequest | null>(null);
   const [isFriend, setIsFriend] = useState(false);
+  const [showMuteModal, setShowMuteModal] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const fetchRecipientProfile = useCallback(async () => {
@@ -157,11 +161,98 @@ export default function ConversationScreen() {
     }
   }, [messageRequest, user, checkMessageRequest]);
 
+  const checkMuteStatus = useCallback(async () => {
+    if (!user || !recipientId || !isSupabaseConfigured()) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('conversation_mutes')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('conversation_type', 'direct')
+        .eq('conversation_id', recipientId)
+        .maybeSingle();
+
+      if (error && error.code !== 'PGRST116') {
+        console.log('Error checking mute status:', error);
+      }
+
+      if (data) {
+        const mutedUntil = data.muted_until;
+        const isMutedNow = !mutedUntil || new Date(mutedUntil) > new Date();
+        setIsMuted(isMutedNow);
+      }
+    } catch (error) {
+      console.log('Error in checkMuteStatus:', error);
+    }
+  }, [user, recipientId]);
+
+  const handleMuteConversation = async (minutes: number | null) => {
+    console.log('User muting conversation for:', minutes, 'minutes');
+    try {
+      if (!user || !recipientId || !isSupabaseConfigured()) return;
+
+      const mutedUntil = minutes ? new Date(Date.now() + minutes * 60 * 1000).toISOString() : null;
+
+      const { error } = await supabase
+        .from('conversation_mutes')
+        .upsert({
+          user_id: user.id,
+          conversation_type: 'direct',
+          conversation_id: recipientId,
+          muted_until: mutedUntil,
+        }, {
+          onConflict: 'user_id,conversation_type,conversation_id',
+        });
+
+      if (error) {
+        console.log('Error muting conversation:', error);
+        throw error;
+      }
+
+      setIsMuted(true);
+      
+      const muteMessage = minutes 
+        ? `Muted for ${minutes >= 1440 ? '24 hours' : minutes >= 480 ? '8 hours' : '1 hour'}`
+        : 'Muted until you turn it back on';
+      Alert.alert('Muted', muteMessage);
+    } catch (error: any) {
+      console.log('Error in handleMuteConversation:', error);
+      Alert.alert('Error', `Failed to mute conversation: ${error.message}`);
+    }
+  };
+
+  const handleUnmute = async () => {
+    console.log('User unmuting conversation');
+    try {
+      if (!user || !recipientId || !isSupabaseConfigured()) return;
+
+      const { error } = await supabase
+        .from('conversation_mutes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('conversation_type', 'direct')
+        .eq('conversation_id', recipientId);
+
+      if (error) {
+        console.log('Error unmuting conversation:', error);
+        throw error;
+      }
+
+      setIsMuted(false);
+      Alert.alert('Unmuted', 'Notifications enabled for this conversation.');
+    } catch (error: any) {
+      console.log('Error in handleUnmute:', error);
+      Alert.alert('Error', `Failed to unmute conversation: ${error.message}`);
+    }
+  };
+
   useEffect(() => {
     fetchRecipientProfile();
     fetchMessages();
     checkFriendshipStatus();
     checkMessageRequest();
+    checkMuteStatus();
 
     // Set up real-time subscription
     if (user && recipientId && isSupabaseConfigured()) {
@@ -198,7 +289,7 @@ export default function ConversationScreen() {
         subscription.unsubscribe();
       };
     }
-  }, [user, recipientId, fetchRecipientProfile, fetchMessages, checkFriendshipStatus, checkMessageRequest, messageRequest, acceptMessageRequest]);
+  }, [user, recipientId, fetchRecipientProfile, fetchMessages, checkFriendshipStatus, checkMessageRequest, checkMuteStatus, messageRequest, acceptMessageRequest]);
 
   const createMessageRequest = async () => {
     if (!user || !recipientId || !isSupabaseConfigured()) return;
@@ -376,6 +467,20 @@ export default function ConversationScreen() {
           </View>
           <Text style={styles.headerName}>{recipientName}</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.optionsButton}
+          onPress={() => {
+            console.log('User tapped options menu');
+            setShowOptionsMenu(true);
+          }}
+        >
+          <IconSymbol
+            ios_icon_name="ellipsis"
+            android_material_icon_name="more_vert"
+            size={24}
+            color={colors.text}
+          />
+        </TouchableOpacity>
       </View>
 
       {!isFriend && messageRequest?.status === 'pending' && messageRequest.sender_id === user?.id && (
@@ -444,6 +549,51 @@ export default function ConversationScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Options Menu Modal */}
+      <Modal
+        visible={showOptionsMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowOptionsMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.optionsOverlay}
+          activeOpacity={1}
+          onPress={() => setShowOptionsMenu(false)}
+        >
+          <View style={styles.optionsMenu}>
+            <TouchableOpacity
+              style={styles.optionsMenuItem}
+              onPress={() => {
+                setShowOptionsMenu(false);
+                if (isMuted) {
+                  handleUnmute();
+                } else {
+                  setShowMuteModal(true);
+                }
+              }}
+            >
+              <IconSymbol
+                ios_icon_name={isMuted ? "bell.fill" : "bell.slash.fill"}
+                android_material_icon_name={isMuted ? "notifications" : "notifications_off"}
+                size={24}
+                color={colors.text}
+              />
+              <Text style={styles.optionsMenuText}>
+                {isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Mute Options Modal */}
+      <MuteOptionsModal
+        visible={showMuteModal}
+        onClose={() => setShowMuteModal(false)}
+        onSelectMute={handleMuteConversation}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -479,6 +629,35 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
+  },
+  optionsButton: {
+    padding: 4,
+  },
+  optionsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    paddingTop: 100,
+    paddingHorizontal: 20,
+  },
+  optionsMenu: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  optionsMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: colors.card,
+  },
+  optionsMenuText: {
+    fontSize: 16,
+    color: colors.text,
+    marginLeft: 16,
   },
   messagesList: {
     paddingHorizontal: 20,

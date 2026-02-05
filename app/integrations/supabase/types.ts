@@ -295,6 +295,148 @@ export type Database = {
           }
         ]
       }
+      group_chats: {
+        Row: {
+          id: string
+          name: string
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_chats_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      group_members: {
+        Row: {
+          id: string
+          group_id: string
+          user_id: string
+          joined_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          user_id: string
+          joined_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          user_id?: string
+          joined_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      group_messages: {
+        Row: {
+          id: string
+          group_id: string
+          sender_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          sender_id: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          sender_id?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      conversation_mutes: {
+        Row: {
+          id: string
+          user_id: string
+          conversation_type: 'direct' | 'group'
+          conversation_id: string
+          muted_until: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          conversation_type: 'direct' | 'group'
+          conversation_id: string
+          muted_until?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          conversation_type?: 'direct' | 'group'
+          conversation_id?: string
+          muted_until?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_mutes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -320,6 +462,8 @@ export type Database = {
           privacy_accepted: boolean | null
           accepted_at: string | null
           accepted_version: string | null
+          messages_visit_count: number
+          notification_prompt_shown: boolean
         }
         Insert: {
           created_at?: string
@@ -345,6 +489,8 @@ export type Database = {
           privacy_accepted?: boolean | null
           accepted_at?: string | null
           accepted_version?: string | null
+          messages_visit_count?: number
+          notification_prompt_shown?: boolean
         }
         Update: {
           created_at?: string
@@ -370,6 +516,8 @@ export type Database = {
           privacy_accepted?: boolean | null
           accepted_at?: string | null
           accepted_version?: string | null
+          messages_visit_count?: number
+          notification_prompt_shown?: boolean
         }
         Relationships: []
       }
