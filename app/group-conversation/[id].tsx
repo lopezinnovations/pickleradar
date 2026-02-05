@@ -95,8 +95,11 @@ export default function GroupConversationScreen() {
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.log('Error fetching group messages:', error);
-        throw error;
+        console.error('Error fetching group messages:', error);
+        console.error('Full error details:', JSON.stringify(error, null, 2));
+        // Don't throw - just log and show empty state
+        setMessages([]);
+        return;
       }
 
       console.log('Fetched', data?.length || 0, 'messages for group');
@@ -148,19 +151,21 @@ export default function GroupConversationScreen() {
             };
 
             setMessages((prev) => {
-              // Remove optimistic message if it exists
-              const filtered = prev.filter(m => !m.isOptimistic);
+              // Remove any optimistic messages first
+              const withoutOptimistic = prev.filter(m => !m.isOptimistic);
               // Check if message already exists (avoid duplicates)
-              if (filtered.some(m => m.id === messageWithSender.id)) {
-                return filtered;
+              if (withoutOptimistic.some(m => m.id === messageWithSender.id)) {
+                console.log('Message already exists, skipping duplicate');
+                return withoutOptimistic;
               }
-              return [...filtered, messageWithSender];
+              console.log('Adding new real-time message to list');
+              return [...withoutOptimistic, messageWithSender];
             });
 
-            // Scroll to bottom
+            // Scroll to bottom after a short delay to ensure render is complete
             setTimeout(() => {
               flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
+            }, 150);
           }
         )
         .subscribe((status) => {

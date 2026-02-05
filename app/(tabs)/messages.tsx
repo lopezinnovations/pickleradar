@@ -116,12 +116,13 @@ export default function MessagesScreen() {
       setError(null);
 
       // Fetch direct message conversations
+      // Use explicit FK names to avoid PGRST200 relationship errors
       const { data: messages, error: messagesError } = await supabase
         .from('messages')
         .select(`
           *,
           sender:users!messages_sender_id_fkey(id, first_name, last_name, pickleballer_nickname),
-          recipient:users!messages!messages_recipient_id_fkey(id, first_name, last_name, pickleballer_nickname)
+          recipient:users!messages_recipient_id_fkey(id, first_name, last_name, pickleballer_nickname)
         `)
         .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
@@ -129,7 +130,9 @@ export default function MessagesScreen() {
       // PGRST116 means no rows found, which is not an error
       if (messagesError && messagesError.code !== 'PGRST116') {
         console.error('MessagesScreen: Error fetching messages:', messagesError);
-        throw new Error('Failed to load direct messages');
+        console.error('MessagesScreen: Full error details:', JSON.stringify(messagesError, null, 2));
+        // Don't throw - continue to try loading group chats
+        setError(`Direct messages error: ${messagesError.message || 'Unknown error'}`);
       }
 
       console.log('MessagesScreen: Fetched', messages?.length || 0, 'direct messages');
@@ -143,7 +146,9 @@ export default function MessagesScreen() {
 
       if (userGroupsError && userGroupsError.code !== 'PGRST116') {
         console.error('MessagesScreen: Error fetching user groups:', userGroupsError);
-        throw new Error('Failed to load group chats');
+        console.error('MessagesScreen: Full error details:', JSON.stringify(userGroupsError, null, 2));
+        // Don't throw - continue with just direct messages
+        setError(`Group chats error: ${userGroupsError.message || 'Unknown error'}`);
       }
 
       console.log('MessagesScreen: User is member of', userGroups?.length || 0, 'groups');
@@ -268,9 +273,13 @@ export default function MessagesScreen() {
 
       console.log('MessagesScreen: Loaded', allConversations.length, 'total conversations');
       setConversations(allConversations);
-      setError(null);
+      // Only clear error if we successfully loaded everything
+      if (!error) {
+        setError(null);
+      }
     } catch (error: any) {
       console.error('MessagesScreen: Error in fetchConversations:', error);
+      console.error('MessagesScreen: Full error details:', JSON.stringify(error, null, 2));
       setError(error.message || 'Failed to load conversations');
     } finally {
       setLoading(false);

@@ -118,6 +118,14 @@ export function IconSymbol({
     'account_circle': 'person.crop.circle.fill',
     'location_on': 'location.fill',
     'mail_outline': 'envelope',
+    
+    // Additional common icons to prevent "?" placeholders
+    'plus': 'plus',
+    'minus': 'minus',
+    'question': 'questionmark.circle',
+    'question-mark': 'questionmark.circle',
+    'info-circle': 'info.circle.fill',
+    'help-circle': 'questionmark.circle',
   };
 
   // Determine which icon name to use

@@ -515,7 +515,7 @@ export default function ConversationScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <IconSymbol
             ios_icon_name="chevron.left"
-            android_material_icon_name="chevron_left"
+            android_material_icon_name="chevron-left"
             size={24}
             color={colors.primary}
           />
@@ -543,7 +543,7 @@ export default function ConversationScreen() {
         >
           <IconSymbol
             ios_icon_name="ellipsis"
-            android_material_icon_name="more_vert"
+            android_material_icon_name="more-vert"
             size={24}
             color={colors.text}
           />
@@ -643,7 +643,7 @@ export default function ConversationScreen() {
             >
               <IconSymbol
                 ios_icon_name={isMuted ? "bell.fill" : "bell.slash.fill"}
-                android_material_icon_name={isMuted ? "notifications" : "notifications_off"}
+                android_material_icon_name={isMuted ? "notifications" : "notifications-off"}
                 size={24}
                 color={colors.text}
               />

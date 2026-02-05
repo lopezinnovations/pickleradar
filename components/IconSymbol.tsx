@@ -133,6 +133,14 @@ export function IconSymbol({
     'menu': 'menu',
     'home': 'home',
     
+    // Additional common icons to prevent "?" placeholders
+    'plus': 'add',
+    'minus': 'remove',
+    'question': 'help-outline',
+    'question-mark': 'help-outline',
+    'info-circle': 'info',
+    'help-circle': 'help-outline',
+    
     // Fix underscore variants to use hyphens (Material Icons standard)
     'check_circle': 'check-circle',
     'chevron_left': 'chevron-left',

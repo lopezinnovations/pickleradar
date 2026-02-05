@@ -303,7 +303,7 @@ export default function GroupInfoScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <IconSymbol
             ios_icon_name="chevron.left"
-            android_material_icon_name="chevron_left"
+            android_material_icon_name="chevron-left"
             size={24}
             color={colors.primary}
           />
@@ -339,7 +339,7 @@ export default function GroupInfoScreen() {
             <Text style={styles.actionText}>Rename Group</Text>
             <IconSymbol
               ios_icon_name="chevron.right"
-              android_material_icon_name="chevron_right"
+              android_material_icon_name="chevron-right"
               size={20}
               color={colors.textSecondary}
             />
@@ -354,14 +354,14 @@ export default function GroupInfoScreen() {
           >
             <IconSymbol
               ios_icon_name="person.badge.plus"
-              android_material_icon_name="person_add"
+              android_material_icon_name="person-add"
               size={24}
               color={colors.primary}
             />
             <Text style={styles.actionText}>Add Members</Text>
             <IconSymbol
               ios_icon_name="chevron.right"
-              android_material_icon_name="chevron_right"
+              android_material_icon_name="chevron-right"
               size={20}
               color={colors.textSecondary}
             />
@@ -373,7 +373,7 @@ export default function GroupInfoScreen() {
           >
             <IconSymbol
               ios_icon_name={isMuted ? "bell.fill" : "bell.slash.fill"}
-              android_material_icon_name={isMuted ? "notifications" : "notifications_off"}
+              android_material_icon_name={isMuted ? "notifications" : "notifications-off"}
               size={24}
               color={colors.primary}
             />
@@ -382,7 +382,7 @@ export default function GroupInfoScreen() {
             </Text>
             <IconSymbol
               ios_icon_name="chevron.right"
-              android_material_icon_name="chevron_right"
+              android_material_icon_name="chevron-right"
               size={20}
               color={colors.textSecondary}
             />
@@ -403,7 +403,7 @@ export default function GroupInfoScreen() {
           <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveGroup}>
             <IconSymbol
               ios_icon_name="rectangle.portrait.and.arrow.right"
-              android_material_icon_name="exit_to_app"
+              android_material_icon_name="exit-to-app"
               size={24}
               color={colors.error}
             />
