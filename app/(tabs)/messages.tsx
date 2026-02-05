@@ -111,6 +111,7 @@ export default function MessagesScreen() {
 
     try {
       console.log('Fetching conversations for user:', user.id);
+      setError(null);
 
       // Fetch direct message conversations
       const { data: messages, error: messagesError } = await supabase
@@ -123,12 +124,9 @@ export default function MessagesScreen() {
         .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
-      if (messagesError) {
+      if (messagesError && messagesError.code !== 'PGRST116') {
         console.log('Error fetching messages:', messagesError);
-        // Only show error if it's a real network/database error, not empty results
-        if (messagesError.code !== 'PGRST116') {
-          throw messagesError;
-        }
+        throw new Error('Failed to load direct messages');
       }
 
       // Fetch group conversations
@@ -140,12 +138,9 @@ export default function MessagesScreen() {
         `)
         .eq('user_id', user.id);
 
-      if (groupError) {
+      if (groupError && groupError.code !== 'PGRST116') {
         console.log('Error fetching group memberships:', groupError);
-        // Only show error if it's a real network/database error, not empty results
-        if (groupError.code !== 'PGRST116') {
-          throw groupError;
-        }
+        throw new Error('Failed to load group chats');
       }
 
       // Fetch muted conversations
@@ -238,7 +233,7 @@ export default function MessagesScreen() {
           title: groupName,
           lastMessage: lastMessage?.content || 'No messages yet',
           lastMessageTime: lastMessage?.created_at || membership.group_chats.created_at,
-          unreadCount: 0, // TODO: Implement unread tracking for groups
+          unreadCount: 0,
           memberCount: memberCount || 0,
           isMuted: mutesMap.get(muteKey) || false,
         });
@@ -256,7 +251,6 @@ export default function MessagesScreen() {
       setConversations(allConversations);
     } catch (error: any) {
       console.log('Error in fetchConversations:', error);
-      // Only show error for real network/database failures
       setError(error.message || 'Failed to load conversations');
     } finally {
       setLoading(false);
@@ -276,24 +270,23 @@ export default function MessagesScreen() {
     // Set up real-time subscriptions
     if (user && isSupabaseConfigured()) {
       const messagesSubscription = supabase
-        .channel('messages')
+        .channel('messages_list')
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'messages',
-            filter: `recipient_id=eq.${user.id}`,
           },
           () => {
-            console.log('New message received, refreshing conversations');
+            console.log('Message change detected, refreshing conversations');
             fetchConversations();
           }
         )
         .subscribe();
 
       const groupMessagesSubscription = supabase
-        .channel('group_messages')
+        .channel('group_messages_list')
         .on(
           'postgres_changes',
           {
@@ -302,7 +295,7 @@ export default function MessagesScreen() {
             table: 'group_messages',
           },
           () => {
-            console.log('New group message received, refreshing conversations');
+            console.log('Group message change detected, refreshing conversations');
             fetchConversations();
           }
         )
@@ -501,8 +494,8 @@ export default function MessagesScreen() {
               color={colors.error}
             />
             <View style={styles.errorTextContainer}>
-              <Text style={styles.errorTitle}>Failed to load conversations</Text>
-              <Text style={styles.errorMessage}>{error}</Text>
+              <Text style={styles.errorTitle}>Couldn't load conversations</Text>
+              <Text style={styles.errorMessage}>Please try again.</Text>
             </View>
           </View>
           <TouchableOpacity
@@ -510,6 +503,7 @@ export default function MessagesScreen() {
             onPress={() => {
               console.log('User tapped Retry');
               setError(null);
+              setLoading(true);
               fetchConversations();
             }}
           >

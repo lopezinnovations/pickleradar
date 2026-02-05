@@ -1,12 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
-import { requestNotificationPermissions, checkNotificationPermissionStatus } from '@/utils/notifications';
 
 interface GroupMessage {
   id: string;
@@ -20,6 +19,8 @@ interface GroupMessage {
     last_name?: string;
     pickleballer_nickname?: string;
   };
+  isOptimistic?: boolean;
+  optimisticId?: string;
 }
 
 interface GroupInfo {
@@ -39,6 +40,7 @@ export default function GroupConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const subscriptionRef = useRef<any>(null);
 
   const fetchGroupInfo = useCallback(async () => {
     if (!groupId || !isSupabaseConfigured()) return;
@@ -72,7 +74,6 @@ export default function GroupConversationScreen() {
       });
     } catch (error) {
       console.log('Error in fetchGroupInfo:', error);
-      Alert.alert('Error', 'Failed to load group information.');
     }
   }, [groupId]);
 
@@ -83,6 +84,7 @@ export default function GroupConversationScreen() {
     }
 
     try {
+      console.log('Fetching messages for group:', groupId);
       const { data, error } = await supabase
         .from('group_messages')
         .select(`
@@ -100,7 +102,6 @@ export default function GroupConversationScreen() {
       setMessages(data || []);
     } catch (error) {
       console.log('Error in fetchMessages:', error);
-      Alert.alert('Error', 'Failed to load messages. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -110,8 +111,15 @@ export default function GroupConversationScreen() {
     fetchGroupInfo();
     fetchMessages();
 
-    // Set up real-time subscription
+    // Set up real-time subscription for group messages
     if (groupId && isSupabaseConfigured()) {
+      console.log('Setting up real-time subscription for group:', groupId);
+      
+      // Clean up existing subscription
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
+
       const subscription = supabase
         .channel(`group_${groupId}`)
         .on(
@@ -123,25 +131,45 @@ export default function GroupConversationScreen() {
             filter: `group_id=eq.${groupId}`,
           },
           async (payload) => {
-            console.log('New group message received:', payload.new);
+            console.log('Real-time group message received:', payload.new);
+            const newMessage = payload.new as GroupMessage;
+            
             // Fetch sender info
             const { data: senderData } = await supabase
               .from('users')
               .select('id, first_name, last_name, pickleballer_nickname')
-              .eq('id', payload.new.sender_id)
+              .eq('id', newMessage.sender_id)
               .single();
 
-            const newMessage = {
-              ...payload.new,
+            const messageWithSender = {
+              ...newMessage,
               sender: senderData,
-            } as GroupMessage;
+            };
 
-            setMessages((prev) => [...prev, newMessage]);
+            setMessages((prev) => {
+              // Remove optimistic message if it exists
+              const filtered = prev.filter(m => !m.isOptimistic);
+              // Check if message already exists (avoid duplicates)
+              if (filtered.some(m => m.id === messageWithSender.id)) {
+                return filtered;
+              }
+              return [...filtered, messageWithSender];
+            });
+
+            // Scroll to bottom
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Group subscription status:', status);
+        });
+
+      subscriptionRef.current = subscription;
 
       return () => {
+        console.log('Cleaning up group real-time subscription');
         subscription.unsubscribe();
       };
     }
@@ -151,45 +179,66 @@ export default function GroupConversationScreen() {
     if (!messageText.trim() || !user || !groupId || !isSupabaseConfigured()) return;
 
     console.log('User sending message to group:', groupId);
+    const messageContent = messageText.trim();
+    const optimisticId = `optimistic-${Date.now()}`;
+
+    // Optimistic UI: Add message immediately
+    const optimisticMessage: GroupMessage = {
+      id: optimisticId,
+      group_id: groupId as string,
+      sender_id: user.id,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      sender: {
+        id: user.id,
+        first_name: user.firstName,
+        last_name: user.lastName,
+        pickleballer_nickname: user.pickleballerNickname,
+      },
+      isOptimistic: true,
+      optimisticId: optimisticId,
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setMessageText('');
     setSending(true);
 
+    // Scroll to bottom immediately
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 50);
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('group_messages')
         .insert([
           {
             group_id: groupId,
             sender_id: user.id,
-            content: messageText.trim(),
+            content: messageContent,
           },
-        ]);
+        ])
+        .select(`
+          *,
+          sender:users!group_messages_sender_id_fkey(id, first_name, last_name, pickleballer_nickname)
+        `)
+        .single();
 
       if (error) {
         console.log('Error sending message:', error);
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter(m => m.optimisticId !== optimisticId));
         throw error;
       }
 
-      // Check if we should prompt for notifications (first message sent)
-      const permissionStatus = await checkNotificationPermissionStatus();
-      if (permissionStatus !== 'granted') {
-        const granted = await requestNotificationPermissions();
-        if (granted && isSupabaseConfigured()) {
-          await supabase
-            .from('users')
-            .update({ notification_prompt_shown: true })
-            .eq('id', user.id);
-        }
-      }
+      console.log('Message sent successfully:', data.id);
 
-      setMessageText('');
-      
-      // Scroll to bottom after sending
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      // Replace optimistic message with real message
+      setMessages((prev) => 
+        prev.map(m => m.optimisticId === optimisticId ? data : m)
+      );
     } catch (error: any) {
-      console.log('Error in sendMessage:', error);
-      Alert.alert('Error', `Failed to send message: ${error.message}`);
+      console.log('Failed to send message:', error);
     } finally {
       setSending(false);
     }
@@ -252,13 +301,28 @@ export default function GroupConversationScreen() {
           {showSenderName && (
             <Text style={styles.senderName}>{senderName}</Text>
           )}
-          <View style={[styles.messageBubble, isFromMe && styles.myMessageBubble]}>
+          <View style={[
+            styles.messageBubble, 
+            isFromMe && styles.myMessageBubble,
+            item.isOptimistic && styles.optimisticMessage
+          ]}>
             <Text style={[styles.messageText, isFromMe && styles.myMessageText]}>
               {item.content}
             </Text>
-            <Text style={[styles.messageTime, isFromMe && styles.myMessageTime]}>
-              {timeText}
-            </Text>
+            <View style={styles.messageFooter}>
+              <Text style={[styles.messageTime, isFromMe && styles.myMessageTime]}>
+                {timeText}
+              </Text>
+              {item.isOptimistic && (
+                <IconSymbol
+                  ios_icon_name="clock"
+                  android_material_icon_name="schedule"
+                  size={12}
+                  color={isFromMe ? colors.card : colors.textSecondary}
+                  style={{ marginLeft: 4, opacity: 0.6 }}
+                />
+              )}
+            </View>
           </View>
         </View>
       </React.Fragment>
@@ -451,6 +515,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  optimisticMessage: {
+    opacity: 0.7,
+  },
   messageText: {
     fontSize: 16,
     color: colors.text,
@@ -459,10 +526,14 @@ const styles = StyleSheet.create({
   myMessageText: {
     color: colors.card,
   },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   messageTime: {
     fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 4,
   },
   myMessageTime: {
     color: colors.card,

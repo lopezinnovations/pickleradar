@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,6 +15,8 @@ interface Message {
   content: string;
   read: boolean;
   created_at: string;
+  isOptimistic?: boolean;
+  optimisticId?: string;
 }
 
 interface UserProfile {
@@ -46,6 +48,7 @@ export default function ConversationScreen() {
   const [isMuted, setIsMuted] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const subscriptionRef = useRef<any>(null);
 
   const fetchRecipientProfile = useCallback(async () => {
     if (!recipientId || !isSupabaseConfigured()) return;
@@ -58,12 +61,12 @@ export default function ConversationScreen() {
         .single();
 
       if (error) {
-        Alert.alert('Error', 'Failed to load user profile.');
+        console.log('Error loading user profile:', error);
         throw error;
       }
       setRecipientProfile(data);
     } catch (error) {
-      // Error already shown via Alert
+      console.log('Failed to load recipient profile:', error);
     }
   }, [recipientId]);
 
@@ -83,7 +86,7 @@ export default function ConversationScreen() {
       }
       setIsFriend(!!data);
     } catch (error) {
-      // Silent fail - not critical
+      console.log('Error checking friendship status:', error);
     }
   }, [user, recipientId]);
 
@@ -91,7 +94,6 @@ export default function ConversationScreen() {
     if (!user || !recipientId || !isSupabaseConfigured()) return;
 
     try {
-      // Check if there's an existing message request
       const { data, error } = await supabase
         .from('message_requests')
         .select('*')
@@ -103,7 +105,7 @@ export default function ConversationScreen() {
       }
       setMessageRequest(data);
     } catch (error) {
-      // Silent fail - not critical
+      console.log('Error checking message request:', error);
     }
   }, [user, recipientId]);
 
@@ -114,6 +116,7 @@ export default function ConversationScreen() {
     }
 
     try {
+      console.log('Fetching messages for conversation with:', recipientId);
       const { data, error } = await supabase
         .from('messages')
         .select('*')
@@ -121,7 +124,7 @@ export default function ConversationScreen() {
         .order('created_at', { ascending: true });
 
       if (error) {
-        Alert.alert('Error', 'Failed to load messages. Please try again.');
+        console.log('Error fetching messages:', error);
         throw error;
       }
 
@@ -139,7 +142,7 @@ export default function ConversationScreen() {
           .in('id', unreadMessageIds);
       }
     } catch (error) {
-      // Error already shown via Alert
+      console.log('Failed to load messages:', error);
     } finally {
       setLoading(false);
     }
@@ -157,7 +160,7 @@ export default function ConversationScreen() {
       if (error) throw error;
       await checkMessageRequest();
     } catch (error) {
-      // Silent fail - not critical
+      console.log('Error accepting message request:', error);
     }
   }, [messageRequest, user, checkMessageRequest]);
 
@@ -211,14 +214,14 @@ export default function ConversationScreen() {
       }
 
       setIsMuted(true);
+      setShowMuteModal(false);
       
       const muteMessage = minutes 
         ? `Muted for ${minutes >= 1440 ? '24 hours' : minutes >= 480 ? '8 hours' : '1 hour'}`
         : 'Muted until you turn it back on';
-      Alert.alert('Muted', muteMessage);
+      console.log(muteMessage);
     } catch (error: any) {
       console.log('Error in handleMuteConversation:', error);
-      Alert.alert('Error', `Failed to mute conversation: ${error.message}`);
     }
   };
 
@@ -240,10 +243,9 @@ export default function ConversationScreen() {
       }
 
       setIsMuted(false);
-      Alert.alert('Unmuted', 'Notifications enabled for this conversation.');
+      console.log('Notifications enabled for this conversation');
     } catch (error: any) {
       console.log('Error in handleUnmute:', error);
-      Alert.alert('Error', `Failed to unmute conversation: ${error.message}`);
     }
   };
 
@@ -254,38 +256,74 @@ export default function ConversationScreen() {
     checkMessageRequest();
     checkMuteStatus();
 
-    // Set up real-time subscription
+    // Set up real-time subscription for incoming messages
     if (user && recipientId && isSupabaseConfigured()) {
+      console.log('Setting up real-time subscription for conversation');
+      
+      // Clean up existing subscription
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+      }
+
       const subscription = supabase
-        .channel('conversation')
+        .channel(`conversation:${user.id}:${recipientId}`)
         .on(
           'postgres_changes',
           {
             event: 'INSERT',
             schema: 'public',
             table: 'messages',
-            filter: `sender_id=eq.${recipientId}`,
           },
           (payload) => {
-            if (payload.new.recipient_id === user.id) {
-              setMessages((prev) => [...prev, payload.new as Message]);
-              // Mark as read immediately
-              supabase
-                .from('messages')
-                .update({ read: true })
-                .eq('id', payload.new.id)
-                .then(() => {});
-              
-              // If this is the first message from recipient, accept the message request
+            console.log('Real-time message received:', payload.new);
+            const newMessage = payload.new as Message;
+            
+            // Only add if it's part of this conversation
+            if (
+              (newMessage.sender_id === recipientId && newMessage.recipient_id === user.id) ||
+              (newMessage.sender_id === user.id && newMessage.recipient_id === recipientId)
+            ) {
+              setMessages((prev) => {
+                // Remove optimistic message if it exists
+                const filtered = prev.filter(m => !m.isOptimistic);
+                // Check if message already exists (avoid duplicates)
+                if (filtered.some(m => m.id === newMessage.id)) {
+                  return filtered;
+                }
+                return [...filtered, newMessage];
+              });
+
+              // Mark as read if from recipient
+              if (newMessage.sender_id === recipientId && newMessage.recipient_id === user.id) {
+                supabase
+                  .from('messages')
+                  .update({ read: true })
+                  .eq('id', newMessage.id)
+                  .then(() => {
+                    console.log('Marked message as read');
+                  });
+              }
+
+              // Auto-accept message request if recipient is replying
               if (messageRequest && messageRequest.status === 'pending' && messageRequest.recipient_id === user.id) {
                 acceptMessageRequest();
               }
+
+              // Scroll to bottom
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 100);
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+        });
+
+      subscriptionRef.current = subscription;
 
       return () => {
+        console.log('Cleaning up real-time subscription');
         subscription.unsubscribe();
       };
     }
@@ -305,38 +343,44 @@ export default function ConversationScreen() {
           },
         ]);
 
-      if (error && error.code !== '23505') { // Ignore duplicate key errors
+      if (error && error.code !== '23505') {
         throw error;
       }
 
-      // Create notification for recipient
-      await supabase
-        .from('notifications')
-        .insert([
-          {
-            user_id: recipientId,
-            title: 'New Message Request',
-            body: `${user.firstName || 'Someone'} sent you a message`,
-            type: 'message_request',
-            data: {
-              sender_id: user.id,
-              sender_name: user.firstName && user.lastName 
-                ? `${user.firstName} ${user.lastName.charAt(0)}.`
-                : user.pickleballerNickname || 'Unknown User',
-            },
-          },
-        ]);
-
       await checkMessageRequest();
     } catch (error) {
-      // Silent fail - not critical
+      console.log('Error creating message request:', error);
     }
   };
 
   const sendMessage = async () => {
     if (!messageText.trim() || !user || !recipientId || !isSupabaseConfigured()) return;
 
+    console.log('User sending message to:', recipientId);
+    const messageContent = messageText.trim();
+    const optimisticId = `optimistic-${Date.now()}`;
+
+    // Optimistic UI: Add message immediately
+    const optimisticMessage: Message = {
+      id: optimisticId,
+      sender_id: user.id,
+      recipient_id: recipientId as string,
+      content: messageContent,
+      read: false,
+      created_at: new Date().toISOString(),
+      isOptimistic: true,
+      optimisticId: optimisticId,
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+    setMessageText('');
     setSending(true);
+
+    // Scroll to bottom immediately
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 50);
+
     try {
       // Check if we need to create a message request
       if (!isFriend && !messageRequest) {
@@ -348,30 +392,33 @@ export default function ConversationScreen() {
         await acceptMessageRequest();
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .insert([
           {
             sender_id: user.id,
             recipient_id: recipientId,
-            content: messageText.trim(),
+            content: messageContent,
           },
-        ]);
+        ])
+        .select()
+        .single();
 
       if (error) {
-        Alert.alert('Error', 'Failed to send message. Please try again.');
+        console.log('Error sending message:', error);
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter(m => m.optimisticId !== optimisticId));
         throw error;
       }
 
-      setMessageText('');
-      await fetchMessages();
-      
-      // Scroll to bottom after sending
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      console.log('Message sent successfully:', data.id);
+
+      // Replace optimistic message with real message
+      setMessages((prev) => 
+        prev.map(m => m.optimisticId === optimisticId ? data : m)
+      );
     } catch (error) {
-      // Error already shown via Alert
+      console.log('Failed to send message:', error);
     } finally {
       setSending(false);
     }
@@ -379,7 +426,8 @@ export default function ConversationScreen() {
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const timeString = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return timeString;
   };
 
   const formatDate = (timestamp: string) => {
@@ -393,7 +441,8 @@ export default function ConversationScreen() {
     } else if (date.toDateString() === yesterday.toDateString()) {
       return 'Yesterday';
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const dateString = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return dateString;
     }
   };
 
@@ -402,21 +451,39 @@ export default function ConversationScreen() {
     const showDateSeparator = index === 0 || 
       formatDate(item.created_at) !== formatDate(messages[index - 1].created_at);
 
+    const dateText = formatDate(item.created_at);
+    const timeText = formatTime(item.created_at);
+
     return (
       <React.Fragment key={item.id}>
         {showDateSeparator && (
           <View style={styles.dateSeparator}>
-            <Text style={styles.dateSeparatorText}>{formatDate(item.created_at)}</Text>
+            <Text style={styles.dateSeparatorText}>{dateText}</Text>
           </View>
         )}
         <View style={[styles.messageContainer, isFromMe && styles.myMessageContainer]}>
-          <View style={[styles.messageBubble, isFromMe && styles.myMessageBubble]}>
+          <View style={[
+            styles.messageBubble, 
+            isFromMe && styles.myMessageBubble,
+            item.isOptimistic && styles.optimisticMessage
+          ]}>
             <Text style={[styles.messageText, isFromMe && styles.myMessageText]}>
               {item.content}
             </Text>
-            <Text style={[styles.messageTime, isFromMe && styles.myMessageTime]}>
-              {formatTime(item.created_at)}
-            </Text>
+            <View style={styles.messageFooter}>
+              <Text style={[styles.messageTime, isFromMe && styles.myMessageTime]}>
+                {timeText}
+              </Text>
+              {item.isOptimistic && (
+                <IconSymbol
+                  ios_icon_name="clock"
+                  android_material_icon_name="schedule"
+                  size={12}
+                  color={isFromMe ? colors.card : colors.textSecondary}
+                  style={{ marginLeft: 4, opacity: 0.6 }}
+                />
+              )}
+            </View>
           </View>
         </View>
       </React.Fragment>
@@ -696,6 +763,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  optimisticMessage: {
+    opacity: 0.7,
+  },
   messageText: {
     fontSize: 16,
     color: colors.text,
@@ -704,10 +774,14 @@ const styles = StyleSheet.create({
   myMessageText: {
     color: colors.card,
   },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   messageTime: {
     fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 4,
   },
   myMessageTime: {
     color: colors.card,
