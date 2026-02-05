@@ -95,38 +95,23 @@ export default function CreateGroupScreen() {
         throw new Error('User not authenticated');
       }
 
-      // Create the group
-      const { data: groupData, error: groupError } = await supabase
-        .from('group_chats')
-        .insert([
-          {
-            name: groupName.trim(),
-            created_by: user.id,
-          },
-        ])
-        .select()
-        .single();
+      // Use RPC function to create group and add members atomically
+      // This bypasses RLS policies using SECURITY DEFINER
+      const memberIds = [user.id, ...selectedFriends.map(f => f.id)];
+      
+      const { data: groupId, error: rpcError } = await supabase
+        .rpc('create_group_with_members', {
+          group_name: groupName.trim(),
+          member_ids: memberIds,
+        });
 
-      if (groupError) {
-        console.log('Error creating group:', groupError);
-        throw groupError;
+      if (rpcError) {
+        console.log('Supabase RPC error creating group:', rpcError);
+        throw rpcError;
       }
 
-      const groupId = groupData.id;
-
-      // Add creator as member
-      const membersToAdd = [
-        { group_id: groupId, user_id: user.id },
-        ...selectedFriends.map(f => ({ group_id: groupId, user_id: f.id })),
-      ];
-
-      const { error: membersError } = await supabase
-        .from('group_members')
-        .insert(membersToAdd);
-
-      if (membersError) {
-        console.log('Error adding members:', membersError);
-        throw membersError;
+      if (!groupId) {
+        throw new Error('Failed to create group - no ID returned');
       }
 
       // Check if we should prompt for notifications (first group created)
@@ -152,7 +137,7 @@ export default function CreateGroupScreen() {
       ]);
     } catch (error: any) {
       console.log('Error in handleCreateGroup:', error);
-      Alert.alert('Error', `Failed to create group: ${error.message}`);
+      Alert.alert('Error', "Can't create group yet. Please try again in a moment.");
     } finally {
       setCreating(false);
     }

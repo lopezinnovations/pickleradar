@@ -527,6 +527,13 @@ export type Database = {
     }
     Functions: {
       delete_expired_check_ins: { Args: never; Returns: undefined }
+      create_group_with_members: {
+        Args: {
+          group_name: string
+          member_ids: string[]
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
