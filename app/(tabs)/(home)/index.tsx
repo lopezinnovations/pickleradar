@@ -395,7 +395,7 @@ export default function HomeScreen() {
             <View style={styles.emptyStateCard}>
               <IconSymbol 
                 ios_icon_name="location.fill" 
-                android_material_icon_name="location_on" 
+                android_material_icon_name="location-on" 
                 size={48} 
                 color={colors.textSecondary} 
               />
@@ -414,7 +414,7 @@ export default function HomeScreen() {
                   <>
                     <IconSymbol 
                       ios_icon_name="location.fill" 
-                      android_material_icon_name="location_on" 
+                      android_material_icon_name="location-on" 
                       size={20} 
                       color={colors.card} 
                     />
@@ -446,7 +446,7 @@ export default function HomeScreen() {
               >
                 <IconSymbol 
                   ios_icon_name="plus.circle.fill" 
-                  android_material_icon_name="add_circle" 
+                  android_material_icon_name="add-circle-outline" 
                   size={20} 
                   color={colors.card} 
                 />
@@ -495,7 +495,7 @@ export default function HomeScreen() {
                 >
                   <IconSymbol 
                     ios_icon_name="plus.circle.fill" 
-                    android_material_icon_name="add_circle" 
+                    android_material_icon_name="add-circle-outline" 
                     size={24} 
                     color={colors.primary} 
                   />
@@ -694,7 +694,7 @@ export default function HomeScreen() {
                   >
                     <IconSymbol 
                       ios_icon_name="plus.circle.fill" 
-                      android_material_icon_name="add_circle" 
+                      android_material_icon_name="add-circle-outline" 
                       size={20} 
                       color={colors.card} 
                     />
@@ -804,7 +804,7 @@ export default function HomeScreen() {
                             <View style={styles.duprContainer}>
                               <IconSymbol 
                                 ios_icon_name="chart.bar.fill" 
-                                android_material_icon_name="bar_chart" 
+                                android_material_icon_name="bar-chart" 
                                 size={16} 
                                 color={colors.accent} 
                               />
@@ -817,7 +817,7 @@ export default function HomeScreen() {
                         
                         <IconSymbol 
                           ios_icon_name="chevron.right" 
-                          android_material_icon_name="chevron_right" 
+                          android_material_icon_name="chevron-right" 
                           size={20} 
                           color={colors.textSecondary} 
                         />
@@ -834,7 +834,7 @@ export default function HomeScreen() {
                       <Text style={styles.loadMoreText}>Load More Courts</Text>
                       <IconSymbol 
                         ios_icon_name="chevron.down" 
-                        android_material_icon_name="expand_more" 
+                        android_material_icon_name="expand-more" 
                         size={20} 
                         color={colors.primary} 
                       />

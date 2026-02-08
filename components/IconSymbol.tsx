@@ -60,7 +60,7 @@ export function IconSymbol({
     'arrow.up.circle.fill': 'send',
     'xmark.circle.fill': 'cancel',
     'xmark.circle': 'cancel',
-    'plus.circle.fill': 'add-circle',
+    'plus.circle.fill': 'add-circle-outline',
     'minus.circle.fill': 'remove-circle',
     'ellipsis': 'more-vert',
     
@@ -70,6 +70,7 @@ export function IconSymbol({
     'checkmark.shield.fill': 'verified-user',
     'exclamationmark.triangle.fill': 'warning',
     'info.circle.fill': 'info',
+    'info.circle': 'info-outline',
     'questionmark.circle.fill': 'help-outline',
     'questionmark': 'help-outline',
     
@@ -129,7 +130,7 @@ export function IconSymbol({
     
     // Common fallbacks for unmapped icons
     'help': 'help-outline',
-    'info': 'info',
+    'info': 'info-outline',
     'error': 'error',
     'warning': 'warning',
     'add': 'add',
@@ -143,7 +144,7 @@ export function IconSymbol({
     'minus': 'remove',
     'question': 'help-outline',
     'question-mark': 'help-outline',
-    'info-circle': 'info',
+    'info-circle': 'info-outline',
     'help-circle': 'help-outline',
     
     // Fix underscore variants to use hyphens (Material Icons standard)

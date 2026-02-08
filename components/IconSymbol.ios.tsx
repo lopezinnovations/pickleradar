@@ -59,6 +59,7 @@ export function IconSymbol({
     'cancel': 'xmark.circle.fill',
     'close': 'xmark.circle',
     'add-circle': 'plus.circle.fill',
+    'add-circle-outline': 'plus.circle.fill',
     'remove-circle': 'minus.circle.fill',
     'add': 'plus',
     'remove': 'minus',
@@ -105,7 +106,7 @@ export function IconSymbol({
     'logout': 'rectangle.portrait.and.arrow.right',
     
     // Favorites & Stars
-    'star': 'star',
+    'star': 'star.fill',
     'star-border': 'star',
     'favorite': 'star.fill',
     'favorite-border': 'star',

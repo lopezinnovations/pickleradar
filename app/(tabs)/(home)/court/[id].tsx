@@ -218,7 +218,7 @@ export default function CourtDetailScreen() {
         >
           <IconSymbol 
             ios_icon_name="chevron.left" 
-            android_material_icon_name="chevron_left" 
+            android_material_icon_name="chevron-left" 
             size={24} 
             color={colors.primary} 
           />
@@ -235,8 +235,8 @@ export default function CourtDetailScreen() {
               onPress={openMapDirections}
             >
               <IconSymbol 
-                ios_icon_name="map.fill" 
-                android_material_icon_name="map" 
+                ios_icon_name="info.circle" 
+                android_material_icon_name="info-outline" 
                 size={28} 
                 color={colors.primary} 
               />
@@ -245,7 +245,7 @@ export default function CourtDetailScreen() {
           <View style={styles.addressContainer}>
             <IconSymbol 
               ios_icon_name="location.fill" 
-              android_material_icon_name="location_on" 
+              android_material_icon_name="location-on" 
               size={20} 
               color={colors.textSecondary} 
             />
@@ -312,7 +312,7 @@ export default function CourtDetailScreen() {
                 <View style={styles.statIcon}>
                   <IconSymbol 
                     ios_icon_name="chart.bar.fill" 
-                    android_material_icon_name="bar_chart" 
+                    android_material_icon_name="bar-chart" 
                     size={24} 
                     color={colors.primary} 
                   />
@@ -338,7 +338,7 @@ export default function CourtDetailScreen() {
                 <View style={[styles.statIcon, { backgroundColor: colors.accent + '20' }]}>
                   <IconSymbol 
                     ios_icon_name="chart.line.uptrend.xyaxis" 
-                    android_material_icon_name="trending_up" 
+                    android_material_icon_name="trending-up" 
                     size={24} 
                     color={colors.accent} 
                   />
@@ -477,7 +477,7 @@ export default function CourtDetailScreen() {
             <View style={styles.checkedInHeader}>
               <IconSymbol 
                 ios_icon_name="checkmark.circle.fill" 
-                android_material_icon_name="check_circle" 
+                android_material_icon_name="check-circle" 
                 size={32} 
                 color={colors.success} 
               />
