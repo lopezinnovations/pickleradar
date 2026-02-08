@@ -519,160 +519,162 @@ export default function ConversationScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={commonStyles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <IconSymbol
-            ios_icon_name="chevron.left"
-            android_material_icon_name="chevron-left"
-            size={24}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.headerInfo}
-          onPress={() => router.push(`/user/${recipientId}`)}
-        >
-          <View style={styles.headerAvatar}>
+      <View style={commonStyles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol
-              ios_icon_name="person.fill"
-              android_material_icon_name="person"
+              ios_icon_name="chevron.left"
+              android_material_icon_name="chevron-left"
               size={24}
               color={colors.primary}
             />
-          </View>
-          <Text style={styles.headerName}>{recipientName}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.optionsButton}
-          onPress={() => {
-            console.log('User tapped options menu');
-            setShowOptionsMenu(true);
-          }}
-        >
-          <IconSymbol
-            ios_icon_name="ellipsis"
-            android_material_icon_name="more-vert"
-            size={24}
-            color={colors.text}
-          />
-        </TouchableOpacity>
-      </View>
-
-      {!isFriend && messageRequest?.status === 'pending' && messageRequest.sender_id === user?.id && (
-        <View style={styles.messageRequestBanner}>
-          <IconSymbol
-            ios_icon_name="info.circle.fill"
-            android_material_icon_name="info"
-            size={20}
-            color={colors.primary}
-          />
-          <Text style={styles.messageRequestText}>
-            Message request sent. {recipientName} can reply to accept.
-          </Text>
-        </View>
-      )}
-
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerInfo}
+            onPress={() => router.push(`/user/${recipientId}`)}
+          >
+            <View style={styles.headerAvatar}>
+              <IconSymbol
+                ios_icon_name="person.fill"
+                android_material_icon_name="person"
+                size={24}
+                color={colors.primary}
+              />
+            </View>
+            <Text style={styles.headerName}>{recipientName}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.optionsButton}
+            onPress={() => {
+              console.log('User tapped options menu');
+              setShowOptionsMenu(true);
+            }}
+          >
             <IconSymbol
-              ios_icon_name="message"
-              android_material_icon_name="message"
-              size={48}
-              color={colors.textSecondary}
+              ios_icon_name="ellipsis"
+              android_material_icon_name="more-vert"
+              size={24}
+              color={colors.text}
             />
-            <Text style={[commonStyles.textSecondary, { marginTop: 16, textAlign: 'center' }]}>
-              {!isFriend && !messageRequest 
-                ? 'Send a message to start a conversation'
-                : 'No messages yet. Start the conversation!'}
+          </TouchableOpacity>
+        </View>
+
+        {!isFriend && messageRequest?.status === 'pending' && messageRequest.sender_id === user?.id && (
+          <View style={styles.messageRequestBanner}>
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.messageRequestText}>
+              Message request sent. {recipientName} can reply to accept.
             </Text>
           </View>
-        }
-      />
+        )}
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Type a message..."
-          placeholderTextColor={colors.textSecondary}
-          value={messageText}
-          onChangeText={setMessageText}
-          multiline
-          maxLength={1000}
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
-          onPress={sendMessage}
-          disabled={!messageText.trim() || sending}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color={colors.card} />
-          ) : (
-            <IconSymbol
-              ios_icon_name="arrow.up.circle.fill"
-              android_material_icon_name="send"
-              size={32}
-              color={messageText.trim() ? colors.card : colors.textSecondary}
-            />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Options Menu Modal */}
-      <Modal
-        visible={showOptionsMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowOptionsMenu(false)}
-      >
-        <TouchableOpacity
-          style={styles.optionsOverlay}
-          activeOpacity={1}
-          onPress={() => setShowOptionsMenu(false)}
-        >
-          <View style={styles.optionsMenu}>
-            <TouchableOpacity
-              style={styles.optionsMenuItem}
-              onPress={() => {
-                setShowOptionsMenu(false);
-                if (isMuted) {
-                  handleUnmute();
-                } else {
-                  setShowMuteModal(true);
-                }
-              }}
-            >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
               <IconSymbol
-                ios_icon_name={isMuted ? "bell.fill" : "bell.slash.fill"}
-                android_material_icon_name={isMuted ? "notifications" : "notifications-off"}
-                size={24}
-                color={colors.text}
+                ios_icon_name="message"
+                android_material_icon_name="message"
+                size={48}
+                color={colors.textSecondary}
               />
-              <Text style={styles.optionsMenuText}>
-                {isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
+              <Text style={[commonStyles.textSecondary, { marginTop: 16, textAlign: 'center' }]}>
+                {!isFriend && !messageRequest 
+                  ? 'Send a message to start a conversation'
+                  : 'No messages yet. Start the conversation!'}
               </Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+            </View>
+          }
+        />
 
-      {/* Mute Options Modal */}
-      <MuteOptionsModal
-        visible={showMuteModal}
-        onClose={() => setShowMuteModal(false)}
-        onSelectMute={handleMuteConversation}
-      />
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.textSecondary}
+            value={messageText}
+            onChangeText={setMessageText}
+            multiline
+            maxLength={1000}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
+            onPress={sendMessage}
+            disabled={!messageText.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color={colors.card} />
+            ) : (
+              <IconSymbol
+                ios_icon_name="arrow.up.circle.fill"
+                android_material_icon_name="send"
+                size={32}
+                color={messageText.trim() ? colors.card : colors.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Options Menu Modal */}
+        <Modal
+          visible={showOptionsMenu}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowOptionsMenu(false)}
+        >
+          <TouchableOpacity
+            style={styles.optionsOverlay}
+            activeOpacity={1}
+            onPress={() => setShowOptionsMenu(false)}
+          >
+            <View style={styles.optionsMenu}>
+              <TouchableOpacity
+                style={styles.optionsMenuItem}
+                onPress={() => {
+                  setShowOptionsMenu(false);
+                  if (isMuted) {
+                    handleUnmute();
+                  } else {
+                    setShowMuteModal(true);
+                  }
+                }}
+              >
+                <IconSymbol
+                  ios_icon_name={isMuted ? "bell.fill" : "bell.slash.fill"}
+                  android_material_icon_name={isMuted ? "notifications" : "notifications-off"}
+                  size={24}
+                  color={colors.text}
+                />
+                <Text style={styles.optionsMenuText}>
+                  {isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Mute Options Modal */}
+        <MuteOptionsModal
+          visible={showMuteModal}
+          onClose={() => setShowMuteModal(false)}
+          onSelectMute={handleMuteConversation}
+        />
+      </View>
     </KeyboardAvoidingView>
   );
 }

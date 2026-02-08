@@ -371,92 +371,94 @@ export default function GroupConversationScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={commonStyles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <IconSymbol
-            ios_icon_name="chevron.left"
-            android_material_icon_name="chevron-left"
-            size={24}
-            color={colors.primary}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.headerInfo}
-          onPress={() => {
-            console.log('User tapped group header, navigating to group info');
-            router.push(`/group-info/${groupId}`);
-          }}
-        >
-          <View style={styles.headerAvatar}>
+      <View style={commonStyles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <IconSymbol
-              ios_icon_name="person.3.fill"
-              android_material_icon_name="group"
+              ios_icon_name="chevron.left"
+              android_material_icon_name="chevron-left"
               size={24}
               color={colors.primary}
             />
-          </View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerName}>{groupInfo?.name || 'Group'}</Text>
-            <Text style={styles.headerSubtitle}>
-              {groupInfo?.memberCount} members
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerInfo}
+            onPress={() => {
+              console.log('User tapped group header, navigating to group info');
+              router.push(`/group-info/${groupId}`);
+            }}
+          >
+            <View style={styles.headerAvatar}>
+              <IconSymbol
+                ios_icon_name="person.3.fill"
+                android_material_icon_name="group"
+                size={24}
+                color={colors.primary}
+              />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerName}>{groupInfo?.name || 'Group'}</Text>
+              <Text style={styles.headerSubtitle}>
+                {groupInfo?.memberCount} members
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <IconSymbol
-              ios_icon_name="message"
-              android_material_icon_name="message"
-              size={48}
-              color={colors.textSecondary}
-            />
-            <Text style={[commonStyles.textSecondary, { marginTop: 16, textAlign: 'center' }]}>
-              No messages yet. Start the conversation!
-            </Text>
-          </View>
-        }
-      />
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Type a message..."
-          placeholderTextColor={colors.textSecondary}
-          value={messageText}
-          onChangeText={setMessageText}
-          multiline
-          maxLength={1000}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.messagesList}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <IconSymbol
+                ios_icon_name="message"
+                android_material_icon_name="message"
+                size={48}
+                color={colors.textSecondary}
+              />
+              <Text style={[commonStyles.textSecondary, { marginTop: 16, textAlign: 'center' }]}>
+                No messages yet. Start the conversation!
+              </Text>
+            </View>
+          }
         />
-        <TouchableOpacity
-          style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
-          onPress={sendMessage}
-          disabled={!messageText.trim() || sending}
-        >
-          {sending ? (
-            <ActivityIndicator size="small" color={colors.card} />
-          ) : (
-            <IconSymbol
-              ios_icon_name="arrow.up.circle.fill"
-              android_material_icon_name="send"
-              size={32}
-              color={messageText.trim() ? colors.card : colors.textSecondary}
-            />
-          )}
-        </TouchableOpacity>
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.textSecondary}
+            value={messageText}
+            onChangeText={setMessageText}
+            multiline
+            maxLength={1000}
+          />
+          <TouchableOpacity
+            style={[styles.sendButton, (!messageText.trim() || sending) && styles.sendButtonDisabled]}
+            onPress={sendMessage}
+            disabled={!messageText.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color={colors.card} />
+            ) : (
+              <IconSymbol
+                ios_icon_name="arrow.up.circle.fill"
+                android_material_icon_name="send"
+                size={32}
+                color={messageText.trim() ? colors.card : colors.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
