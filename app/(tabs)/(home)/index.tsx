@@ -31,6 +31,36 @@ export default function HomeScreen() {
   const [showAddCourtModal, setShowAddCourtModal] = useState(false);
   const [favoriteCourtIds, setFavoriteCourtIds] = useState<Set<string>>(new Set());
   const [loadingFavorites, setLoadingFavorites] = useState(true);
+  const [courtDistances, setCourtDistances] = useState<{ [key: string]: number }>({});
+
+  // Calculate and cache distances when location or courts change
+  useEffect(() => {
+    if (userLocation && courts.length > 0) {
+      console.log('HomeScreen: Calculating distances for', courts.length, 'courts');
+      const newDistances: { [key: string]: number } = {};
+      
+      courts.forEach(court => {
+        try {
+          const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            court.latitude,
+            court.longitude
+          );
+          newDistances[court.id] = distance;
+        } catch (error) {
+          console.error('HomeScreen: Error calculating distance for court:', court.id, error);
+        }
+      });
+      
+      setCourtDistances(newDistances);
+      console.log('HomeScreen: Cached distances for', Object.keys(newDistances).length, 'courts');
+    } else if (!userLocation) {
+      // Clear distances if location is lost
+      setCourtDistances({});
+      console.log('HomeScreen: Cleared cached distances (no location)');
+    }
+  }, [userLocation, courts]);
 
   // Fetch user's favorites on mount and when screen comes into focus
   const fetchFavorites = useCallback(async () => {
@@ -81,27 +111,14 @@ export default function HomeScreen() {
     }, [refetch, fetchFavorites])
   );
 
-  // Calculate distances and apply sorting/filtering
+  // Apply sorting/filtering using cached distances
   const processedCourts = useMemo(() => {
     try {
-      let processed = courts.map(court => {
-        let distance: number | undefined;
-        
-        if (userLocation) {
-          try {
-            distance = calculateDistance(
-              userLocation.latitude,
-              userLocation.longitude,
-              court.latitude,
-              court.longitude
-            );
-          } catch (error) {
-            console.error('HomeScreen: Error calculating distance for court:', court.id, error);
-          }
-        }
-        
-        return { ...court, distance };
-      });
+      // Use cached distances instead of recalculating
+      let processed = courts.map(court => ({
+        ...court,
+        distance: courtDistances[court.id],
+      }));
 
       // Apply unified search filter (ZIP code, city, or court name)
       if (searchQuery.trim()) {
@@ -179,7 +196,8 @@ export default function HomeScreen() {
           processed.sort((a, b) => a.averageSkillLevel - b.averageSkillLevel);
           break;
         case 'distance':
-          if (userLocation) {
+          // Only sort by distance if we have location data
+          if (userLocation && Object.keys(courtDistances).length > 0) {
             processed.sort((a, b) => {
               if (a.distance === undefined) return 1;
               if (b.distance === undefined) return -1;
@@ -194,7 +212,7 @@ export default function HomeScreen() {
       console.error('HomeScreen: Error processing courts:', error);
       return courts;
     }
-  }, [courts, sortBy, filters, userLocation, searchQuery, favoriteCourtIds]);
+  }, [courts, sortBy, filters, courtDistances, searchQuery, favoriteCourtIds]);
 
   const displayedCourts = processedCourts.slice(0, displayCount);
   const hasMoreCourts = displayCount < processedCourts.length;
@@ -514,16 +532,36 @@ export default function HomeScreen() {
                         Favorites
                       </Text>
                     </TouchableOpacity>
-                    {userLocation && (
-                      <TouchableOpacity
-                        style={[styles.sortButton, sortBy === 'distance' && styles.sortButtonActive]}
-                        onPress={() => setSortBy('distance')}
-                      >
-                        <Text style={[styles.sortButtonText, sortBy === 'distance' && styles.sortButtonTextActive]}>
-                          Nearest
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                      style={[
+                        styles.sortButton, 
+                        sortBy === 'distance' && styles.sortButtonActive,
+                        !userLocation && styles.sortButtonDisabled
+                      ]}
+                      onPress={() => {
+                        if (userLocation) {
+                          setSortBy('distance');
+                        } else {
+                          Alert.alert(
+                            'Location Required',
+                            'Enable location services to sort by distance.',
+                            [
+                              { text: 'Cancel', style: 'cancel' },
+                              { text: 'Enable Location', onPress: handleRequestLocation }
+                            ]
+                          );
+                        }
+                      }}
+                      disabled={!userLocation}
+                    >
+                      <Text style={[
+                        styles.sortButtonText, 
+                        sortBy === 'distance' && styles.sortButtonTextActive,
+                        !userLocation && styles.sortButtonTextDisabled
+                      ]}>
+                        Nearest
+                      </Text>
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.sortButton, sortBy === 'active-high' && styles.sortButtonActive]}
                       onPress={() => setSortBy('active-high')}
@@ -716,7 +754,7 @@ export default function HomeScreen() {
                           <View style={{ flex: 1 }}>
                             <Text style={styles.courtName}>{court.name}</Text>
                             <Text style={commonStyles.textSecondary}>{court.address}</Text>
-                            {court.distance !== undefined && (
+                            {userLocation && court.distance !== undefined && (
                               <Text style={[commonStyles.textSecondary, { marginTop: 4, fontWeight: '600' }]}>
                                 📍 {court.distance.toFixed(1)} miles away
                               </Text>
@@ -1016,6 +1054,13 @@ const styles = StyleSheet.create({
   },
   sortButtonTextActive: {
     color: colors.card,
+  },
+  sortButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: colors.highlight,
+  },
+  sortButtonTextDisabled: {
+    color: colors.textSecondary,
   },
   filtersContainer: {
     backgroundColor: colors.card,
