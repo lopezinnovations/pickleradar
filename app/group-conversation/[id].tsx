@@ -114,72 +114,90 @@ export default function GroupConversationScreen() {
   useEffect(() => {
     fetchGroupInfo();
     fetchMessages();
+  }, [fetchGroupInfo, fetchMessages]);
 
+  // Separate effect for real-time subscription to avoid re-subscribing unnecessarily
+  useEffect(() => {
     // Set up real-time subscription for group messages
-    if (groupId && isSupabaseConfigured()) {
-      console.log('Setting up real-time subscription for group:', groupId);
-      
-      // Clean up existing subscription
+    if (!groupId || !isSupabaseConfigured()) {
+      return;
+    }
+
+    console.log('Setting up real-time subscription for group:', groupId);
+    
+    // Clean up existing subscription
+    if (subscriptionRef.current) {
+      console.log('Cleaning up existing subscription before creating new one');
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+
+    const channelName = `group_messages_${groupId}`;
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'group_messages',
+          filter: `group_id=eq.${groupId}`,
+        },
+        async (payload) => {
+          console.log('Real-time group message received:', payload.new);
+          const newMessage = payload.new as GroupMessage;
+          
+          // Fetch sender info
+          const { data: senderData, error: senderError } = await supabase
+            .from('users')
+            .select('id, first_name, last_name, pickleballer_nickname')
+            .eq('id', newMessage.sender_id)
+            .single();
+
+          if (senderError) {
+            console.error('Error fetching sender info:', senderError);
+          }
+
+          const messageWithSender = {
+            ...newMessage,
+            sender: senderData || undefined,
+          };
+
+          setMessages((prev) => {
+            // Remove any optimistic messages first
+            const withoutOptimistic = prev.filter(m => !m.isOptimistic);
+            // Check if message already exists (avoid duplicates)
+            if (withoutOptimistic.some(m => m.id === messageWithSender.id)) {
+              console.log('Message already exists, skipping duplicate');
+              return withoutOptimistic;
+            }
+            console.log('Adding new real-time message to list');
+            return [...withoutOptimistic, messageWithSender];
+          });
+
+          // Scroll to bottom after a short delay to ensure render is complete
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 150);
+        }
+      )
+      .subscribe((status) => {
+        console.log('Group subscription status:', status);
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Channel error - subscription failed');
+        }
+      });
+
+    subscriptionRef.current = subscription;
+
+    return () => {
+      console.log('Cleaning up group real-time subscription on unmount');
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
       }
-
-      const subscription = supabase
-        .channel(`group_${groupId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'group_messages',
-            filter: `group_id=eq.${groupId}`,
-          },
-          async (payload) => {
-            console.log('Real-time group message received:', payload.new);
-            const newMessage = payload.new as GroupMessage;
-            
-            // Fetch sender info
-            const { data: senderData } = await supabase
-              .from('users')
-              .select('id, first_name, last_name, pickleballer_nickname')
-              .eq('id', newMessage.sender_id)
-              .single();
-
-            const messageWithSender = {
-              ...newMessage,
-              sender: senderData,
-            };
-
-            setMessages((prev) => {
-              // Remove any optimistic messages first
-              const withoutOptimistic = prev.filter(m => !m.isOptimistic);
-              // Check if message already exists (avoid duplicates)
-              if (withoutOptimistic.some(m => m.id === messageWithSender.id)) {
-                console.log('Message already exists, skipping duplicate');
-                return withoutOptimistic;
-              }
-              console.log('Adding new real-time message to list');
-              return [...withoutOptimistic, messageWithSender];
-            });
-
-            // Scroll to bottom after a short delay to ensure render is complete
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 150);
-          }
-        )
-        .subscribe((status) => {
-          console.log('Group subscription status:', status);
-        });
-
-      subscriptionRef.current = subscription;
-
-      return () => {
-        console.log('Cleaning up group real-time subscription');
-        subscription.unsubscribe();
-      };
-    }
-  }, [groupId, fetchGroupInfo, fetchMessages]);
+    };
+  }, [groupId]);
 
   const sendMessage = async () => {
     if (!messageText.trim() || !user || !groupId || !isSupabaseConfigured()) {
@@ -245,7 +263,8 @@ export default function GroupConversationScreen() {
 
       console.log('Message sent successfully:', data.id);
 
-      // Replace optimistic message with real message
+      // Replace optimistic message with real message immediately
+      // Don't wait for real-time subscription
       setMessages((prev) => 
         prev.map(m => m.optimisticId === optimisticId ? { ...data, isOptimistic: false } : m)
       );

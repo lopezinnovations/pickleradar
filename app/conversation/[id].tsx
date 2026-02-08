@@ -255,79 +255,90 @@ export default function ConversationScreen() {
     checkFriendshipStatus();
     checkMessageRequest();
     checkMuteStatus();
+  }, [fetchRecipientProfile, fetchMessages, checkFriendshipStatus, checkMessageRequest, checkMuteStatus]);
 
+  // Separate effect for real-time subscription to avoid re-subscribing unnecessarily
+  useEffect(() => {
     // Set up real-time subscription for incoming messages
-    if (user && recipientId && isSupabaseConfigured()) {
-      console.log('Setting up real-time subscription for conversation');
-      
-      // Clean up existing subscription
+    if (!user || !recipientId || !isSupabaseConfigured()) {
+      return;
+    }
+
+    console.log('Setting up real-time subscription for conversation');
+    
+    // Clean up existing subscription
+    if (subscriptionRef.current) {
+      console.log('Cleaning up existing subscription before creating new one');
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+
+    const channelName = `conversation_${user.id}_${recipientId}`;
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=eq.${recipientId},recipient_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Real-time message received:', payload.new);
+          const newMessage = payload.new as Message;
+          
+          setMessages((prev) => {
+            // Remove optimistic messages (they'll be replaced by real ones)
+            const withoutOptimistic = prev.filter(m => !m.isOptimistic);
+            
+            // Check if message already exists (avoid duplicates)
+            if (withoutOptimistic.some(m => m.id === newMessage.id)) {
+              console.log('Message already exists, skipping duplicate');
+              return withoutOptimistic;
+            }
+            
+            console.log('Adding new real-time message to list');
+            return [...withoutOptimistic, newMessage];
+          });
+
+          // Mark as read if from recipient
+          if (newMessage.sender_id === recipientId && newMessage.recipient_id === user.id) {
+            supabase
+              .from('messages')
+              .update({ read: true })
+              .eq('id', newMessage.id)
+              .then(() => {
+                console.log('Marked message as read');
+              })
+              .catch((err) => {
+                console.log('Error marking message as read:', err);
+              });
+          }
+
+          // Scroll to bottom after a short delay to ensure render is complete
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 150);
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Channel error - subscription failed');
+        }
+      });
+
+    subscriptionRef.current = subscription;
+
+    return () => {
+      console.log('Cleaning up real-time subscription on unmount');
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
       }
-
-      const subscription = supabase
-        .channel(`conversation:${user.id}:${recipientId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-          },
-          (payload) => {
-            console.log('Real-time message received:', payload.new);
-            const newMessage = payload.new as Message;
-            
-            // Only add if it's part of this conversation
-            if (
-              (newMessage.sender_id === recipientId && newMessage.recipient_id === user.id) ||
-              (newMessage.sender_id === user.id && newMessage.recipient_id === recipientId)
-            ) {
-              setMessages((prev) => {
-                // Remove optimistic message if it exists
-                const filtered = prev.filter(m => !m.isOptimistic);
-                // Check if message already exists (avoid duplicates)
-                if (filtered.some(m => m.id === newMessage.id)) {
-                  return filtered;
-                }
-                return [...filtered, newMessage];
-              });
-
-              // Mark as read if from recipient
-              if (newMessage.sender_id === recipientId && newMessage.recipient_id === user.id) {
-                supabase
-                  .from('messages')
-                  .update({ read: true })
-                  .eq('id', newMessage.id)
-                  .then(() => {
-                    console.log('Marked message as read');
-                  });
-              }
-
-              // Auto-accept message request if recipient is replying
-              if (messageRequest && messageRequest.status === 'pending' && messageRequest.recipient_id === user.id) {
-                acceptMessageRequest();
-              }
-
-              // Scroll to bottom
-              setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-              }, 100);
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log('Subscription status:', status);
-        });
-
-      subscriptionRef.current = subscription;
-
-      return () => {
-        console.log('Cleaning up real-time subscription');
-        subscription.unsubscribe();
-      };
-    }
-  }, [user, recipientId, fetchRecipientProfile, fetchMessages, checkFriendshipStatus, checkMessageRequest, checkMuteStatus, messageRequest, acceptMessageRequest]);
+    };
+  }, [user, recipientId]);
 
   const createMessageRequest = async () => {
     if (!user || !recipientId || !isSupabaseConfigured()) return;
@@ -405,7 +416,7 @@ export default function ConversationScreen() {
         .single();
 
       if (error) {
-        console.log('Error sending message:', error);
+        console.error('Error sending message:', error);
         // Remove optimistic message on error
         setMessages((prev) => prev.filter(m => m.optimisticId !== optimisticId));
         throw error;
@@ -413,12 +424,13 @@ export default function ConversationScreen() {
 
       console.log('Message sent successfully:', data.id);
 
-      // Replace optimistic message with real message
+      // Replace optimistic message with real message immediately
+      // Don't wait for real-time subscription
       setMessages((prev) => 
-        prev.map(m => m.optimisticId === optimisticId ? data : m)
+        prev.map(m => m.optimisticId === optimisticId ? { ...data, isOptimistic: false } : m)
       );
     } catch (error) {
-      console.log('Failed to send message:', error);
+      console.error('Failed to send message:', error);
     } finally {
       setSending(false);
     }

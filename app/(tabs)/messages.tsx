@@ -296,46 +296,58 @@ export default function MessagesScreen() {
 
   useEffect(() => {
     fetchConversations();
+  }, [fetchConversations]);
 
+  // Separate effect for real-time subscriptions to avoid re-subscribing unnecessarily
+  useEffect(() => {
     // Set up real-time subscriptions
-    if (user && isSupabaseConfigured()) {
-      const messagesSubscription = supabase
-        .channel('messages_list')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'messages',
-          },
-          () => {
-            console.log('MessagesScreen: Message change detected, refreshing conversations');
-            fetchConversations();
-          }
-        )
-        .subscribe();
-
-      const groupMessagesSubscription = supabase
-        .channel('group_messages_list')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'group_messages',
-          },
-          () => {
-            console.log('MessagesScreen: Group message change detected, refreshing conversations');
-            fetchConversations();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        messagesSubscription.unsubscribe();
-        groupMessagesSubscription.unsubscribe();
-      };
+    if (!user || !isSupabaseConfigured()) {
+      return;
     }
+
+    console.log('MessagesScreen: Setting up real-time subscriptions');
+
+    const messagesSubscription = supabase
+      .channel('messages_list_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+        },
+        () => {
+          console.log('MessagesScreen: Message change detected, refreshing conversations');
+          fetchConversations();
+        }
+      )
+      .subscribe((status) => {
+        console.log('MessagesScreen: Messages subscription status:', status);
+      });
+
+    const groupMessagesSubscription = supabase
+      .channel('group_messages_list_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'group_messages',
+        },
+        () => {
+          console.log('MessagesScreen: Group message change detected, refreshing conversations');
+          fetchConversations();
+        }
+      )
+      .subscribe((status) => {
+        console.log('MessagesScreen: Group messages subscription status:', status);
+      });
+
+    return () => {
+      console.log('MessagesScreen: Cleaning up real-time subscriptions');
+      messagesSubscription.unsubscribe();
+      groupMessagesSubscription.unsubscribe();
+    };
   }, [user, fetchConversations]);
 
   const formatTime = (timestamp: string) => {
