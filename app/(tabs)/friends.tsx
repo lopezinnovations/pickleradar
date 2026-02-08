@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
+import { startPerformanceTrack, endPerformanceTrack } from '@/utils/performanceLogger';
 
 export default function FriendsScreen() {
   const router = useRouter();
@@ -35,17 +36,28 @@ export default function FriendsScreen() {
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      startPerformanceTrack('FriendsScreen:Focus');
       console.log('FriendsScreen: Screen focused, refreshing data');
-      console.log('FriendsScreen: Current user:', user?.id);
+      
       if (user) {
-        refetch();
+        startPerformanceTrack('FriendsScreen:Refetch');
+        refetch().finally(() => {
+          endPerformanceTrack('FriendsScreen:Refetch');
+          endPerformanceTrack('FriendsScreen:Focus');
+        });
+      } else {
+        endPerformanceTrack('FriendsScreen:Focus');
       }
+      
+      return () => {
+        console.log('FriendsScreen: Screen unfocused');
+      };
     }, [user, refetch])
   );
 
   // Log friends data when it changes
   useEffect(() => {
-    console.log('FriendsScreen: Friends data updated:', {
+    console.log('FriendsScreen: Data updated:', {
       friendsCount: friends.length,
       pendingRequestsCount: pendingRequests.length,
       allUsersCount: allUsers.length,
@@ -53,7 +65,8 @@ export default function FriendsScreen() {
     });
   }, [friends, pendingRequests, allUsers, friendsLoading]);
 
-  const formatUserName = (firstName?: string, lastName?: string, nickname?: string, email?: string, phone?: string) => {
+  // Memoize formatUserName to avoid recreating on every render
+  const formatUserName = useCallback((firstName?: string, lastName?: string, nickname?: string, email?: string, phone?: string) => {
     if (firstName && lastName) {
       const displayName = `${firstName} ${lastName.charAt(0)}.`;
       if (nickname) {
@@ -65,9 +78,9 @@ export default function FriendsScreen() {
       return nickname;
     }
     return email || phone || 'Unknown User';
-  };
+  }, []);
 
-  const handleAddFriendById = async (friendId: string, friendName: string) => {
+  const handleAddFriendById = useCallback(async (friendId: string, friendName: string) => {
     console.log('FriendsScreen: handleAddFriendById called for:', friendId, friendName);
     
     // Prevent multiple simultaneous requests
@@ -93,9 +106,9 @@ export default function FriendsScreen() {
     } finally {
       setSendingRequestTo(null);
     }
-  };
+  }, [sendingRequestTo, sendFriendRequestById]);
 
-  const handleCancelRequest = async (friendshipId: string, friendName: string) => {
+  const handleCancelRequest = useCallback((friendshipId: string, friendName: string) => {
     Alert.alert(
       'Cancel Request',
       `Cancel friend request to ${friendName}?`,
@@ -110,18 +123,18 @@ export default function FriendsScreen() {
         },
       ]
     );
-  };
+  }, [removeFriend]);
 
-  const handleAcceptRequest = async (friendshipId: string) => {
+  const handleAcceptRequest = useCallback(async (friendshipId: string) => {
     await acceptFriendRequest(friendshipId);
     Alert.alert('Success', 'Friend request accepted!');
-  };
+  }, [acceptFriendRequest]);
 
-  const handleRejectRequest = async (friendshipId: string) => {
+  const handleRejectRequest = useCallback(async (friendshipId: string) => {
     await rejectFriendRequest(friendshipId);
-  };
+  }, [rejectFriendRequest]);
 
-  const handleRemoveFriend = (friendshipId: string, friendName: string) => {
+  const handleRemoveFriend = useCallback((friendshipId: string, friendName: string) => {
     Alert.alert(
       'Remove Friend',
       `Are you sure you want to remove ${friendName} from your friends?`,
@@ -134,34 +147,34 @@ export default function FriendsScreen() {
         },
       ]
     );
-  };
+  }, [removeFriend]);
 
-  const toggleSkillLevel = (level: string) => {
+  const toggleSkillLevel = useCallback((level: string) => {
     setSelectedSkillLevels(prev => 
       prev.includes(level) 
         ? prev.filter(l => l !== level)
         : [...prev, level]
     );
-  };
+  }, []);
 
-  const toggleCourt = (courtName: string) => {
+  const toggleCourt = useCallback((courtName: string) => {
     setSelectedCourts(prev => 
       prev.includes(courtName) 
         ? prev.filter(c => c !== courtName)
         : [...prev, courtName]
     );
-  };
+  }, []);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setMinDupr('');
     setMaxDupr('');
     setSelectedSkillLevels([]);
     setSelectedCourts([]);
-  };
+  }, []);
 
   const hasActiveFilters = minDupr || maxDupr || selectedSkillLevels.length > 0 || selectedCourts.length > 0;
 
-  // Get unique courts from all users
+  // Get unique courts from all users - memoized
   const availableCourts = useMemo(() => {
     const courts = new Set<string>();
     allUsers.forEach(user => {
@@ -172,9 +185,11 @@ export default function FriendsScreen() {
     return Array.from(courts).sort();
   }, [allUsers]);
 
-  // Filter users based on search query and filters (live type-ahead)
+  // Filter users based on search query and filters - memoized
   const filteredUsers = useMemo(() => {
-    return allUsers.filter(u => {
+    startPerformanceTrack('FriendsScreen:FilterUsers');
+    
+    const result = allUsers.filter(u => {
       // Search query filter - case-insensitive, matches first name, last name, nickname, email
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -219,6 +234,9 @@ export default function FriendsScreen() {
 
       return true;
     });
+    
+    endPerformanceTrack('FriendsScreen:FilterUsers', { resultCount: result.length });
+    return result;
   }, [allUsers, searchQuery, minDupr, maxDupr, selectedSkillLevels, selectedCourts]);
 
   // Show loading state only while auth is initializing
