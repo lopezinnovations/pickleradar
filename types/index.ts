@@ -11,7 +11,7 @@ export interface Court {
   currentPlayers: number;
   averageSkillLevel: number;
   friendsPlayingCount: number;
-  distance?: number; // Distance in miles from user's location
+  distance?: number | null; // Distance in miles from user's location (null if court has no coordinates)
   description?: string; // Google Maps description
   openTime?: string; // Court open time
   closeTime?: string; // Court close time

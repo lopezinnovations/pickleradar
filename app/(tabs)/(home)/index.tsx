@@ -31,25 +31,33 @@ export default function HomeScreen() {
   const [showAddCourtModal, setShowAddCourtModal] = useState(false);
   const [favoriteCourtIds, setFavoriteCourtIds] = useState<Set<string>>(new Set());
   const [loadingFavorites, setLoadingFavorites] = useState(true);
-  const [courtDistances, setCourtDistances] = useState<{ [key: string]: number }>({});
+  const [courtDistances, setCourtDistances] = useState<{ [key: string]: number | null }>({});
 
   // Calculate and cache distances when location or courts change
   useEffect(() => {
     if (userLocation && courts.length > 0) {
       console.log('HomeScreen: Calculating distances for', courts.length, 'courts');
-      const newDistances: { [key: string]: number } = {};
+      const newDistances: { [key: string]: number | null } = {};
       
       courts.forEach(court => {
-        try {
-          const distance = calculateDistance(
-            userLocation.latitude,
-            userLocation.longitude,
-            court.latitude,
-            court.longitude
-          );
-          newDistances[court.id] = distance;
-        } catch (error) {
-          console.error('HomeScreen: Error calculating distance for court:', court.id, error);
+        // Check if court has valid coordinates
+        if (court.latitude && court.longitude) {
+          try {
+            const distance = calculateDistance(
+              userLocation.latitude,
+              userLocation.longitude,
+              court.latitude,
+              court.longitude
+            );
+            newDistances[court.id] = distance;
+          } catch (error) {
+            console.error('HomeScreen: Error calculating distance for court:', court.id, error);
+            newDistances[court.id] = null;
+          }
+        } else {
+          // Court has no coordinates
+          console.log('HomeScreen: Court has no coordinates:', court.id, court.name);
+          newDistances[court.id] = null;
         }
       });
       
@@ -199,8 +207,16 @@ export default function HomeScreen() {
           // Only sort by distance if we have location data
           if (userLocation && Object.keys(courtDistances).length > 0) {
             processed.sort((a, b) => {
+              // Courts without coordinates go to the bottom
+              if (a.distance === null && b.distance !== null) return 1;
+              if (a.distance !== null && b.distance === null) return -1;
+              if (a.distance === null && b.distance === null) return 0;
+              
+              // Courts with undefined distance (shouldn't happen but handle it)
               if (a.distance === undefined) return 1;
               if (b.distance === undefined) return -1;
+              
+              // Both have valid distances, sort ascending
               return a.distance - b.distance;
             });
           }
@@ -601,6 +617,23 @@ export default function HomeScreen() {
               {favoriteCourtIds.size === 0 && sortBy === 'favorites' && (
                 <Text style={styles.helperText}>Star courts to save favorites.</Text>
               )}
+              
+              {!userLocation && (
+                <View style={styles.locationPromptBanner}>
+                  <IconSymbol 
+                    ios_icon_name="location.slash" 
+                    android_material_icon_name="location-off" 
+                    size={16} 
+                    color={colors.textSecondary} 
+                  />
+                  <Text style={styles.locationPromptText}>
+                    Enable location to sort by distance
+                  </Text>
+                  <TouchableOpacity onPress={handleRequestLocation}>
+                    <Text style={styles.locationPromptLink}>Enable</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {showFilters && (
                 <View style={styles.filtersContainer}>
@@ -754,9 +787,9 @@ export default function HomeScreen() {
                           <View style={{ flex: 1 }}>
                             <Text style={styles.courtName}>{court.name}</Text>
                             <Text style={commonStyles.textSecondary}>{court.address}</Text>
-                            {userLocation && court.distance !== undefined && (
+                            {userLocation && court.distance !== undefined && court.distance !== null && (
                               <Text style={[commonStyles.textSecondary, { marginTop: 4, fontWeight: '600' }]}>
-                                📍 {court.distance.toFixed(1)} miles away
+                                📍 {court.distance.toFixed(1)} mi
                               </Text>
                             )}
                           </View>
@@ -1203,6 +1236,29 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 8,
     textAlign: 'center',
+  },
+  locationPromptBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.highlight,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  locationPromptText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  locationPromptLink: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
   },
   courtFooter: {
     flexDirection: 'row',
