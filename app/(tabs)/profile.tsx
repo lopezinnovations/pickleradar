@@ -9,6 +9,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/app/integrations/supabase/client';
+import { sendTestPushNotification, isPushNotificationSupported } from '@/utils/notifications';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -33,6 +34,9 @@ export default function ProfileScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userPushToken, setUserPushToken] = useState<string | null>(null);
+  const [sendingTestPush, setSendingTestPush] = useState(false);
   
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
@@ -47,6 +51,38 @@ export default function ProfileScreen() {
       loadCurrentCheckIn();
     }, [user, refetchUser, refetchCheckIns, loadCurrentCheckIn])
   );
+
+  const fetchAdminStatusAndPushToken = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('push_token')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('[Profile] Error fetching user data:', error);
+        return;
+      }
+
+      // For demo purposes, we'll consider any user with a push token as "admin"
+      // In production, you'd have an is_admin column in the database
+      // For now, we'll enable the test button for all users who have a push token
+      setUserPushToken(data?.push_token || null);
+      
+      // Check if user email contains "admin" or if they have a specific admin flag
+      // This is a simple check - in production you'd have a proper is_admin column
+      const isAdminUser = user.email?.toLowerCase().includes('admin') || false;
+      setIsAdmin(isAdminUser);
+      
+      console.log('[Profile] User push token:', data?.push_token ? 'Present' : 'Not set');
+      console.log('[Profile] Admin status:', isAdminUser);
+    } catch (error) {
+      console.error('[Profile] Error in fetchAdminStatusAndPushToken:', error);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user && !hasLoadedUserData.current) {
@@ -65,11 +101,16 @@ export default function ProfileScreen() {
       if (needsConsentUpdate()) {
         setShowConsentPrompt(true);
       }
+
+      // Fetch admin status and push token
+      fetchAdminStatusAndPushToken();
     } else if (!user && !authLoading) {
       // Reset when user logs out
       hasLoadedUserData.current = false;
+      setIsAdmin(false);
+      setUserPushToken(null);
     }
-  }, [user, authLoading, needsConsentUpdate]);
+  }, [user, authLoading, needsConsentUpdate, fetchAdminStatusAndPushToken]);
 
   const validateDuprRating = (value: string) => {
     if (!value.trim()) {
@@ -296,6 +337,7 @@ export default function ProfileScreen() {
       
       if (authError) {
         // Continue anyway as the user data is deleted
+        console.log('[Profile] Auth delete error (non-critical):', authError);
       }
 
       // Sign out
@@ -347,6 +389,53 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const handleSendTestPush = async () => {
+    if (!userPushToken) {
+      Alert.alert(
+        'No Push Token',
+        'You don\'t have a push token registered yet. Push tokens are only available in Development Builds or Production builds, not in Expo Go on Android (SDK 53+).\n\nTo test push notifications:\n• iOS: Use TestFlight or a Development Build\n• Android: Use a Development Build'
+      );
+      return;
+    }
+
+    if (!isPushNotificationSupported()) {
+      Alert.alert(
+        'Push Not Supported',
+        'Push notifications are not supported in Expo Go on Android (SDK 53+).\n\nTo test push notifications:\n• iOS: Use TestFlight or a Development Build\n• Android: Use a Development Build'
+      );
+      return;
+    }
+
+    setSendingTestPush(true);
+    try {
+      const result = await sendTestPushNotification(
+        userPushToken,
+        'Test Push from PickleRadar',
+        'If you see this, push notifications are working! 🎾'
+      );
+
+      if (result.success) {
+        Alert.alert(
+          'Test Push Sent!',
+          'A test push notification has been sent to your device. You should receive it shortly.'
+        );
+      } else {
+        Alert.alert(
+          'Failed to Send',
+          result.error || 'Failed to send test push notification. Please try again.'
+        );
+      }
+    } catch (error: any) {
+      console.error('[Profile] Error sending test push:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to send test push notification. Please try again.'
+      );
+    } finally {
+      setSendingTestPush(false);
+    }
   };
 
   const formatDate = (dateString?: string) => {
@@ -820,6 +909,49 @@ export default function ProfileScreen() {
               disabled={!isEditing}
             />
           </View>
+
+          {/* Push Token Status */}
+          <View style={[styles.settingRow, { borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }]}>
+            <View style={styles.settingInfo}>
+              <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Token Status</Text>
+              <Text style={commonStyles.textSecondary}>
+                {userPushToken ? 'Registered ✓' : 'Not registered (use dev build)'}
+              </Text>
+            </View>
+            {userPushToken && (
+              <IconSymbol 
+                ios_icon_name="checkmark.circle.fill" 
+                android_material_icon_name="check-circle" 
+                size={24} 
+                color={colors.success} 
+              />
+            )}
+          </View>
+
+          {/* Test Push Button - Show for all users with push token */}
+          {userPushToken && (
+            <TouchableOpacity
+              style={[buttonStyles.secondary, { marginTop: 16, backgroundColor: colors.primary }]}
+              onPress={handleSendTestPush}
+              disabled={sendingTestPush}
+            >
+              {sendingTestPush ? (
+                <ActivityIndicator color={colors.card} />
+              ) : (
+                <React.Fragment>
+                  <IconSymbol 
+                    ios_icon_name="bell.fill" 
+                    android_material_icon_name="notifications" 
+                    size={20} 
+                    color={colors.card} 
+                  />
+                  <Text style={[buttonStyles.text, { marginLeft: 8 }]}>
+                    Send Test Push
+                  </Text>
+                </React.Fragment>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={commonStyles.card}>

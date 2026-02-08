@@ -1,8 +1,10 @@
 
 import { Stack } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '@/styles/commonStyles';
+import * as Notifications from 'expo-notifications';
+import { isPushNotificationSupported } from '@/utils/notifications';
 
 // Global error boundary component
 class ErrorBoundary extends React.Component<
@@ -43,8 +45,46 @@ class ErrorBoundary extends React.Component<
 }
 
 export default function RootLayout() {
+  const notificationListener = useRef<Notifications.Subscription>();
+  const responseListener = useRef<Notifications.Subscription>();
+
   useEffect(() => {
     console.log('RootLayout: App initialized');
+
+    // Only initialize push notifications in development or production builds
+    // NOT in Expo Go on Android (due to SDK 53 change)
+    if (!isPushNotificationSupported()) {
+      console.log('[Push] Push notifications not supported in this environment');
+      console.log('[Push] To test push notifications:');
+      console.log('[Push] - iOS: Use TestFlight or a Development Build');
+      console.log('[Push] - Android: Use a Development Build (Expo Go does not support push on SDK 53+)');
+      return;
+    }
+
+    console.log('[Push] Setting up notification listeners');
+
+    // Listen for notifications received while app is foregrounded
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('[Push] Notification received:', notification);
+    });
+
+    // Listen for user interactions with notifications
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('[Push] Notification response received:', response);
+      // Handle notification tap - navigate to relevant screen based on notification data
+      const data = response.notification.request.content.data;
+      console.log('[Push] Notification data:', data);
+    });
+
+    return () => {
+      console.log('[Push] Cleaning up notification listeners');
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
   }, []);
 
   return (

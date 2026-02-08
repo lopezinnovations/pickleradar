@@ -69,8 +69,8 @@ export default function MessagesScreen() {
       if (currentVisitCount >= 2 && !hasShownPrompt && permissionStatus !== 'granted') {
         setShowNotificationPrompt(true);
       }
-    } catch (error) {
-      console.log('Error checking notification prompt:', error);
+    } catch (err) {
+      console.log('Error checking notification prompt:', err);
     }
   }, [user]);
 
@@ -277,14 +277,14 @@ export default function MessagesScreen() {
       if (!error) {
         setError(null);
       }
-    } catch (error: any) {
-      console.error('MessagesScreen: Error in fetchConversations:', error);
-      console.error('MessagesScreen: Full error details:', JSON.stringify(error, null, 2));
-      setError(error.message || 'Failed to load conversations');
+    } catch (err: any) {
+      console.error('MessagesScreen: Error in fetchConversations:', err);
+      console.error('MessagesScreen: Full error details:', JSON.stringify(err, null, 2));
+      setError(err.message || 'Failed to load conversations');
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, error]);
 
   useFocusEffect(
     useCallback(() => {

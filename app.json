@@ -18,7 +18,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "PickleRadar uses your location to show nearby pickleball courts.",
-        "UIBackgroundModes": []
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -45,6 +45,15 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "PickleRadar uses your location to show nearby pickleball courts."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
+          "color": "#1B4D3E",
+          "sounds": [],
+          "mode": "production"
         }
       ]
     ],

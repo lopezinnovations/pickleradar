@@ -27,10 +27,6 @@ export default function CreateGroupScreen() {
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
 
-  useEffect(() => {
-    fetchFriends();
-  }, [user, fetchFriends]);
-
   const fetchFriends = useCallback(async () => {
     if (!user || !isSupabaseConfigured()) {
       setLoading(false);
@@ -69,6 +65,10 @@ export default function CreateGroupScreen() {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    fetchFriends();
+  }, [fetchFriends]);
 
   const toggleFriendSelection = (friendId: string) => {
     console.log('User toggled friend selection:', friendId);
@@ -148,7 +148,7 @@ export default function CreateGroupScreen() {
     } finally {
       setCreating(false);
     }
-  }, [groupName, friends, user, router, showModal]);
+  }, [groupName, friends, user, router]);
 
   const formatFriendName = (friend: Friend) => {
     if (friend.firstName && friend.lastName) {

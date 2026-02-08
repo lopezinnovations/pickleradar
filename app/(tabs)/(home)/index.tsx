@@ -144,7 +144,7 @@ export default function HomeScreen() {
       // Apply distance filter
       if (filters.maxDistance !== undefined && userLocation) {
         processed = processed.filter(court => 
-          court.distance !== undefined && court.distance <= filters.maxDistance!
+          court.distance !== undefined && court.distance !== null && court.distance <= filters.maxDistance!
         );
       }
 
@@ -185,7 +185,7 @@ export default function HomeScreen() {
             if (!aFavorited && bFavorited) return 1;
 
             // Secondary sort by distance if available
-            if (userLocation && a.distance !== undefined && b.distance !== undefined) {
+            if (userLocation && a.distance !== undefined && a.distance !== null && b.distance !== undefined && b.distance !== null) {
               return a.distance - b.distance;
             }
             return 0;
@@ -228,7 +228,7 @@ export default function HomeScreen() {
       console.error('HomeScreen: Error processing courts:', error);
       return courts;
     }
-  }, [courts, sortBy, filters, courtDistances, searchQuery, favoriteCourtIds]);
+  }, [courts, sortBy, filters, courtDistances, searchQuery, favoriteCourtIds, userLocation]);
 
   const displayedCourts = processedCourts.slice(0, displayCount);
   const hasMoreCourts = displayCount < processedCourts.length;
