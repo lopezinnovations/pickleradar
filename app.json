@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "PickleRadar",
@@ -17,7 +18,9 @@
       "bundleIdentifier": "com.anonymous.PickleRadar",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "PickleRadar uses your location to show nearby pickleball courts.",
+        "NSLocationWhenInUseUsageDescription": "PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features.",
+        "NSCameraUsageDescription": "PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background.",
+        "NSPhotoLibraryUsageDescription": "PickleRadar needs access to your photo library to allow you to upload profile photos or court images.",
         "UIBackgroundModes": [
           "remote-notification"
         ]
@@ -46,7 +49,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "PickleRadar uses your location to show nearby pickleball courts."
+          "locationAlwaysAndWhenInUsePermission": "PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features."
         }
       ],
       [
@@ -56,6 +59,13 @@
           "color": "#1B4D3E",
           "sounds": [],
           "mode": "production"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PickleRadar needs access to your photo library to allow you to upload profile photos or court images.",
+          "cameraPermission": "PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background."
         }
       ]
     ],

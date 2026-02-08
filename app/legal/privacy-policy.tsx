@@ -17,7 +17,7 @@ export default function PrivacyPolicyScreen() {
         >
           <IconSymbol 
             ios_icon_name="chevron.left" 
-            android_material_icon_name="chevron_left" 
+            android_material_icon_name="chevron-left" 
             size={24} 
             color={colors.primary} 
           />
@@ -54,7 +54,27 @@ export default function PrivacyPolicyScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>3. How We Use Your Information</Text>
+          <Text style={styles.sectionTitle}>3. Camera Access</Text>
+          <Text style={styles.paragraph}>
+            PickleRadar may request access to your device camera only when you choose to take or upload a profile photo or court image. Camera access is always user-initiated and is never used in the background. Images are stored only when you choose to upload them.
+          </Text>
+          <Text style={styles.paragraph}>
+            You can control camera permissions at any time through your device settings. Denying camera access will not affect your ability to use other features of the app.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>4. Location Data</Text>
+          <Text style={styles.paragraph}>
+            Location permission is optional. Location is used only to show nearby courts, calculate distance in miles, and filter courts based on the user&apos;s selected radius. Location is accessed only when the user grants permission and uses location features.
+          </Text>
+          <Text style={styles.paragraph}>
+            We do not track your location continuously. Location data is only accessed when you use the app and have granted permission. You can control location permissions at any time through your device settings.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>5. How We Use Your Information</Text>
           <Text style={styles.paragraph}>
             We use the information we collect to:
           </Text>
@@ -67,19 +87,7 @@ export default function PrivacyPolicyScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>4. Location Data</Text>
-          <Text style={styles.paragraph}>
-            Location permission is optional. We only use your location to:
-          </Text>
-          <Text style={styles.bulletPoint}>- Show nearby courts sorted by distance</Text>
-          <Text style={styles.bulletPoint}>- Provide location-based search functionality</Text>
-          <Text style={styles.paragraph}>
-            We do not track your location continuously. Location data is only accessed when you use the app and have granted permission.
-          </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>5. Friend Visibility and Privacy</Text>
+          <Text style={styles.sectionTitle}>6. Friend Visibility and Privacy</Text>
           <Text style={styles.paragraph}>
             Your visibility to friends is opt-in only. You control:
           </Text>
@@ -92,28 +100,28 @@ export default function PrivacyPolicyScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>6. Data Sharing and Disclosure</Text>
+          <Text style={styles.sectionTitle}>7. Data Sharing and Disclosure</Text>
           <Text style={styles.paragraph}>
             We do not sell your personal information. We may share aggregated, anonymized data about court activity levels. We may disclose your information if required by law or to protect our rights.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>7. Data Security</Text>
+          <Text style={styles.sectionTitle}>8. Data Security</Text>
           <Text style={styles.paragraph}>
             We implement appropriate technical and organizational measures to protect your personal information. However, no method of transmission over the internet is 100% secure, and we cannot guarantee absolute security.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>8. Data Retention</Text>
+          <Text style={styles.sectionTitle}>9. Data Retention</Text>
           <Text style={styles.paragraph}>
             We retain your information for as long as your account is active or as needed to provide services. Check-in data expires automatically after 2-3 hours. You can request deletion of your account and data at any time.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>9. Your Rights</Text>
+          <Text style={styles.sectionTitle}>10. Your Rights</Text>
           <Text style={styles.paragraph}>
             You have the right to:
           </Text>
@@ -125,21 +133,21 @@ export default function PrivacyPolicyScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>10. Children&apos;s Privacy</Text>
+          <Text style={styles.sectionTitle}>11. Children&apos;s Privacy</Text>
           <Text style={styles.paragraph}>
             Our service is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>11. Changes to This Privacy Policy</Text>
+          <Text style={styles.sectionTitle}>12. Changes to This Privacy Policy</Text>
           <Text style={styles.paragraph}>
             We may update this Privacy Policy from time to time. We will notify you of any changes by updating the &quot;Last Updated&quot; date and version number. Continued use of the app after changes constitutes acceptance of the updated policy.
           </Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>12. Contact Us</Text>
+          <Text style={styles.sectionTitle}>13. Contact Us</Text>
           <Text style={styles.paragraph}>
             If you have questions about this Privacy Policy, please contact us through the app or at our support channels.
           </Text>

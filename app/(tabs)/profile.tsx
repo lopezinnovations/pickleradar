@@ -37,6 +37,7 @@ export default function ProfileScreen() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [userPushToken, setUserPushToken] = useState<string | null>(null);
   const [sendingTestPush, setSendingTestPush] = useState(false);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
@@ -201,8 +202,57 @@ export default function ProfileScreen() {
   };
 
   const handlePickImage = async () => {
+    console.log('[Profile] User tapped to change profile picture');
+    setShowImagePickerModal(true);
+  };
+
+  const handleTakePhoto = async () => {
+    console.log('[Profile] User chose to take a photo with camera');
+    setShowImagePickerModal(false);
+    
     try {
+      // Request camera permission ONLY when user explicitly chooses to take a photo
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      console.log('[Profile] Camera permission status:', status);
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant camera access to take photos. Camera access is only used when you choose to take a photo and is never used in the background.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        console.log('[Profile] Photo taken, uploading...');
+        setUploadingImage(true);
+        const uploadResult = await uploadProfilePicture(result.assets[0].uri);
+        
+        if (uploadResult.success) {
+          Alert.alert('Success', 'Profile picture updated successfully!');
+        } else {
+          Alert.alert('Error', uploadResult.error || 'Failed to upload profile picture');
+        }
+        setUploadingImage(false);
+      }
+    } catch (error) {
+      console.error('[Profile] Error taking photo:', error);
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      setUploadingImage(false);
+    }
+  };
+
+  const handleChooseFromLibrary = async () => {
+    console.log('[Profile] User chose to pick from photo library');
+    setShowImagePickerModal(false);
+    
+    try {
+      // Request media library permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      console.log('[Profile] Media library permission status:', status);
       
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please grant permission to access your photo library to upload a profile picture.');
@@ -217,6 +267,7 @@ export default function ProfileScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
+        console.log('[Profile] Photo selected from library, uploading...');
         setUploadingImage(true);
         const uploadResult = await uploadProfilePicture(result.assets[0].uri);
         
@@ -228,6 +279,7 @@ export default function ProfileScreen() {
         setUploadingImage(false);
       }
     } catch (error) {
+      console.error('[Profile] Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image. Please try again.');
       setUploadingImage(false);
     }
@@ -1109,6 +1161,65 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Image Picker Modal */}
+      <Modal
+        visible={showImagePickerModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImagePickerModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowImagePickerModal(false)}
+        >
+          <View style={styles.imagePickerModalContent}>
+            <Text style={[commonStyles.title, { fontSize: 20, marginBottom: 20 }]}>
+              Choose Photo Source
+            </Text>
+            
+            <TouchableOpacity
+              style={styles.imagePickerOption}
+              onPress={handleTakePhoto}
+            >
+              <IconSymbol 
+                ios_icon_name="camera.fill" 
+                android_material_icon_name="photo-camera" 
+                size={24} 
+                color={colors.primary} 
+              />
+              <Text style={[commonStyles.text, { marginLeft: 12, fontWeight: '600' }]}>
+                Take Photo
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.imagePickerOption}
+              onPress={handleChooseFromLibrary}
+            >
+              <IconSymbol 
+                ios_icon_name="photo.fill" 
+                android_material_icon_name="photo-library" 
+                size={24} 
+                color={colors.primary} 
+              />
+              <Text style={[commonStyles.text, { marginLeft: 12, fontWeight: '600' }]}>
+                Choose from Library
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.imagePickerOption, { borderTopWidth: 2, borderTopColor: colors.border, marginTop: 12, paddingTop: 20 }]}
+              onPress={() => setShowImagePickerModal(false)}
+            >
+              <Text style={[commonStyles.text, { fontWeight: '600', color: colors.textSecondary }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -1406,5 +1517,26 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 8,
+  },
+  imagePickerModalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  imagePickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: colors.highlight,
+    marginBottom: 12,
   },
 });
