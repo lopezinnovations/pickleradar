@@ -36,17 +36,14 @@ export default function FriendsScreen() {
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      startPerformanceTrack('FriendsScreen:Focus');
+      logPerformance('SCREEN_FOCUS', 'FriendsScreen');
       console.log('FriendsScreen: Screen focused, refreshing data');
       
       if (user) {
-        startPerformanceTrack('FriendsScreen:Refetch');
+        logPerformance('QUERY_START', 'FriendsScreen', 'refetch');
         refetch().finally(() => {
-          endPerformanceTrack('FriendsScreen:Refetch');
-          endPerformanceTrack('FriendsScreen:Focus');
+          logPerformance('QUERY_END', 'FriendsScreen', 'refetch');
         });
-      } else {
-        endPerformanceTrack('FriendsScreen:Focus');
       }
       
       return () => {
@@ -54,6 +51,17 @@ export default function FriendsScreen() {
       };
     }, [user, refetch])
   );
+
+  // Log render complete
+  useEffect(() => {
+    if (!friendsLoading) {
+      logPerformance('RENDER_COMPLETE', 'FriendsScreen', undefined, { 
+        friendsCount: friends.length,
+        pendingCount: pendingRequests.length,
+        allUsersCount: allUsers.length
+      });
+    }
+  }, [friendsLoading, friends.length, pendingRequests.length, allUsers.length]);
 
   // Log friends data when it changes
   useEffect(() => {
@@ -187,8 +195,6 @@ export default function FriendsScreen() {
 
   // Filter users based on search query and filters - memoized
   const filteredUsers = useMemo(() => {
-    startPerformanceTrack('FriendsScreen:FilterUsers');
-    
     const result = allUsers.filter(u => {
       // Search query filter - case-insensitive, matches first name, last name, nickname, email
       if (searchQuery.trim()) {
@@ -235,7 +241,6 @@ export default function FriendsScreen() {
       return true;
     });
     
-    endPerformanceTrack('FriendsScreen:FilterUsers', { resultCount: result.length });
     return result;
   }, [allUsers, searchQuery, minDupr, maxDupr, selectedSkillLevels, selectedCourts]);
 

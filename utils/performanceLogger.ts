@@ -1,81 +1,240 @@
 
-// Performance logging utility for tracking screen load times and query performance
+/**
+ * Performance Logging Utility
+ * 
+ * Tracks screen lifecycle events, Supabase queries, and realtime subscriptions.
+ * 
+ * Usage:
+ * 1. Set debugPerf = true to enable logging (default)
+ * 2. Import and use logPerformance() for manual events
+ * 3. Use logSupabaseQuery() wrapper for automatic query tracking
+ * 4. Call printPerformanceSummary() to see results
+ * 
+ * Events tracked:
+ * - SCREEN_FOCUS: When screen comes into focus
+ * - QUERY_START/QUERY_END: Query lifecycle
+ * - RENDER_COMPLETE: When screen finishes rendering
+ * - SUPABASE_CALL: Supabase query with duration and row count
+ * - REALTIME_SUBSCRIBE/UNSUBSCRIBE: Realtime channel lifecycle
+ * 
+ * Example:
+ *   logPerformance('SCREEN_FOCUS', 'MapScreen');
+ *   const result = await logSupabaseQuery(supabase.from('courts').select('*'), 'MapScreen', 'courts.select');
+ *   logPerformance('RENDER_COMPLETE', 'MapScreen', undefined, { courtsCount: 10 });
+ * 
+ * To view summary:
+ *   printPerformanceSummary() // Call from console or code
+ */
+
+// Global flag to enable/disable performance logging
+export const debugPerf = true;
+
+type PerfLogType = 
+  | 'SCREEN_FOCUS' 
+  | 'QUERY_START' 
+  | 'QUERY_END' 
+  | 'RENDER_COMPLETE' 
+  | 'SUPABASE_CALL' 
+  | 'REALTIME_SUBSCRIBE' 
+  | 'REALTIME_UNSUBSCRIBE';
 
 interface PerformanceLogEntry {
-  start?: number;
-  end?: number;
+  type: PerfLogType;
+  screen?: string;
+  name?: string;
+  timestamp: number;
   duration?: number;
-  details?: any;
+  details?: Record<string, any>;
 }
 
-const performanceLogs: { [key: string]: PerformanceLogEntry } = {};
+const performanceLogs: PerformanceLogEntry[] = [];
 
-export const startPerformanceTrack = (key: string, details?: any) => {
+// Log a performance event
+export const logPerformance = (
+  type: PerfLogType,
+  screen?: string,
+  name?: string,
+  details?: Record<string, any>
+) => {
+  if (!debugPerf) return;
+
   const timestamp = performance.now();
-  performanceLogs[key] = { start: timestamp, details };
-  console.log(`⏱️ PERF_START: ${key}`, details ? `- ${JSON.stringify(details)}` : '');
-  return timestamp;
-};
+  const logEntry: PerformanceLogEntry = { type, timestamp, screen, name, details };
 
-export const endPerformanceTrack = (key: string, details?: any) => {
-  const endTime = performance.now();
-  
-  if (performanceLogs[key] && performanceLogs[key].start) {
-    const duration = endTime - performanceLogs[key].start!;
-    performanceLogs[key].end = endTime;
-    performanceLogs[key].duration = duration;
-    
-    const durationFormatted = duration.toFixed(2);
-    const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-    console.log(`✅ PERF_END: ${key} - Duration: ${durationFormatted}ms${detailsStr}`);
-    
-    return duration;
+  // Calculate duration for end events
+  if (type === 'QUERY_END' || type === 'SUPABASE_CALL' || type === 'REALTIME_UNSUBSCRIBE') {
+    const startEntry = performanceLogs.find(
+      (entry) =>
+        entry.screen === screen &&
+        entry.name === name &&
+        (entry.type === 'QUERY_START' || entry.type === 'REALTIME_SUBSCRIBE') &&
+        entry.duration === undefined
+    );
+    if (startEntry) {
+      logEntry.duration = timestamp - startEntry.timestamp;
+      startEntry.duration = logEntry.duration;
+    }
   }
+
+  performanceLogs.push(logEntry);
   
-  console.warn(`⚠️ PERF_WARN: End track called for '${key}' without a start.`);
-  return null;
+  const durationStr = logEntry.duration !== undefined ? ` (${logEntry.duration.toFixed(2)}ms)` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`⏱️ PERF [${type}] ${screen || ''}${name ? ` - ${name}` : ''}${durationStr}${detailsStr}`);
 };
 
+// Wrapper for Supabase queries with automatic logging
 export const logSupabaseQuery = async <T>(
   queryPromise: Promise<{ data: T | null; error: any; count?: number | null }>,
+  screen: string,
   queryName: string
 ) => {
-  const startTime = startPerformanceTrack(`SupabaseQuery:${queryName}`);
+  if (!debugPerf) {
+    return await queryPromise;
+  }
+
+  const startTime = performance.now();
   
   try {
     const result = await queryPromise;
     const { data, error, count } = result;
     
+    const endTime = performance.now();
+    const duration = endTime - startTime;
     const rowCount = Array.isArray(data) ? data.length : (data ? 1 : 0);
-    const duration = endPerformanceTrack(`SupabaseQuery:${queryName}`, { 
+    
+    logPerformance('SUPABASE_CALL', screen, queryName, { 
+      duration: duration.toFixed(2),
       rows: rowCount, 
       count, 
       hasError: !!error 
     });
     
     if (error) {
-      console.error(`❌ SupabaseQueryError:${queryName}`, error);
+      console.error(`❌ SUPABASE_ERROR [${screen}] ${queryName}:`, error);
     }
     
-    return { data, error, count, duration };
+    return result;
   } catch (err) {
-    console.error(`❌ SupabaseQueryException:${queryName}`, err);
-    endPerformanceTrack(`SupabaseQuery:${queryName}`, { exception: true });
+    const endTime = performance.now();
+    const duration = endTime - startTime;
+    
+    console.error(`❌ SUPABASE_EXCEPTION [${screen}] ${queryName}:`, err);
+    logPerformance('SUPABASE_CALL', screen, queryName, { 
+      duration: duration.toFixed(2),
+      exception: true 
+    });
     throw err;
   }
 };
 
-export const clearPerformanceLogs = () => {
-  Object.keys(performanceLogs).forEach(key => delete performanceLogs[key]);
+// Get performance summary with worst offenders
+export const getPerformanceSummary = () => {
+  if (!debugPerf) return { summary: {}, worstOffender: null };
+
+  const summary: Record<string, { 
+    totalDuration: number; 
+    calls: number; 
+    worstCall: { name: string; duration: number } | null 
+  }> = {};
+
+  performanceLogs.forEach(log => {
+    if (log.screen && log.duration !== undefined) {
+      if (!summary[log.screen]) {
+        summary[log.screen] = { totalDuration: 0, calls: 0, worstCall: null };
+      }
+      summary[log.screen].totalDuration += log.duration;
+      summary[log.screen].calls++;
+
+      if (log.name && log.type === 'SUPABASE_CALL') {
+        if (!summary[log.screen].worstCall || log.duration > summary[log.screen].worstCall!.duration) {
+          summary[log.screen].worstCall = { name: log.name, duration: log.duration };
+        }
+      }
+    }
+  });
+
+  let worstScreen: string | null = null;
+  let maxScreenDuration = 0;
+
+  for (const screen in summary) {
+    if (summary[screen].totalDuration > maxScreenDuration) {
+      maxScreenDuration = summary[screen].totalDuration;
+      worstScreen = screen;
+    }
+  }
+
+  return {
+    summary,
+    worstOffender: worstScreen ? {
+      screen: worstScreen,
+      details: summary[worstScreen],
+    } : null,
+  };
 };
 
-export const getPerformanceSummary = () => {
-  return Object.entries(performanceLogs)
-    .filter(([_, entry]) => entry.duration !== undefined)
-    .map(([key, entry]) => ({
-      key,
-      duration: entry.duration,
-      details: entry.details
-    }))
-    .sort((a, b) => (b.duration || 0) - (a.duration || 0));
+// Print performance summary to console
+export const printPerformanceSummary = () => {
+  if (!debugPerf) {
+    console.log('⏱️ PERF: Performance logging is disabled (debugPerf = false)');
+    return;
+  }
+
+  const { summary, worstOffender } = getPerformanceSummary();
+  
+  console.log('\n═══════════════════════════════════════════════════════');
+  console.log('⏱️ PERFORMANCE SUMMARY');
+  console.log('═══════════════════════════════════════════════════════\n');
+  
+  Object.entries(summary).forEach(([screen, data]) => {
+    console.log(`📱 ${screen}:`);
+    console.log(`   Total Duration: ${data.totalDuration.toFixed(2)}ms`);
+    console.log(`   Total Calls: ${data.calls}`);
+    if (data.worstCall) {
+      console.log(`   Worst Call: ${data.worstCall.name} (${data.worstCall.duration.toFixed(2)}ms)`);
+    }
+    console.log('');
+  });
+  
+  if (worstOffender) {
+    console.log('🔥 WORST OFFENDER:');
+    console.log(`   Screen: ${worstOffender.screen}`);
+    console.log(`   Total Duration: ${worstOffender.details.totalDuration.toFixed(2)}ms`);
+    console.log(`   Total Calls: ${worstOffender.details.calls}`);
+    if (worstOffender.details.worstCall) {
+      console.log(`   Slowest Call: ${worstOffender.details.worstCall.name} (${worstOffender.details.worstCall.duration.toFixed(2)}ms)`);
+    }
+  }
+  
+  console.log('\n═══════════════════════════════════════════════════════\n');
 };
+
+// Legacy exports for backward compatibility
+export const startPerformanceTrack = (key: string, details?: any) => {
+  if (!debugPerf) return performance.now();
+  
+  const timestamp = performance.now();
+  console.log(`⏱️ PERF_START: ${key}`, details ? `- ${JSON.stringify(details)}` : '');
+  return timestamp;
+};
+
+export const endPerformanceTrack = (key: string, details?: any) => {
+  if (!debugPerf) return null;
+  
+  const endTime = performance.now();
+  const durationFormatted = '0.00'; // We don't track start time in new system
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  console.log(`✅ PERF_END: ${key} - Duration: ${durationFormatted}ms${detailsStr}`);
+  return 0;
+};
+
+export const clearPerformanceLogs = () => {
+  performanceLogs.length = 0;
+};
+
+// Export for global access (can be called from console)
+if (typeof global !== 'undefined') {
+  (global as any).printPerformanceSummary = printPerformanceSummary;
+  (global as any).getPerformanceSummary = getPerformanceSummary;
+  (global as any).clearPerformanceLogs = clearPerformanceLogs;
+}

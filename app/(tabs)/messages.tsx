@@ -8,6 +8,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
 import { requestNotificationPermissions, checkNotificationPermissionStatus } from '@/utils/notifications';
+import { logPerformance, logSupabaseQuery } from '@/utils/performanceLogger';
 
 interface Conversation {
   id: string;
@@ -113,19 +114,26 @@ export default function MessagesScreen() {
 
     try {
       console.log('MessagesScreen: Fetching conversations for user:', user.id);
+      logPerformance('QUERY_START', 'MessagesScreen', 'fetchConversations');
       setError(null);
 
       // Fetch direct message conversations
       // Use explicit FK names to avoid PGRST200 relationship errors
-      const { data: messages, error: messagesError } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender:users!messages_sender_id_fkey(id, first_name, last_name, pickleballer_nickname),
-          recipient:users!messages_recipient_id_fkey(id, first_name, last_name, pickleballer_nickname)
-        `)
-        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-        .order('created_at', { ascending: false });
+      const messagesResult = await logSupabaseQuery(
+        supabase
+          .from('messages')
+          .select(`
+            *,
+            sender:users!messages_sender_id_fkey(id, first_name, last_name, pickleballer_nickname),
+            recipient:users!messages_recipient_id_fkey(id, first_name, last_name, pickleballer_nickname)
+          `)
+          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+          .order('created_at', { ascending: false }),
+        'MessagesScreen',
+        'messages.select'
+      );
+      
+      const { data: messages, error: messagesError } = messagesResult;
 
       // PGRST116 means no rows found, which is not an error
       if (messagesError && messagesError.code !== 'PGRST116') {
@@ -139,10 +147,16 @@ export default function MessagesScreen() {
 
       // Fetch group chats the user is a member of
       // Use a simpler query that doesn't trigger RLS recursion
-      const { data: userGroups, error: userGroupsError } = await supabase
-        .from('group_members')
-        .select('group_id')
-        .eq('user_id', user.id);
+      const userGroupsResult = await logSupabaseQuery(
+        supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', user.id),
+        'MessagesScreen',
+        'group_members.select'
+      );
+      
+      const { data: userGroups, error: userGroupsError } = userGroupsResult;
 
       if (userGroupsError && userGroupsError.code !== 'PGRST116') {
         console.error('MessagesScreen: Error fetching user groups:', userGroupsError);
@@ -158,10 +172,16 @@ export default function MessagesScreen() {
       if (userGroups && userGroups.length > 0) {
         const groupIds = userGroups.map(g => g.group_id);
         
-        const { data: groups, error: groupsError } = await supabase
-          .from('group_chats')
-          .select('*')
-          .in('id', groupIds);
+        const groupsResult = await logSupabaseQuery(
+          supabase
+            .from('group_chats')
+            .select('*')
+            .in('id', groupIds),
+          'MessagesScreen',
+          'group_chats.select'
+        );
+        
+        const { data: groups, error: groupsError } = groupsResult;
 
         if (groupsError && groupsError.code !== 'PGRST116') {
           console.error('MessagesScreen: Error fetching groups:', groupsError);
@@ -272,6 +292,7 @@ export default function MessagesScreen() {
       });
 
       console.log('MessagesScreen: Loaded', allConversations.length, 'total conversations');
+      logPerformance('QUERY_END', 'MessagesScreen', 'fetchConversations', { conversationsCount: allConversations.length });
       setConversations(allConversations);
       // Only clear error if we successfully loaded everything
       if (!error) {
@@ -280,6 +301,7 @@ export default function MessagesScreen() {
     } catch (err: any) {
       console.error('MessagesScreen: Error in fetchConversations:', err);
       console.error('MessagesScreen: Full error details:', JSON.stringify(err, null, 2));
+      logPerformance('QUERY_END', 'MessagesScreen', 'fetchConversations', { error: true });
       setError(err.message || 'Failed to load conversations');
     } finally {
       setLoading(false);
@@ -289,10 +311,18 @@ export default function MessagesScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log('MessagesScreen: Screen focused, fetching conversations');
+      logPerformance('SCREEN_FOCUS', 'MessagesScreen');
       fetchConversations();
       checkAndShowNotificationPrompt();
     }, [fetchConversations, checkAndShowNotificationPrompt])
   );
+
+  // Log render complete
+  useEffect(() => {
+    if (!loading) {
+      logPerformance('RENDER_COMPLETE', 'MessagesScreen', undefined, { conversationsCount: conversations.length });
+    }
+  }, [loading, conversations.length]);
 
   useEffect(() => {
     fetchConversations();
@@ -306,6 +336,8 @@ export default function MessagesScreen() {
     }
 
     console.log('MessagesScreen: Setting up real-time subscriptions');
+    logPerformance('REALTIME_SUBSCRIBE', 'MessagesScreen', 'messages_list_updates');
+    logPerformance('REALTIME_SUBSCRIBE', 'MessagesScreen', 'group_messages_list_updates');
 
     const messagesSubscription = supabase
       .channel('messages_list_updates')
@@ -321,8 +353,11 @@ export default function MessagesScreen() {
           fetchConversations();
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('MessagesScreen: Messages subscription status:', status);
+        if (status === 'TIMED_OUT') {
+          logPerformance('REALTIME_SUBSCRIBE', 'MessagesScreen', 'messages_list_updates', { status: 'TIMED_OUT', error: err });
+        }
       });
 
     const groupMessagesSubscription = supabase
@@ -339,12 +374,17 @@ export default function MessagesScreen() {
           fetchConversations();
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log('MessagesScreen: Group messages subscription status:', status);
+        if (status === 'TIMED_OUT') {
+          logPerformance('REALTIME_SUBSCRIBE', 'MessagesScreen', 'group_messages_list_updates', { status: 'TIMED_OUT', error: err });
+        }
       });
 
     return () => {
       console.log('MessagesScreen: Cleaning up real-time subscriptions');
+      logPerformance('REALTIME_UNSUBSCRIBE', 'MessagesScreen', 'messages_list_updates');
+      logPerformance('REALTIME_UNSUBSCRIBE', 'MessagesScreen', 'group_messages_list_updates');
       messagesSubscription.unsubscribe();
       groupMessagesSubscription.unsubscribe();
     };

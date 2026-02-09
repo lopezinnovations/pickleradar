@@ -10,6 +10,7 @@ import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/app/integrations/supabase/client';
 import { sendTestPushNotification, isPushNotificationSupported } from '@/utils/notifications';
+import { logPerformance, logSupabaseQuery } from '@/utils/performanceLogger';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -47,21 +48,45 @@ export default function ProfileScreen() {
     useCallback(() => {
       if (!user) return;
       
+      logPerformance('SCREEN_FOCUS', 'ProfileScreen');
+      logPerformance('QUERY_START', 'ProfileScreen', 'refetchData');
+      
       refetchUser();
       refetchCheckIns();
       loadCurrentCheckIn();
+      
+      logPerformance('QUERY_END', 'ProfileScreen', 'refetchData');
     }, [user, refetchUser, refetchCheckIns, loadCurrentCheckIn])
   );
+
+  // Log render complete
+  useEffect(() => {
+    if (!authLoading && !historyLoading) {
+      logPerformance('RENDER_COMPLETE', 'ProfileScreen', undefined, { 
+        hasUser: !!user,
+        checkInsCount: checkInHistory?.length || 0
+      });
+    }
+  }, [authLoading, historyLoading, user, checkInHistory?.length]);
 
   const fetchAdminStatusAndPushToken = useCallback(async () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('push_token')
-        .eq('id', user.id)
-        .single();
+      logPerformance('QUERY_START', 'ProfileScreen', 'fetchAdminStatus');
+      
+      const result = await logSupabaseQuery(
+        supabase
+          .from('users')
+          .select('push_token')
+          .eq('id', user.id)
+          .single(),
+        'ProfileScreen',
+        'users.select.push_token'
+      );
+      
+      const { data, error } = result;
+      logPerformance('QUERY_END', 'ProfileScreen', 'fetchAdminStatus');
 
       if (error) {
         console.error('[Profile] Error fetching user data:', error);

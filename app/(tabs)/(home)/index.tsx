@@ -13,6 +13,7 @@ import { LegalFooter } from '@/components/LegalFooter';
 import { SortOption, FilterOptions } from '@/types';
 import { calculateDistance } from '@/utils/locationUtils';
 import { supabase } from '@/app/integrations/supabase/client';
+import { logPerformance, logSupabaseQuery } from '@/utils/performanceLogger';
 
 const INITIAL_DISPLAY_COUNT = 10;
 const LOAD_MORE_COUNT = 10;
@@ -80,18 +81,26 @@ export default function HomeScreen() {
 
     try {
       console.log('HomeScreen: Fetching user favorites');
-      const { data, error } = await supabase
-        .from('court_favorites')
-        .select('court_id')
-        .eq('user_id', user.id);
+      logPerformance('QUERY_START', 'MapScreen', 'fetchFavorites');
+      
+      const result = await logSupabaseQuery(
+        supabase
+          .from('court_favorites')
+          .select('court_id')
+          .eq('user_id', user.id),
+        'MapScreen',
+        'court_favorites.select'
+      );
 
-      if (error) {
-        console.error('HomeScreen: Error fetching favorites:', error);
+      logPerformance('QUERY_END', 'MapScreen', 'fetchFavorites', { rows: result.data?.length || 0 });
+
+      if (result.error) {
+        console.error('HomeScreen: Error fetching favorites:', result.error);
         setLoadingFavorites(false);
         return;
       }
 
-      const favoriteIds = new Set(data?.map(fav => fav.court_id) || []);
+      const favoriteIds = new Set(result.data?.map(fav => fav.court_id) || []);
       console.log('HomeScreen: Loaded favorites:', favoriteIds.size);
       setFavoriteCourtIds(favoriteIds);
       setLoadingFavorites(false);
@@ -110,6 +119,8 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log('HomeScreen: Screen focused, refreshing courts data and favorites');
+      logPerformance('SCREEN_FOCUS', 'MapScreen');
+      
       try {
         refetch();
         fetchFavorites();
@@ -118,6 +129,13 @@ export default function HomeScreen() {
       }
     }, [refetch, fetchFavorites])
   );
+
+  // Log render complete
+  useEffect(() => {
+    if (!loading) {
+      logPerformance('RENDER_COMPLETE', 'MapScreen', undefined, { courtsCount: courts.length });
+    }
+  }, [loading, courts.length]);
 
   // Apply sorting/filtering using cached distances
   const processedCourts = useMemo(() => {
@@ -319,24 +337,32 @@ export default function HomeScreen() {
     try {
       if (wasFavorited) {
         // Remove from favorites
-        const { error } = await supabase
-          .from('court_favorites')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('court_id', courtId);
+        const result = await logSupabaseQuery(
+          supabase
+            .from('court_favorites')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('court_id', courtId),
+          'MapScreen',
+          'court_favorites.delete'
+        );
 
-        if (error) {
-          throw error;
+        if (result.error) {
+          throw result.error;
         }
         console.log('HomeScreen: Successfully removed favorite');
       } else {
         // Add to favorites
-        const { error } = await supabase
-          .from('court_favorites')
-          .insert({ user_id: user.id, court_id: courtId });
+        const result = await logSupabaseQuery(
+          supabase
+            .from('court_favorites')
+            .insert({ user_id: user.id, court_id: courtId }),
+          'MapScreen',
+          'court_favorites.insert'
+        );
 
-        if (error) {
-          throw error;
+        if (result.error) {
+          throw result.error;
         }
         console.log('HomeScreen: Successfully added favorite');
       }
