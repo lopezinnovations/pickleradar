@@ -7,13 +7,13 @@ import { useCourts } from '@/hooks/useCourts';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from '@/hooks/useLocation';
 import { IconSymbol } from '@/components/IconSymbol';
-import { SkillLevelBars } from '@/components/SkillLevelBars';
+import { SkillLevelBars, CourtCardSkeleton } from '@/components/SkillLevelBars';
 import { AddCourtModal } from '@/components/AddCourtModal';
 import { LegalFooter } from '@/components/LegalFooter';
 import { SortOption, FilterOptions } from '@/types';
 import { calculateDistance } from '@/utils/locationUtils';
 import { supabase } from '@/app/integrations/supabase/client';
-import { logPerformance, logSupabaseQuery } from '@/utils/performanceLogger';
+import { logPerformance, logSupabaseQuery, getCachedData, setCachedData, debounce } from '@/utils/performanceLogger';
 
 const INITIAL_DISPLAY_COUNT = 10;
 const LOAD_MORE_COUNT = 10;
@@ -33,6 +33,7 @@ export default function HomeScreen() {
   const [favoriteCourtIds, setFavoriteCourtIds] = useState<Set<string>>(new Set());
   const [loadingFavorites, setLoadingFavorites] = useState(true);
   const [courtDistances, setCourtDistances] = useState<{ [key: string]: number | null }>({});
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
   // Calculate and cache distances when location or courts change
   useEffect(() => {
@@ -71,6 +72,20 @@ export default function HomeScreen() {
     }
   }, [userLocation, courts]);
 
+  // Debounced search handler
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      console.log('HomeScreen: Debounced search query:', query);
+      setDebouncedSearchQuery(query);
+    }, 400),
+    []
+  );
+
+  // Update debounced search when search query changes
+  useEffect(() => {
+    debouncedSearch(searchQuery);
+  }, [searchQuery, debouncedSearch]);
+
   // Fetch user's favorites - memoized with stable dependencies
   const fetchFavorites = useCallback(async () => {
     if (!user?.id) {
@@ -79,8 +94,29 @@ export default function HomeScreen() {
       return;
     }
 
+    // Check cache first
+    const cacheKey = `favorites_${user.id}`;
+    const cached = getCachedData<Set<string>>(cacheKey, 120000); // 2 minutes cache
+    if (cached) {
+      console.log('HomeScreen: Using cached favorites');
+      setFavoriteCourtIds(cached);
+      setLoadingFavorites(false);
+      
+      // Refresh in background
+      setTimeout(() => {
+        fetchFavoritesFromServer();
+      }, 100);
+      return;
+    }
+
+    await fetchFavoritesFromServer();
+  }, [user?.id]);
+
+  const fetchFavoritesFromServer = useCallback(async () => {
+    if (!user?.id) return;
+
     try {
-      console.log('HomeScreen: Fetching user favorites');
+      console.log('HomeScreen: Fetching user favorites from server');
       logPerformance('QUERY_START', 'MapScreen', 'fetchFavorites');
       
       const result = await logSupabaseQuery(
@@ -102,6 +138,11 @@ export default function HomeScreen() {
 
       const favoriteIds = new Set(result.data?.map(fav => fav.court_id) || []);
       console.log('HomeScreen: Loaded favorites:', favoriteIds.size);
+      
+      // Cache the result
+      const cacheKey = `favorites_${user.id}`;
+      setCachedData(cacheKey, favoriteIds);
+      
       setFavoriteCourtIds(favoriteIds);
       setLoadingFavorites(false);
     } catch (error) {
@@ -141,9 +182,9 @@ export default function HomeScreen() {
         distance: courtDistances[court.id],
       }));
 
-      // Apply unified search filter (ZIP code, city, or court name)
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+      // Apply unified search filter (ZIP code, city, or court name) - using debounced query
+      if (debouncedSearchQuery.trim()) {
+        const query = debouncedSearchQuery.toLowerCase();
         processed = processed.filter(court => {
           const nameMatch = court.name.toLowerCase().includes(query);
           const addressMatch = court.address.toLowerCase().includes(query);
@@ -241,7 +282,7 @@ export default function HomeScreen() {
       console.error('HomeScreen: Error processing courts:', error);
       return courts;
     }
-  }, [courts, sortBy, filters, courtDistances, searchQuery, favoriteCourtIds, userLocation]);
+  }, [courts, sortBy, filters, courtDistances, debouncedSearchQuery, favoriteCourtIds, userLocation]);
 
   const displayedCourts = processedCourts.slice(0, displayCount);
   const hasMoreCourts = displayCount < processedCourts.length;
@@ -388,13 +429,57 @@ export default function HomeScreen() {
   // Show location prompt if no location permission
   const showLocationPrompt = !loading && !hasLocation && courts.length === 0 && !searchQuery.trim();
 
+  // Show skeleton loaders while loading
+  const renderSkeletonLoaders = () => (
+    <View style={commonStyles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Image 
+            source={require('@/assets/images/d00ee021-be7a-42f9-a115-ea45cb937f7f.jpeg')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={[commonStyles.textSecondary, { textAlign: 'center', marginTop: 12 }]}>
+            Find active pickleball courts near you
+          </Text>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <IconSymbol 
+              ios_icon_name="magnifyingglass" 
+              android_material_icon_name="search" 
+              size={20} 
+              color={colors.textSecondary} 
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name, city, or ZIP..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+        </View>
+
+        <View style={styles.courtsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={commonStyles.subtitle}>Loading courts...</Text>
+          </View>
+          {[1, 2, 3, 4, 5].map((_, index) => (
+            <CourtCardSkeleton key={index} />
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+
   if (loading) {
-    return (
-      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading courts...</Text>
-      </View>
-    );
+    return renderSkeletonLoaders();
   }
 
   return (

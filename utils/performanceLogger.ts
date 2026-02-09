@@ -238,3 +238,89 @@ if (typeof global !== 'undefined') {
   (global as any).getPerformanceSummary = getPerformanceSummary;
   (global as any).clearPerformanceLogs = clearPerformanceLogs;
 }
+
+// ============================================
+// CACHING UTILITIES
+// ============================================
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const memoryCache = new Map<string, CacheEntry<any>>();
+
+/**
+ * Get cached data if it exists and is not expired
+ * @param key Cache key
+ * @param maxAgeMs Maximum age in milliseconds (default: 60 seconds)
+ * @returns Cached data or null if not found/expired
+ */
+export function getCachedData<T>(key: string, maxAgeMs: number = 60000): T | null {
+  const entry = memoryCache.get(key);
+  if (!entry) return null;
+  
+  const age = Date.now() - entry.timestamp;
+  if (age > maxAgeMs) {
+    memoryCache.delete(key);
+    return null;
+  }
+  
+  console.log(`📦 CACHE HIT: ${key} (age: ${age}ms)`);
+  return entry.data as T;
+}
+
+/**
+ * Set cached data
+ * @param key Cache key
+ * @param data Data to cache
+ */
+export function setCachedData<T>(key: string, data: T): void {
+  memoryCache.set(key, {
+    data,
+    timestamp: Date.now(),
+  });
+  console.log(`📦 CACHE SET: ${key}`);
+}
+
+/**
+ * Clear cached data
+ * @param key Optional cache key to clear specific entry, or clear all if not provided
+ */
+export function clearCache(key?: string): void {
+  if (key) {
+    memoryCache.delete(key);
+    console.log(`📦 CACHE CLEAR: ${key}`);
+  } else {
+    memoryCache.clear();
+    console.log('📦 CACHE CLEAR: All');
+  }
+}
+
+// ============================================
+// DEBOUNCE UTILITY
+// ============================================
+
+/**
+ * Debounce a function call
+ * @param func Function to debounce
+ * @param waitMs Wait time in milliseconds
+ * @returns Debounced function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  waitMs: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout | null = null;
+
+  return (...args: Parameters<T>) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    timeoutId = setTimeout(() => {
+      func(...args);
+      timeoutId = null;
+    }, waitMs);
+  };
+}

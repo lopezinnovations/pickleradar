@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
-import { startPerformanceTrack, endPerformanceTrack } from '@/utils/performanceLogger';
+import { startPerformanceTrack, endPerformanceTrack, getCachedData, setCachedData, debounce, logPerformance } from '@/utils/performanceLogger';
+import { FriendCardSkeleton } from '@/components/SkillLevelBars';
 
 export default function FriendsScreen() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export default function FriendsScreen() {
     refetch
   } = useFriends(user?.id);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
   
@@ -33,6 +35,20 @@ export default function FriendsScreen() {
   const [selectedSkillLevels, setSelectedSkillLevels] = useState<string[]>([]);
   const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
 
+  // Debounced search handler
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      console.log('FriendsScreen: Debounced search query:', query);
+      setDebouncedSearchQuery(query);
+    }, 400),
+    []
+  );
+
+  // Update debounced search when search query changes
+  useEffect(() => {
+    debouncedSearch(searchQuery);
+  }, [searchQuery, debouncedSearch]);
+
   // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -40,16 +56,35 @@ export default function FriendsScreen() {
       console.log('FriendsScreen: Screen focused, refreshing data');
       
       if (user) {
-        logPerformance('QUERY_START', 'FriendsScreen', 'refetch');
-        refetch().finally(() => {
-          logPerformance('QUERY_END', 'FriendsScreen', 'refetch');
-        });
+        // Check cache first
+        const cacheKey = `friends_${user.id}`;
+        const cached = getCachedData<any>(cacheKey, 120000); // 2 minutes cache
+        
+        if (cached) {
+          console.log('FriendsScreen: Using cached data, refreshing in background');
+          // Refresh in background
+          setTimeout(() => {
+            logPerformance('QUERY_START', 'FriendsScreen', 'refetch');
+            refetch().finally(() => {
+              logPerformance('QUERY_END', 'FriendsScreen', 'refetch');
+              // Cache the new data
+              setCachedData(cacheKey, { friends, pendingRequests, allUsers });
+            });
+          }, 100);
+        } else {
+          logPerformance('QUERY_START', 'FriendsScreen', 'refetch');
+          refetch().finally(() => {
+            logPerformance('QUERY_END', 'FriendsScreen', 'refetch');
+            // Cache the data
+            setCachedData(cacheKey, { friends, pendingRequests, allUsers });
+          });
+        }
       }
       
       return () => {
         console.log('FriendsScreen: Screen unfocused');
       };
-    }, [user, refetch])
+    }, [user, refetch, friends, pendingRequests, allUsers])
   );
 
   // Log render complete
@@ -197,8 +232,8 @@ export default function FriendsScreen() {
   const filteredUsers = useMemo(() => {
     const result = allUsers.filter(u => {
       // Search query filter - case-insensitive, matches first name, last name, nickname, email
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+      if (debouncedSearchQuery.trim()) {
+        const query = debouncedSearchQuery.toLowerCase();
         const firstName = u.first_name?.toLowerCase() || '';
         const lastName = u.last_name?.toLowerCase() || '';
         const nickname = u.pickleballer_nickname?.toLowerCase() || '';
@@ -242,7 +277,7 @@ export default function FriendsScreen() {
     });
     
     return result;
-  }, [allUsers, searchQuery, minDupr, maxDupr, selectedSkillLevels, selectedCourts]);
+  }, [allUsers, debouncedSearchQuery, minDupr, maxDupr, selectedSkillLevels, selectedCourts]);
 
   // Show loading state only while auth is initializing
   if (authLoading) {
@@ -303,10 +338,11 @@ export default function FriendsScreen() {
           </Text>
           
           {friendsLoading ? (
-            <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading friends...</Text>
-            </View>
+            <React.Fragment>
+              {[1, 2, 3].map((_, index) => (
+                <FriendCardSkeleton key={index} />
+              ))}
+            </React.Fragment>
           ) : friends.length === 0 ? (
             <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
               <IconSymbol 
@@ -650,10 +686,11 @@ export default function FriendsScreen() {
           </Text>
           
           {friendsLoading ? (
-            <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading users...</Text>
-            </View>
+            <React.Fragment>
+              {[1, 2, 3, 4, 5].map((_, index) => (
+                <FriendCardSkeleton key={index} />
+              ))}
+            </React.Fragment>
           ) : filteredUsers.length === 0 ? (
             <View style={[commonStyles.card, { marginTop: 12, alignItems: 'center', padding: 32 }]}>
               <IconSymbol 

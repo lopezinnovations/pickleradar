@@ -10,7 +10,7 @@ import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/app/integrations/supabase/client';
 import { sendTestPushNotification, isPushNotificationSupported } from '@/utils/notifications';
-import { logPerformance, logSupabaseQuery } from '@/utils/performanceLogger';
+import { logPerformance, logSupabaseQuery, getCachedData, setCachedData } from '@/utils/performanceLogger';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -72,6 +72,16 @@ export default function ProfileScreen() {
   const fetchAdminStatusAndPushToken = useCallback(async () => {
     if (!user) return;
 
+    // Check cache first
+    const cacheKey = `admin_status_${user.id}`;
+    const cached = getCachedData<{ pushToken: string | null; isAdmin: boolean }>(cacheKey, 300000); // 5 minutes cache
+    if (cached) {
+      console.log('[Profile] Using cached admin status');
+      setUserPushToken(cached.pushToken);
+      setIsAdmin(cached.isAdmin);
+      return;
+    }
+
     try {
       logPerformance('QUERY_START', 'ProfileScreen', 'fetchAdminStatus');
       
@@ -96,14 +106,18 @@ export default function ProfileScreen() {
       // For demo purposes, we'll consider any user with a push token as "admin"
       // In production, you'd have an is_admin column in the database
       // For now, we'll enable the test button for all users who have a push token
-      setUserPushToken(data?.push_token || null);
+      const pushToken = data?.push_token || null;
+      setUserPushToken(pushToken);
       
       // Check if user email contains "admin" or if they have a specific admin flag
       // This is a simple check - in production you'd have a proper is_admin column
       const isAdminUser = user.email?.toLowerCase().includes('admin') || false;
       setIsAdmin(isAdminUser);
       
-      console.log('[Profile] User push token:', data?.push_token ? 'Present' : 'Not set');
+      // Cache the result
+      setCachedData(cacheKey, { pushToken, isAdmin: isAdminUser });
+      
+      console.log('[Profile] User push token:', pushToken ? 'Present' : 'Not set');
       console.log('[Profile] Admin status:', isAdminUser);
     } catch (error) {
       console.error('[Profile] Error in fetchAdminStatusAndPushToken:', error);

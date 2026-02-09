@@ -8,8 +8,9 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
 import { requestNotificationPermissions, checkNotificationPermissionStatus } from '@/utils/notifications';
-import { logPerformance, logSupabaseQuery } from '@/utils/performanceLogger';
+import { logPerformance, logSupabaseQuery, getCachedData, setCachedData, debounce } from '@/utils/performanceLogger';
 import { useRealtimeManager } from '@/utils/realtimeManager';
+import { ConversationCardSkeleton } from '@/components/SkillLevelBars';
 
 interface Conversation {
   id: string;
@@ -36,11 +37,26 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [visitCount, setVisitCount] = useState(0);
   
   // Initialize realtime manager
   const realtimeManager = useRealtimeManager('MessagesScreen');
+
+  // Debounced search handler
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      console.log('MessagesScreen: Debounced search query:', query);
+      setDebouncedSearchQuery(query);
+    }, 400),
+    []
+  );
+
+  // Update debounced search when search query changes
+  useEffect(() => {
+    debouncedSearch(searchQuery);
+  }, [searchQuery, debouncedSearch]);
 
   const checkAndShowNotificationPrompt = useCallback(async () => {
     if (!user || !isSupabaseConfigured()) return;
@@ -118,8 +134,29 @@ export default function MessagesScreen() {
       return;
     }
 
+    // Check cache first
+    const cacheKey = `conversations_${user.id}`;
+    const cached = getCachedData<Conversation[]>(cacheKey, 120000); // 2 minutes cache
+    if (cached) {
+      console.log('MessagesScreen: Using cached conversations');
+      setConversations(cached);
+      setLoading(false);
+      
+      // Refresh in background
+      setTimeout(() => {
+        fetchConversationsFromServer();
+      }, 100);
+      return;
+    }
+
+    await fetchConversationsFromServer();
+  }, [user]);
+
+  const fetchConversationsFromServer = useCallback(async () => {
+    if (!user || !isSupabaseConfigured()) return;
+
     try {
-      console.log('MessagesScreen: Fetching conversations for user:', user.id);
+      console.log('MessagesScreen: Fetching conversations from server for user:', user.id);
       logPerformance('QUERY_START', 'MessagesScreen', 'fetchConversations');
 
       // OPTIMIZED: Fetch direct message conversations WITHOUT embedded joins
@@ -313,6 +350,11 @@ export default function MessagesScreen() {
 
       console.log('MessagesScreen: Loaded', allConversations.length, 'total conversations');
       logPerformance('QUERY_END', 'MessagesScreen', 'fetchConversations', { conversationsCount: allConversations.length });
+      
+      // Cache the result
+      const cacheKey = `conversations_${user.id}`;
+      setCachedData(cacheKey, allConversations);
+      
       setConversations(allConversations);
     } catch (err: any) {
       console.error('MessagesScreen: Error in fetchConversations:', err);
@@ -423,8 +465,8 @@ export default function MessagesScreen() {
   };
 
   const filteredConversations = conversations.filter(conv => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
+    if (!debouncedSearchQuery.trim()) return true;
+    const query = debouncedSearchQuery.toLowerCase();
     return conv.title.toLowerCase().includes(query) ||
            conv.userFirstName?.toLowerCase().includes(query) ||
            conv.userLastName?.toLowerCase().includes(query) ||
@@ -512,11 +554,40 @@ export default function MessagesScreen() {
     );
   };
 
+  // Show skeleton loaders while loading
   if (loading) {
     return (
-      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading messages...</Text>
+      <View style={commonStyles.container}>
+        <View style={styles.header}>
+          <Text style={commonStyles.title}>Messages</Text>
+          <Text style={commonStyles.textSecondary}>
+            Chat with your pickleball friends
+          </Text>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <IconSymbol
+            ios_icon_name="magnifyingglass"
+            android_material_icon_name="search"
+            size={20}
+            color={colors.textSecondary}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search conversations..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        <View style={{ paddingHorizontal: 20 }}>
+          {[1, 2, 3, 4, 5].map((_, index) => (
+            <ConversationCardSkeleton key={index} />
+          ))}
+        </View>
       </View>
     );
   }
