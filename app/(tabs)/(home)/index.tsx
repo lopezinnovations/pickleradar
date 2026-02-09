@@ -71,7 +71,7 @@ export default function HomeScreen() {
     }
   }, [userLocation, courts]);
 
-  // Fetch user's favorites on mount and when screen comes into focus
+  // Fetch user's favorites - memoized with stable dependencies
   const fetchFavorites = useCallback(async () => {
     if (!user?.id) {
       console.log('HomeScreen: No user ID, skipping favorites fetch');
@@ -110,12 +110,7 @@ export default function HomeScreen() {
     }
   }, [user?.id]);
 
-  // Fetch favorites on mount
-  useEffect(() => {
-    fetchFavorites();
-  }, [fetchFavorites]);
-
-  // Only refetch when screen comes into focus
+  // FIXED: Only refetch when screen comes into focus (removed duplicate useEffect)
   useFocusEffect(
     useCallback(() => {
       console.log('HomeScreen: Screen focused, refreshing courts data and favorites');
@@ -137,7 +132,7 @@ export default function HomeScreen() {
     }
   }, [loading, courts.length]);
 
-  // Apply sorting/filtering using cached distances
+  // Apply sorting/filtering using cached distances - memoized with stable dependencies
   const processedCourts = useMemo(() => {
     try {
       // Use cached distances instead of recalculating

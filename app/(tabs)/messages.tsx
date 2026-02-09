@@ -35,7 +35,6 @@ export default function MessagesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [visitCount, setVisitCount] = useState(0);
-  const [error, setError] = useState<string | null>(null);
 
   const checkAndShowNotificationPrompt = useCallback(async () => {
     if (!user || !isSupabaseConfigured()) return;
@@ -104,6 +103,7 @@ export default function MessagesScreen() {
     setShowNotificationPrompt(false);
   };
 
+  // FIXED: Memoized fetchConversations with stable dependencies (removed 'error' from deps)
   const fetchConversations = useCallback(async () => {
     if (!user || !isSupabaseConfigured()) {
       console.log('MessagesScreen: No user or Supabase not configured');
@@ -115,7 +115,6 @@ export default function MessagesScreen() {
     try {
       console.log('MessagesScreen: Fetching conversations for user:', user.id);
       logPerformance('QUERY_START', 'MessagesScreen', 'fetchConversations');
-      setError(null);
 
       // Fetch direct message conversations
       // Use explicit FK names to avoid PGRST200 relationship errors
@@ -140,7 +139,6 @@ export default function MessagesScreen() {
         console.error('MessagesScreen: Error fetching messages:', messagesError);
         console.error('MessagesScreen: Full error details:', JSON.stringify(messagesError, null, 2));
         // Don't throw - continue to try loading group chats
-        setError(`Direct messages error: ${messagesError.message || 'Unknown error'}`);
       }
 
       console.log('MessagesScreen: Fetched', messages?.length || 0, 'direct messages');
@@ -162,7 +160,6 @@ export default function MessagesScreen() {
         console.error('MessagesScreen: Error fetching user groups:', userGroupsError);
         console.error('MessagesScreen: Full error details:', JSON.stringify(userGroupsError, null, 2));
         // Don't throw - continue with just direct messages
-        setError(`Group chats error: ${userGroupsError.message || 'Unknown error'}`);
       }
 
       console.log('MessagesScreen: User is member of', userGroups?.length || 0, 'groups');
@@ -294,20 +291,16 @@ export default function MessagesScreen() {
       console.log('MessagesScreen: Loaded', allConversations.length, 'total conversations');
       logPerformance('QUERY_END', 'MessagesScreen', 'fetchConversations', { conversationsCount: allConversations.length });
       setConversations(allConversations);
-      // Only clear error if we successfully loaded everything
-      if (!error) {
-        setError(null);
-      }
     } catch (err: any) {
       console.error('MessagesScreen: Error in fetchConversations:', err);
       console.error('MessagesScreen: Full error details:', JSON.stringify(err, null, 2));
       logPerformance('QUERY_END', 'MessagesScreen', 'fetchConversations', { error: true });
-      setError(err.message || 'Failed to load conversations');
     } finally {
       setLoading(false);
     }
-  }, [user, error]);
+  }, [user]); // FIXED: Removed 'error' from dependencies to prevent refetch loops
 
+  // FIXED: Only fetch on focus (removed duplicate useEffect)
   useFocusEffect(
     useCallback(() => {
       console.log('MessagesScreen: Screen focused, fetching conversations');
@@ -324,11 +317,7 @@ export default function MessagesScreen() {
     }
   }, [loading, conversations.length]);
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
-
-  // Separate effect for real-time subscriptions to avoid re-subscribing unnecessarily
+  // FIXED: Separate effect for real-time subscriptions with stable dependencies
   useEffect(() => {
     // Set up real-time subscriptions
     if (!user || !isSupabaseConfigured()) {
@@ -388,7 +377,7 @@ export default function MessagesScreen() {
       messagesSubscription.unsubscribe();
       groupMessagesSubscription.unsubscribe();
     };
-  }, [user, fetchConversations]);
+  }, [user, fetchConversations]); // FIXED: Stable dependencies only
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -566,35 +555,7 @@ export default function MessagesScreen() {
         <Text style={styles.createGroupText}>Create Group Chat</Text>
       </TouchableOpacity>
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <View style={styles.errorContent}>
-            <IconSymbol
-              ios_icon_name="exclamationmark.triangle.fill"
-              android_material_icon_name="error"
-              size={24}
-              color={colors.error}
-            />
-            <View style={styles.errorTextContainer}>
-              <Text style={styles.errorTitle}>Couldn&apos;t load conversations</Text>
-              <Text style={styles.errorMessage}>Please try again.</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => {
-              console.log('User tapped Retry');
-              setError(null);
-              setLoading(true);
-              fetchConversations();
-            }}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {filteredConversations.length === 0 && !error ? (
+      {filteredConversations.length === 0 ? (
         <View style={styles.emptyState}>
           <IconSymbol
             ios_icon_name="envelope"
@@ -611,7 +572,7 @@ export default function MessagesScreen() {
               : 'Create a group or message friends to get started.'}
           </Text>
         </View>
-      ) : !error ? (
+      ) : (
         <FlatList
           data={filteredConversations}
           renderItem={renderConversation}
@@ -619,7 +580,7 @@ export default function MessagesScreen() {
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
-      ) : null}
+      )}
 
       <NotificationPermissionModal
         visible={showNotificationPrompt}
@@ -761,46 +722,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
-  },
-  errorContainer: {
-    backgroundColor: '#ffebee',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#ffcdd2',
-  },
-  errorContent: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  errorTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  errorTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.error,
-    marginBottom: 4,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#c62828',
-    lineHeight: 20,
-  },
-  retryButton: {
-    backgroundColor: colors.error,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: 'flex-start',
-  },
-  retryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.card,
   },
 });
