@@ -1,22 +1,22 @@
 
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React, { useMemo } from 'react';
+import React from 'react';
+
+// Create QueryClient OUTSIDE component to prevent recreation on every render
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30000, // 30 seconds - data is fresh for 30s
+      gcTime: 600000, // 10 minutes - keep unused data in cache for 10min
+      refetchOnFocus: false, // Don't refetch when tab regains focus
+      refetchOnReconnect: true, // Refetch when network reconnects
+      retry: 1, // Only retry failed queries once
+    },
+  },
+});
 
 export default function RootLayout() {
-  // REACT QUERY: Create QueryClient with performance-optimized defaults
-  const queryClient = useMemo(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 30000, // 30 seconds - data is fresh for 30s
-        gcTime: 600000, // 10 minutes - keep unused data in cache for 10min
-        refetchOnFocus: false, // Don't refetch when tab regains focus
-        refetchOnReconnect: true, // Refetch when network reconnects
-        retry: 1, // Only retry failed queries once
-      },
-    },
-  }), []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <Stack screenOptions={{ headerShown: false }}>

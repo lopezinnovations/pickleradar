@@ -63,6 +63,7 @@ export const useAuth = () => {
             privacyOptIn: newProfile.privacy_opt_in || false,
             notificationsEnabled: newProfile.notifications_enabled || false,
             locationEnabled: newProfile.location_enabled || false,
+            friendVisibility: newProfile.friend_visibility !== false, // Default to true
             latitude: newProfile.latitude,
             longitude: newProfile.longitude,
             zipCode: newProfile.zip_code,
@@ -91,6 +92,7 @@ export const useAuth = () => {
           privacyOptIn: data.privacy_opt_in || false,
           notificationsEnabled: data.notifications_enabled || false,
           locationEnabled: data.location_enabled || false,
+          friendVisibility: data.friend_visibility !== false, // Default to true
           latitude: data.latitude,
           longitude: data.longitude,
           zipCode: data.zip_code,
@@ -502,6 +504,7 @@ export const useAuth = () => {
       if (updates.privacyOptIn !== undefined) dbUpdates.privacy_opt_in = updates.privacyOptIn;
       if (updates.notificationsEnabled !== undefined) dbUpdates.notifications_enabled = updates.notificationsEnabled;
       if (updates.locationEnabled !== undefined) dbUpdates.location_enabled = updates.locationEnabled;
+      if (updates.friendVisibility !== undefined) dbUpdates.friend_visibility = updates.friendVisibility;
       if (updates.latitude !== undefined) dbUpdates.latitude = updates.latitude;
       if (updates.longitude !== undefined) dbUpdates.longitude = updates.longitude;
       if (updates.zipCode !== undefined) dbUpdates.zip_code = updates.zipCode;

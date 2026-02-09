@@ -28,6 +28,7 @@
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { logPerformance } from './performanceLogger';
+import React from 'react';
 
 interface SubscriptionConfig {
   table: string;
@@ -358,6 +359,3 @@ export const useRealtimeManager = (screenName: string) => {
 
 // For non-React usage
 export { RealtimeManager };
-
-// Import React for the hook
-import React from 'react';

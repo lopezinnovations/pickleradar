@@ -1,7 +1,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
-import { scheduleCheckInNotification, cancelCheckOutNotification, sendManualCheckOutNotification } from '@/utils/notifications';
+import { scheduleCheckInNotification, cancelCheckOutNotification, sendManualCheckOutNotification, isPushNotificationSupported } from '@/utils/notifications';
+import { Alert } from 'react-native';
 
 interface CheckInHistory {
   id: string;
@@ -30,7 +31,7 @@ export const useCheckIn = (userId?: string) => {
 
   const fetchCheckInHistory = useCallback(async (userId: string) => {
     if (!isSupabaseConfigured()) {
-      console.log('Supabase not configured - no check-in history');
+      console.log('useCheckIn: Supabase not configured - no check-in history');
       return;
     }
 
@@ -60,7 +61,7 @@ export const useCheckIn = (userId?: string) => {
 
       setCheckInHistory(history);
     } catch (error) {
-      console.log('Error fetching check-in history:', error);
+      console.log('useCheckIn: Error fetching check-in history:', error);
     }
   }, []);
 
@@ -77,6 +78,64 @@ export const useCheckIn = (userId?: string) => {
     }
   }, [userId, fetchCheckInHistory]);
 
+  const notifyFriends = async (
+    courtId: string,
+    courtName: string,
+    skillLevel: string,
+    durationMinutes: number
+  ): Promise<{ success: boolean; message?: string }> => {
+    if (!isSupabaseConfigured()) {
+      console.log('useCheckIn: Supabase not configured, skipping friend notifications');
+      return { success: true, message: 'Notifications not available' };
+    }
+
+    // Only send notifications if push is supported
+    if (!isPushNotificationSupported()) {
+      console.log('useCheckIn: Push notifications not supported in this environment, skipping friend notifications');
+      return { success: true, message: 'Push notifications not available in this build' };
+    }
+
+    try {
+      console.log('useCheckIn: Notifying friends of check-in at', courtName);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('useCheckIn: No session, cannot notify friends');
+        return { success: false, message: 'Not authenticated' };
+      }
+
+      const response = await fetch(
+        `${supabase.supabaseUrl}/functions/v1/notify-friends-checkin`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            courtId,
+            courtName,
+            skillLevel,
+            durationMinutes,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('useCheckIn: Error notifying friends:', result.error);
+        return { success: false, message: result.error };
+      }
+
+      console.log('useCheckIn: Friend notification result:', result);
+      return { success: true, message: result.message };
+    } catch (error: any) {
+      console.error('useCheckIn: Error calling notify-friends-checkin function:', error);
+      return { success: false, message: error.message || 'Failed to notify friends' };
+    }
+  };
+
   const checkIn = async (
     userId: string,
     courtId: string,
@@ -84,7 +143,7 @@ export const useCheckIn = (userId?: string) => {
     durationMinutes: number = 90
   ) => {
     if (!isSupabaseConfigured()) {
-      console.log('Supabase not configured - mock check-in');
+      console.log('useCheckIn: Supabase not configured - mock check-in');
       return { success: true, error: null };
     }
 
@@ -136,8 +195,11 @@ export const useCheckIn = (userId?: string) => {
 
       const courtName = courtData?.name || 'Unknown Court';
 
-      // Schedule notifications and get notification ID
-      const notificationId = await scheduleCheckInNotification(courtName, durationMinutes);
+      // Schedule local notifications (only if supported)
+      let notificationId: string | null = null;
+      if (isPushNotificationSupported()) {
+        notificationId = await scheduleCheckInNotification(courtName, durationMinutes);
+      }
 
       // Create check-in with custom duration
       const expiresAt = new Date();
@@ -160,10 +222,24 @@ export const useCheckIn = (userId?: string) => {
       
       // Refresh check-in history
       await fetchCheckInHistory(userId);
+
+      // Notify friends (non-blocking - don't fail check-in if this fails)
+      notifyFriends(courtId, courtName, skillLevel, durationMinutes)
+        .then((result) => {
+          if (result.success && result.message) {
+            console.log('useCheckIn: Friend notification success:', result.message);
+            // Show toast confirmation
+            Alert.alert('Friends Notified', "Friends notified you're here.", [{ text: 'OK' }]);
+          }
+        })
+        .catch((err) => {
+          console.error('useCheckIn: Friend notification failed (non-blocking):', err);
+          // Don't show error to user - check-in was successful
+        });
       
       return { success: true, error: null };
     } catch (error: any) {
-      console.log('Check-in error:', error);
+      console.log('useCheckIn: Check-in error:', error);
       return { success: false, error: error.message };
     } finally {
       setLoading(false);
@@ -172,7 +248,7 @@ export const useCheckIn = (userId?: string) => {
 
   const checkOut = async (userId: string, courtId: string) => {
     if (!isSupabaseConfigured()) {
-      console.log('Supabase not configured - mock check-out');
+      console.log('useCheckIn: Supabase not configured - mock check-out');
       return { success: true, error: null };
     }
 
@@ -186,7 +262,7 @@ export const useCheckIn = (userId?: string) => {
         .eq('court_id', courtId)
         .single();
 
-      if (checkInData?.notification_id) {
+      if (checkInData?.notification_id && isPushNotificationSupported()) {
         await cancelCheckOutNotification(checkInData.notification_id);
       }
 
@@ -200,12 +276,14 @@ export const useCheckIn = (userId?: string) => {
 
       if (error) throw error;
 
-      // Send manual check-out notification
-      await sendManualCheckOutNotification(courtName);
+      // Send manual check-out notification (only if supported)
+      if (isPushNotificationSupported()) {
+        await sendManualCheckOutNotification(courtName);
+      }
 
       return { success: true, error: null };
     } catch (error: any) {
-      console.log('Check-out error:', error);
+      console.log('useCheckIn: Check-out error:', error);
       return { success: false, error: error.message };
     } finally {
       setLoading(false);
@@ -234,7 +312,7 @@ export const useCheckIn = (userId?: string) => {
       }
       return data as CheckInData;
     } catch (error) {
-      console.log('Error fetching user check-in:', error);
+      console.log('useCheckIn: Error fetching user check-in:', error);
       return null;
     }
   };

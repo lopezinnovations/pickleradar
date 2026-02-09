@@ -32,6 +32,7 @@ export default function ProfileScreen() {
   const [privacyOptIn, setPrivacyOptIn] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [locationEnabled, setLocationEnabled] = useState(false);
+  const [friendVisibility, setFriendVisibility] = useState(true);
   const [currentCheckIn, setCurrentCheckIn] = useState<any>(null);
   const [remainingTime, setRemainingTime] = useState<{ hours: number; minutes: number } | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
@@ -120,6 +121,7 @@ export default function ProfileScreen() {
       setDuprError('');
       setPrivacyOptIn(user.privacyOptIn);
       setLocationEnabled(user.locationEnabled);
+      setFriendVisibility(user.friendVisibility);
       hasLoadedUserData.current = true;
       
       if (needsConsentUpdate()) {
@@ -405,6 +407,7 @@ export default function ProfileScreen() {
         duprRating: duprValue,
         privacyOptIn,
         locationEnabled,
+        friendVisibility,
       });
       
       setIsEditing(false);
@@ -1167,6 +1170,7 @@ export default function ProfileScreen() {
                 setDuprError('');
                 setPrivacyOptIn(user.privacyOptIn);
                 setLocationEnabled(user.locationEnabled);
+                setFriendVisibility(user.friendVisibility);
                 setIsEditing(false);
               }}
             >

@@ -32,6 +32,7 @@ export interface User {
   privacyOptIn: boolean;
   notificationsEnabled: boolean;
   locationEnabled: boolean;
+  friendVisibility: boolean;
   latitude?: number;
   longitude?: number;
   zipCode?: string;
