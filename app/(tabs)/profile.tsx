@@ -9,6 +9,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/app/integrations/supabase/client';
+import Constants from 'expo-constants';
 import { 
   sendTestPushNotification, 
   isPushNotificationSupported,
@@ -51,6 +52,9 @@ export default function ProfileScreen() {
   
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
+
+  // Check if we're in a dev/TestFlight build (not production)
+  const isDevOrTestFlightBuild = Constants.appOwnership !== 'standalone';
 
   // PULL-TO-REFRESH: Manual refetch
   const onRefresh = useCallback(async () => {
@@ -106,10 +110,11 @@ export default function ProfileScreen() {
       console.log('[Profile] User push token:', pushToken ? 'Present' : 'Not set');
       console.log('[Profile] Notification permission:', permissionStatus);
       console.log('[Profile] Admin status:', isAdminUser);
+      console.log('[Profile] Build type:', isDevOrTestFlightBuild ? 'Dev/TestFlight' : 'Production');
     } catch (error) {
       console.error('[Profile] Error in fetchAdminStatusAndPushToken:', error);
     }
-  }, [user]);
+  }, [user, isDevOrTestFlightBuild]);
 
   useEffect(() => {
     if (user && !hasLoadedUserData.current) {
@@ -531,16 +536,19 @@ export default function ProfileScreen() {
           'A test push notification has been sent to your device. You should receive it shortly.'
         );
       } else {
+        const errorMessage = result.error || 'Failed to send test push notification. Please try again.';
+        console.error('[Profile] Test push failed:', errorMessage);
         Alert.alert(
           'Failed to Send',
-          result.error || 'Failed to send test push notification. Please try again.'
+          `Error: ${errorMessage}\n\nPlease check:\n• Push token is valid\n• Device has internet connection\n• Notifications are enabled in device settings`
         );
       }
     } catch (error: any) {
       console.error('[Profile] Error sending test push:', error);
+      const errorMessage = error.message || 'Unknown error occurred';
       Alert.alert(
         'Error',
-        error.message || 'Failed to send test push notification. Please try again.'
+        `Failed to send test push: ${errorMessage}\n\nPlease check the console logs for more details.`
       );
     } finally {
       setSendingTestPush(false);
@@ -1057,45 +1065,49 @@ export default function ProfileScreen() {
             />
           </View>
 
-          <View style={[styles.settingRow, { borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }]}>
-            <View style={styles.settingInfo}>
-              <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Token Status</Text>
-              <Text style={commonStyles.textSecondary}>
-                {userPushToken ? 'Registered ✓' : 'Not registered (use dev build)'}
-              </Text>
-            </View>
-            {userPushToken && (
-              <IconSymbol 
-                ios_icon_name="checkmark.circle.fill" 
-                android_material_icon_name="check-circle" 
-                size={24} 
-                color={colors.success} 
-              />
-            )}
-          </View>
-
-          {userPushToken && (
-            <TouchableOpacity
-              style={[buttonStyles.secondary, { marginTop: 16, backgroundColor: colors.primary }]}
-              onPress={handleSendTestPush}
-              disabled={sendingTestPush}
-            >
-              {sendingTestPush ? (
-                <ActivityIndicator color={colors.card} />
-              ) : (
-                <React.Fragment>
-                  <IconSymbol 
-                    ios_icon_name="bell.fill" 
-                    android_material_icon_name="notifications" 
-                    size={20} 
-                    color={colors.card} 
-                  />
-                  <Text style={[buttonStyles.text, { marginLeft: 8 }]}>
-                    Send Test Push
+          {isDevOrTestFlightBuild && (
+            <React.Fragment>
+              <View style={[styles.settingRow, { borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }]}>
+                <View style={styles.settingInfo}>
+                  <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Token Status</Text>
+                  <Text style={commonStyles.textSecondary}>
+                    {userPushToken ? 'Registered ✓' : 'Not registered (use dev build)'}
                   </Text>
-                </React.Fragment>
+                </View>
+                {userPushToken && (
+                  <IconSymbol 
+                    ios_icon_name="checkmark.circle.fill" 
+                    android_material_icon_name="check-circle" 
+                    size={24} 
+                    color={colors.success} 
+                  />
+                )}
+              </View>
+
+              {userPushToken && (
+                <TouchableOpacity
+                  style={[buttonStyles.secondary, { marginTop: 16, backgroundColor: colors.primary }]}
+                  onPress={handleSendTestPush}
+                  disabled={sendingTestPush}
+                >
+                  {sendingTestPush ? (
+                    <ActivityIndicator color={colors.card} />
+                  ) : (
+                    <React.Fragment>
+                      <IconSymbol 
+                        ios_icon_name="bell.fill" 
+                        android_material_icon_name="notifications" 
+                        size={20} 
+                        color={colors.card} 
+                      />
+                      <Text style={[buttonStyles.text, { marginLeft: 8 }]}>
+                        Send Test Push
+                      </Text>
+                    </React.Fragment>
+                  )}
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </React.Fragment>
           )}
         </View>
 
