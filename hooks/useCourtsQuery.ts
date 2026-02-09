@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { Court } from '@/types';
-import { calculateDistance } from '@/utils/locationUtils';
+import { calculateDistance, calculateBoundingBox } from '@/utils/locationUtils';
 
 const MOCK_COURTS: Court[] = [
   {
@@ -83,23 +83,19 @@ async function fetchCourts({ userId, userLat, userLng, radiusMiles = 25 }: Fetch
 
     // NEARBY ONLY: Apply bounding box filter if user location is available
     if (userLat !== undefined && userLng !== undefined) {
-      // Calculate bounding box (approximate, 1 degree ≈ 69 miles)
-      const latDelta = radiusMiles / 69;
-      const lngDelta = radiusMiles / (69 * Math.cos((userLat * Math.PI) / 180));
+      const boundingBox = calculateBoundingBox(userLat, userLng, radiusMiles);
       
-      const minLat = userLat - latDelta;
-      const maxLat = userLat + latDelta;
-      const minLng = userLng - lngDelta;
-      const maxLng = userLng + lngDelta;
-
-      console.log('useCourtsQuery: Applying bounding box filter:', { minLat, maxLat, minLng, maxLng });
+      console.log('useCourtsQuery: Applying bounding box filter:', boundingBox);
       
       query = query
-        .gte('latitude', minLat)
-        .lte('latitude', maxLat)
-        .gte('longitude', minLng)
-        .lte('longitude', maxLng);
+        .gte('latitude', boundingBox.minLat)
+        .lte('latitude', boundingBox.maxLat)
+        .gte('longitude', boundingBox.minLng)
+        .lte('longitude', boundingBox.maxLng);
     }
+
+    // Limit results to prevent loading too many courts
+    query = query.limit(200);
 
     const { data, error } = await query;
 
@@ -172,7 +168,7 @@ async function fetchCourts({ userId, userLat, userLng, radiusMiles = 25 }: Fetch
         if (currentPlayers >= 6) activityLevel = 'high';
         else if (currentPlayers >= 3) activityLevel = 'medium';
 
-        // CLIENT-SIDE: Calculate exact distance if user location is available
+        // CLIENT-SIDE: Calculate exact distance using Haversine if user location is available
         let distance: number | undefined;
         if (userLat !== undefined && userLng !== undefined) {
           distance = calculateDistance(userLat, userLng, court.latitude, court.longitude);
@@ -215,9 +211,10 @@ export function useCourtsQuery(userId?: string, userLat?: number, userLng?: numb
   const query = useQuery({
     queryKey: ['courts', userId, userLat, userLng, radiusMiles],
     queryFn: () => fetchCourts({ userId, userLat, userLng, radiusMiles }),
-    staleTime: 30000, // 30 seconds
-    gcTime: 600000, // 10 minutes
-    refetchOnFocus: false,
+    staleTime: 30000, // 30 seconds - data is fresh for 30s
+    gcTime: 600000, // 10 minutes - keep in cache for 10 min
+    refetchOnFocus: false, // Don't auto-refetch on tab focus
+    refetchOnMount: true, // Refetch on mount if stale
   });
 
   const refetch = useCallback(() => {

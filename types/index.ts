@@ -91,13 +91,11 @@ export interface Notification {
   createdAt: string;
 }
 
-export type SortOption = 'favorites' | 'active-high' | 'active-low' | 'skill-high' | 'skill-low' | 'distance';
+export type SortOption = 'activity' | 'nearest' | 'alphabetical';
 
 export interface FilterOptions {
-  maxDistance?: number; // in miles
-  friendsOnly?: boolean;
-  skillLevels?: ('Beginner' | 'Intermediate' | 'Advanced')[]; // Changed from Array<T> to T[]
-  favoritesOnly?: boolean;
+  skillLevels?: ('Beginner' | 'Intermediate' | 'Advanced')[];
+  showFriendsOnly?: boolean;
 }
 
 export interface UserSubmittedCourt {

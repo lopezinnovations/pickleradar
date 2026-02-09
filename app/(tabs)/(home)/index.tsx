@@ -1,6 +1,6 @@
 
-import React, { useCallback, useState, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, TextInput, Linking, Alert, RefreshControl } from 'react-native';
+import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Linking, Alert, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,15 +8,15 @@ import { useCourtsQuery } from '@/hooks/useCourtsQuery';
 import { useLocation } from '@/hooks/useLocation';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars, CourtCardSkeleton } from '@/components/SkillLevelBars';
-import { calculateDistance } from '@/utils/locationUtils';
 import { AddCourtModal } from '@/components/AddCourtModal';
 import { LegalFooter } from '@/components/LegalFooter';
 import { debounce } from '@/utils/performanceLogger';
-import { supabase } from '@/app/integrations/supabase/client';
 import { SortOption, FilterOptions } from '@/types';
 
 const INITIAL_DISPLAY_COUNT = 10;
 const LOAD_MORE_COUNT = 10;
+const RADIUS_MILES = 25; // Search radius for nearby courts
+const AUTO_REFRESH_INTERVAL = 90000; // 90 seconds (1.5 minutes)
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function HomeScreen() {
     user?.id,
     userLocation?.latitude,
     userLocation?.longitude,
-    25 // 25 mile radius
+    RADIUS_MILES
   );
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -40,6 +40,9 @@ export default function HomeScreen() {
   });
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [showAddCourtModal, setShowAddCourtModal] = useState(false);
+  
+  // Auto-refresh timer
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -54,11 +57,31 @@ export default function HomeScreen() {
     debouncedSearch(searchQuery);
   }, [searchQuery, debouncedSearch]);
 
-  // PULL-TO-REFRESH: Refetch on focus
+  // AUTO-REFRESH: Set up periodic refresh while Map tab is active
   useFocusEffect(
     useCallback(() => {
-      console.log('HomeScreen: Screen focused, data will be fetched by React Query');
-    }, [])
+      console.log('HomeScreen: Map tab focused, setting up auto-refresh');
+      
+      // Clear any existing timer
+      if (autoRefreshTimerRef.current) {
+        clearInterval(autoRefreshTimerRef.current);
+      }
+      
+      // Set up auto-refresh every 90 seconds
+      autoRefreshTimerRef.current = setInterval(() => {
+        console.log('HomeScreen: Auto-refresh triggered');
+        refetch();
+      }, AUTO_REFRESH_INTERVAL);
+      
+      // Cleanup on blur
+      return () => {
+        console.log('HomeScreen: Map tab blurred, clearing auto-refresh');
+        if (autoRefreshTimerRef.current) {
+          clearInterval(autoRefreshTimerRef.current);
+          autoRefreshTimerRef.current = null;
+        }
+      };
+    }, [refetch])
   );
 
   // Process and filter courts
@@ -202,6 +225,7 @@ export default function HomeScreen() {
   const activityLabel = 'Activity';
   const nearestLabel = 'Nearest';
   const alphabeticalLabel = 'A-Z';
+  const enableLocationText = 'Enable location to sort by distance';
 
   return (
     <View style={commonStyles.container}>
@@ -219,7 +243,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={commonStyles.title}>Courts</Text>
           <Text style={commonStyles.textSecondary}>
-            {hasLocation ? 'Showing nearby courts' : 'Enable location to see nearby courts'}
+            {hasLocation ? `Showing courts within ${RADIUS_MILES} miles` : 'Enable location to see nearby courts'}
           </Text>
         </View>
 
@@ -351,6 +375,12 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
+          {!hasLocation && (
+            <Text style={[commonStyles.textSecondary, { fontSize: 12, marginTop: 8, fontStyle: 'italic' }]}>
+              {enableLocationText}
+            </Text>
+          )}
+
           <Text style={[commonStyles.text, { fontWeight: '600', marginTop: 20, marginBottom: 12 }]}>
             Filter by Skill Level
           </Text>
@@ -462,7 +492,9 @@ export default function HomeScreen() {
               <Text style={[commonStyles.textSecondary, { marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }]}>
                 {searchQuery.trim()
                   ? 'Try adjusting your search or filters'
-                  : 'No courts available in your area'}
+                  : hasLocation
+                  ? `No courts found within ${RADIUS_MILES} miles`
+                  : 'Enable location to see nearby courts'}
               </Text>
             </View>
           ) : (
@@ -476,7 +508,7 @@ export default function HomeScreen() {
                     : colors.textSecondary;
 
                 const distanceText = court.distance !== undefined
-                  ? `${court.distance} mi`
+                  ? `${court.distance.toFixed(1)} mi`
                   : null;
 
                 return (
