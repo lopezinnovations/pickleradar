@@ -17,6 +17,7 @@ export interface Court {
   closeTime?: string; // Court close time
   googlePlaceId?: string; // Google Place ID
   averageDupr?: number; // Average DUPR of checked-in players
+  isFavorite?: boolean; // Whether the court is favorited by the user
 }
 
 export interface User {
@@ -91,7 +92,7 @@ export interface Notification {
   createdAt: string;
 }
 
-export type SortOption = 'activity' | 'nearest' | 'alphabetical';
+export type SortOption = 'activity' | 'nearest' | 'alphabetical' | 'favorites';
 
 export interface FilterOptions {
   skillLevels?: ('Beginner' | 'Intermediate' | 'Advanced')[];

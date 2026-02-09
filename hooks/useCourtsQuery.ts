@@ -19,6 +19,7 @@ const MOCK_COURTS: Court[] = [
     description: 'Beautiful outdoor courts in the heart of Central Park',
     openTime: '6:00 AM',
     closeTime: '10:00 PM',
+    isFavorite: false,
   },
   {
     id: '2',
@@ -33,6 +34,7 @@ const MOCK_COURTS: Court[] = [
     description: 'Indoor and outdoor courts with great river views',
     openTime: '7:00 AM',
     closeTime: '9:00 PM',
+    isFavorite: false,
   },
   {
     id: '3',
@@ -44,6 +46,7 @@ const MOCK_COURTS: Court[] = [
     currentPlayers: 2,
     averageSkillLevel: 1.5,
     friendsPlayingCount: 0,
+    isFavorite: false,
   },
 ];
 
@@ -105,6 +108,18 @@ async function fetchCourts({ userId, userLat, userLng, radiusMiles = 25 }: Fetch
     }
     
     console.log('useCourtsQuery: Fetched', data?.length || 0, 'courts');
+
+    // BATCHED FAVORITES FETCH: Get all user's favorites in one query
+    let favoriteCourtIds = new Set<string>();
+    if (userId) {
+      const { data: favoritesData } = await supabase
+        .from('court_favorites')
+        .select('court_id')
+        .eq('user_id', userId);
+
+      favoriteCourtIds = new Set((favoritesData || []).map(fav => fav.court_id));
+      console.log('useCourtsQuery: User has', favoriteCourtIds.size, 'favorite courts');
+    }
 
     // Get user's friends if userId is provided
     let friendIds: string[] = [];
@@ -174,6 +189,9 @@ async function fetchCourts({ userId, userLat, userLng, radiusMiles = 25 }: Fetch
           distance = calculateDistance(userLat, userLng, court.latitude, court.longitude);
         }
 
+        // Check if this court is favorited
+        const isFavorite = favoriteCourtIds.has(court.id);
+
         return {
           id: court.id,
           name: court.name,
@@ -192,11 +210,12 @@ async function fetchCourts({ userId, userLat, userLng, radiusMiles = 25 }: Fetch
           googlePlaceId: court.google_place_id,
           averageDupr,
           distance,
+          isFavorite,
         };
       })
     );
 
-    console.log('useCourtsQuery: Successfully processed courts with activity levels, skill averages, friend counts, DUPR data, and distances');
+    console.log('useCourtsQuery: Successfully processed courts with activity levels, skill averages, friend counts, DUPR data, distances, and favorites');
     
     return courtsWithActivity;
   } catch (error) {

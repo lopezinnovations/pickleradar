@@ -1,11 +1,12 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Linking, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Linking, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { useCourtsQuery } from '@/hooks/useCourtsQuery';
 import { useLocation } from '@/hooks/useLocation';
+import { useFavorites } from '@/hooks/useFavorites';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars, CourtCardSkeleton } from '@/components/SkillLevelBars';
 import { AddCourtModal } from '@/components/AddCourtModal';
@@ -22,6 +23,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { userLocation, hasLocation, requestLocation, requestingPermission } = useLocation();
+  
+  // FAVORITES: Use the favorites hook
+  const { toggleFavorite, isFavorite } = useFavorites(user?.id);
   
   // REACT QUERY: Use the new query hook with nearby filtering
   const { courts, loading, refetch, isRefetching } = useCourtsQuery(
@@ -116,16 +120,31 @@ export default function HomeScreen() {
     // Apply sorting
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
+        case 'favorites':
+          // FAVORITES SORT: Favorites first, then apply secondary sort
+          const aFav = a.isFavorite ? 1 : 0;
+          const bFav = b.isFavorite ? 1 : 0;
+          
+          if (aFav !== bFav) {
+            return bFav - aFav; // Favorites first
+          }
+          
+          // Secondary sort by activity
+          return b.currentPlayers - a.currentPlayers;
+          
         case 'activity':
           return b.currentPlayers - a.currentPlayers;
+          
         case 'nearest':
           // NEAREST SORT: Only available when location exists
           if (!hasLocation || a.distance === undefined || b.distance === undefined) {
             return 0; // No sorting if no location
           }
           return a.distance - b.distance;
+          
         case 'alphabetical':
           return a.name.localeCompare(b.name);
+          
         default:
           return 0;
       }
@@ -171,8 +190,7 @@ export default function HomeScreen() {
   const handleToggleFavorite = async (courtId: string, e: any) => {
     e.stopPropagation();
     console.log('User tapped favorite for court:', courtId);
-    // TODO: Implement favorite functionality
-    Alert.alert('Coming Soon', 'Favorite courts feature will be available soon!');
+    await toggleFavorite(courtId);
   };
 
   const renderSkeletonLoaders = () => {
@@ -225,6 +243,7 @@ export default function HomeScreen() {
   const activityLabel = 'Activity';
   const nearestLabel = 'Nearest';
   const alphabeticalLabel = 'A-Z';
+  const favoritesLabel = 'Favorites';
   const enableLocationText = 'Enable location to sort by distance';
 
   return (
@@ -320,6 +339,23 @@ export default function HomeScreen() {
             Sort By
           </Text>
           <View style={styles.sortButtons}>
+            <TouchableOpacity
+              style={[
+                styles.sortButton,
+                sortBy === 'favorites' && styles.sortButtonActive,
+              ]}
+              onPress={() => setSortBy('favorites')}
+            >
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortBy === 'favorites' && styles.sortButtonTextActive,
+                ]}
+              >
+                {favoritesLabel}
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[
                 styles.sortButton,
@@ -511,6 +547,8 @@ export default function HomeScreen() {
                   ? `${court.distance.toFixed(1)} mi`
                   : null;
 
+                const courtIsFavorite = isFavorite(court.id);
+
                 return (
                   <TouchableOpacity
                     key={court.id}
@@ -530,10 +568,10 @@ export default function HomeScreen() {
                           style={styles.favoriteButton}
                         >
                           <IconSymbol
-                            ios_icon_name="heart"
-                            android_material_icon_name="favorite-border"
+                            ios_icon_name={courtIsFavorite ? "heart.fill" : "heart"}
+                            android_material_icon_name={courtIsFavorite ? "favorite" : "favorite-border"}
                             size={20}
-                            color={colors.textSecondary}
+                            color={courtIsFavorite ? colors.error : colors.textSecondary}
                           />
                         </TouchableOpacity>
                       </View>
@@ -683,11 +721,13 @@ const styles = StyleSheet.create({
   sortButtons: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
   },
   sortButton: {
     flex: 1,
+    minWidth: 80,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: colors.highlight,
     alignItems: 'center',
@@ -702,7 +742,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   sortButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
   },
