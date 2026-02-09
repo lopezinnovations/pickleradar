@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, TextInput, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, TextInput, Image, Modal, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,7 +10,6 @@ import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/app/integrations/supabase/client';
 import { sendTestPushNotification, isPushNotificationSupported } from '@/utils/notifications';
-import { logPerformance, logSupabaseQuery, getCachedData, setCachedData } from '@/utils/performanceLogger';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -39,83 +38,55 @@ export default function ProfileScreen() {
   const [userPushToken, setUserPushToken] = useState<string | null>(null);
   const [sendingTestPush, setSendingTestPush] = useState(false);
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
 
-  // Auto-refresh when screen comes into focus - only refetch if user exists
+  // PULL-TO-REFRESH: Manual refetch
+  const onRefresh = useCallback(async () => {
+    console.log('ProfileScreen: Pull-to-refresh triggered');
+    setRefreshing(true);
+    await Promise.all([
+      refetchUser(),
+      refetchCheckIns(),
+      loadCurrentCheckIn(),
+    ]);
+    setRefreshing(false);
+  }, [refetchUser, refetchCheckIns]);
+
+  // Auto-refresh when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
       
-      logPerformance('SCREEN_FOCUS', 'ProfileScreen');
-      logPerformance('QUERY_START', 'ProfileScreen', 'refetchData');
-      
+      console.log('ProfileScreen: Screen focused, refetching data');
       refetchUser();
       refetchCheckIns();
       loadCurrentCheckIn();
-      
-      logPerformance('QUERY_END', 'ProfileScreen', 'refetchData');
     }, [user, refetchUser, refetchCheckIns, loadCurrentCheckIn])
   );
-
-  // Log render complete
-  useEffect(() => {
-    if (!authLoading && !historyLoading) {
-      logPerformance('RENDER_COMPLETE', 'ProfileScreen', undefined, { 
-        hasUser: !!user,
-        checkInsCount: checkInHistory?.length || 0
-      });
-    }
-  }, [authLoading, historyLoading, user, checkInHistory?.length]);
 
   const fetchAdminStatusAndPushToken = useCallback(async () => {
     if (!user) return;
 
-    // Check cache first
-    const cacheKey = `admin_status_${user.id}`;
-    const cached = getCachedData<{ pushToken: string | null; isAdmin: boolean }>(cacheKey, 300000); // 5 minutes cache
-    if (cached) {
-      console.log('[Profile] Using cached admin status');
-      setUserPushToken(cached.pushToken);
-      setIsAdmin(cached.isAdmin);
-      return;
-    }
-
     try {
-      logPerformance('QUERY_START', 'ProfileScreen', 'fetchAdminStatus');
-      
-      const result = await logSupabaseQuery(
-        supabase
-          .from('users')
-          .select('push_token')
-          .eq('id', user.id)
-          .single(),
-        'ProfileScreen',
-        'users.select.push_token'
-      );
-      
-      const { data, error } = result;
-      logPerformance('QUERY_END', 'ProfileScreen', 'fetchAdminStatus');
+      const { data, error } = await supabase
+        .from('users')
+        .select('push_token')
+        .eq('id', user.id)
+        .single();
 
       if (error) {
         console.error('[Profile] Error fetching user data:', error);
         return;
       }
 
-      // For demo purposes, we'll consider any user with a push token as "admin"
-      // In production, you'd have an is_admin column in the database
-      // For now, we'll enable the test button for all users who have a push token
       const pushToken = data?.push_token || null;
       setUserPushToken(pushToken);
       
-      // Check if user email contains "admin" or if they have a specific admin flag
-      // This is a simple check - in production you'd have a proper is_admin column
       const isAdminUser = user.email?.toLowerCase().includes('admin') || false;
       setIsAdmin(isAdminUser);
-      
-      // Cache the result
-      setCachedData(cacheKey, { pushToken, isAdmin: isAdminUser });
       
       console.log('[Profile] User push token:', pushToken ? 'Present' : 'Not set');
       console.log('[Profile] Admin status:', isAdminUser);
@@ -137,15 +108,12 @@ export default function ProfileScreen() {
       setLocationEnabled(user.locationEnabled);
       hasLoadedUserData.current = true;
       
-      // Check if consent needs to be updated
       if (needsConsentUpdate()) {
         setShowConsentPrompt(true);
       }
 
-      // Fetch admin status and push token
       fetchAdminStatusAndPushToken();
     } else if (!user && !authLoading) {
-      // Reset when user logs out
       hasLoadedUserData.current = false;
       setIsAdmin(false);
       setUserPushToken(null);
@@ -250,7 +218,6 @@ export default function ProfileScreen() {
     setShowImagePickerModal(false);
     
     try {
-      // Request camera permission ONLY when user explicitly chooses to take a photo
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       console.log('[Profile] Camera permission status:', status);
       
@@ -289,7 +256,6 @@ export default function ProfileScreen() {
     setShowImagePickerModal(false);
     
     try {
-      // Request media library permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       console.log('[Profile] Media library permission status:', status);
       
@@ -358,7 +324,6 @@ export default function ProfileScreen() {
   };
 
   const handleSaveProfile = async () => {
-    // Validate inputs
     if (!firstName.trim()) {
       Alert.alert('Validation Error', 'First name is required');
       return;
@@ -415,7 +380,6 @@ export default function ProfileScreen() {
 
     setDeletingAccount(true);
     try {
-      // Delete user data from database (cascading deletes will handle related data)
       const { error: deleteError } = await supabase
         .from('users')
         .delete()
@@ -423,15 +387,12 @@ export default function ProfileScreen() {
 
       if (deleteError) throw deleteError;
 
-      // Delete auth user
       const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
       
       if (authError) {
-        // Continue anyway as the user data is deleted
         console.log('[Profile] Auth delete error (non-critical):', authError);
       }
 
-      // Sign out
       await signOut();
       
       Alert.alert(
@@ -539,7 +500,6 @@ export default function ProfileScreen() {
     });
   };
 
-  // Show loading state only while auth is initializing
   if (authLoading) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -549,7 +509,6 @@ export default function ProfileScreen() {
     );
   }
 
-  // Show "Not Logged In" only after auth has finished loading
   if (!user) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
@@ -583,7 +542,6 @@ export default function ProfileScreen() {
 
   return (
     <View style={commonStyles.container}>
-      {/* Header with gear icon */}
       <View style={styles.headerBar}>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity
@@ -603,6 +561,14 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
         {showConsentPrompt && (
           <View style={[commonStyles.card, { backgroundColor: colors.accent, marginBottom: 16, borderWidth: 2, borderColor: colors.primary }]}>
@@ -721,7 +687,6 @@ export default function ProfileScreen() {
             </Text>
           )}
           
-          {/* User stats with separator bars */}
           <View style={styles.userStats}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{checkInHistory?.length || 0}</Text>
@@ -1001,7 +966,6 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* Push Token Status */}
           <View style={[styles.settingRow, { borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }]}>
             <View style={styles.settingInfo}>
               <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Token Status</Text>
@@ -1019,7 +983,6 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Test Push Button - Show for all users with push token */}
           {userPushToken && (
             <TouchableOpacity
               style={[buttonStyles.secondary, { marginTop: 16, backgroundColor: colors.primary }]}
@@ -1108,7 +1071,6 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={[buttonStyles.secondary, { marginTop: 12 }]}
               onPress={() => {
-                // Reset to original values
                 setFirstName(user.firstName || '');
                 setLastName(user.lastName || '');
                 setPickleballerNickname(user.pickleballerNickname || '');
@@ -1144,7 +1106,6 @@ export default function ProfileScreen() {
         />
       </ScrollView>
 
-      {/* Legal Compliance Modal */}
       <Modal
         visible={showLegalModal}
         transparent={true}
@@ -1201,7 +1162,6 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Image Picker Modal */}
       <Modal
         visible={showImagePickerModal}
         transparent={true}

@@ -1,16 +1,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
+import { useMessagesQuery } from '@/hooks/useMessagesQuery';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
 import { requestNotificationPermissions, checkNotificationPermissionStatus } from '@/utils/notifications';
-import { logPerformance, logSupabaseQuery, getCachedData, setCachedData, debounce } from '@/utils/performanceLogger';
+import { debounce } from '@/utils/performanceLogger';
 import { useRealtimeManager } from '@/utils/realtimeManager';
 import { ConversationCardSkeleton } from '@/components/SkillLevelBars';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
 interface Conversation {
   id: string;
@@ -20,28 +21,26 @@ interface Conversation {
   lastMessageTime: string;
   unreadCount: number;
   isMuted: boolean;
-  // For direct messages
   userId?: string;
   userFirstName?: string;
   userLastName?: string;
   userNickname?: string;
-  // For group chats
   memberCount?: number;
 }
-
-const MESSAGES_LIMIT = 50; // Pagination limit for messages list
 
 export default function MessagesScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // REACT QUERY: Use the new query hook
+  const { conversations, loading, refetch, isRefetching } = useMessagesQuery(user?.id);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const [visitCount, setVisitCount] = useState(0);
   
-  // Initialize realtime manager
+  // REALTIME: Initialize realtime manager
   const realtimeManager = useRealtimeManager('MessagesScreen');
 
   // Debounced search handler
@@ -53,7 +52,6 @@ export default function MessagesScreen() {
     []
   );
 
-  // Update debounced search when search query changes
   useEffect(() => {
     debouncedSearch(searchQuery);
   }, [searchQuery, debouncedSearch]);
@@ -62,7 +60,6 @@ export default function MessagesScreen() {
     if (!user || !isSupabaseConfigured()) return;
 
     try {
-      // Get user's notification prompt status
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('messages_visit_count, notification_prompt_shown')
@@ -77,17 +74,14 @@ export default function MessagesScreen() {
       const currentVisitCount = (userData?.messages_visit_count || 0) + 1;
       setVisitCount(currentVisitCount);
 
-      // Update visit count
       await supabase
         .from('users')
         .update({ messages_visit_count: currentVisitCount })
         .eq('id', user.id);
 
-      // Check if we should show the prompt
       const hasShownPrompt = userData?.notification_prompt_shown || false;
       const permissionStatus = await checkNotificationPermissionStatus();
 
-      // Show prompt on 2nd visit if not shown before and permission not granted
       if (currentVisitCount >= 2 && !hasShownPrompt && permissionStatus !== 'granted') {
         setShowNotificationPrompt(true);
       }
@@ -101,7 +95,6 @@ export default function MessagesScreen() {
     const granted = await requestNotificationPermissions();
     
     if (granted && user && isSupabaseConfigured()) {
-      // Mark prompt as shown
       await supabase
         .from('users')
         .update({ notification_prompt_shown: true })
@@ -116,7 +109,6 @@ export default function MessagesScreen() {
   const handleNotNow = async () => {
     console.log('User tapped Not Now for notifications');
     if (user && isSupabaseConfigured()) {
-      // Mark prompt as shown so we don't ask again
       await supabase
         .from('users')
         .update({ notification_prompt_shown: true })
@@ -125,320 +117,71 @@ export default function MessagesScreen() {
     setShowNotificationPrompt(false);
   };
 
-  // OPTIMIZED: Fetch conversations with pagination and specific fields only
-  const fetchConversations = useCallback(async () => {
-    if (!user || !isSupabaseConfigured()) {
-      console.log('MessagesScreen: No user or Supabase not configured');
-      setLoading(false);
-      setConversations([]);
-      return;
-    }
-
-    // Check cache first
-    const cacheKey = `conversations_${user.id}`;
-    const cached = getCachedData<Conversation[]>(cacheKey, 120000); // 2 minutes cache
-    if (cached) {
-      console.log('MessagesScreen: Using cached conversations');
-      setConversations(cached);
-      setLoading(false);
-      
-      // Refresh in background
-      setTimeout(() => {
-        fetchConversationsFromServer();
-      }, 100);
-      return;
-    }
-
-    await fetchConversationsFromServer();
-  }, [user]);
-
-  const fetchConversationsFromServer = useCallback(async () => {
-    if (!user || !isSupabaseConfigured()) return;
-
-    try {
-      console.log('MessagesScreen: Fetching conversations from server for user:', user.id);
-      logPerformance('QUERY_START', 'MessagesScreen', 'fetchConversations');
-
-      // OPTIMIZED: Fetch direct message conversations WITHOUT embedded joins
-      // Only select needed fields and limit results
-      // FILTER: Only fetch messages involving this user
-      const messagesResult = await logSupabaseQuery(
-        supabase
-          .from('messages')
-          .select('id, sender_id, recipient_id, content, created_at, read')
-          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-          .order('created_at', { ascending: false })
-          .limit(MESSAGES_LIMIT), // ADDED: Pagination limit
-        'MessagesScreen',
-        'messages.select'
-      );
-      
-      const { data: messages, error: messagesError } = messagesResult;
-
-      // PGRST116 means no rows found, which is not an error
-      if (messagesError && messagesError.code !== 'PGRST116') {
-        console.error('MessagesScreen: Error fetching messages:', messagesError);
-        console.error('MessagesScreen: Full error details:', JSON.stringify(messagesError, null, 2));
-        // Don't throw - continue to try loading group chats
-      }
-
-      console.log('MessagesScreen: Fetched', messages?.length || 0, 'direct messages');
-
-      // OPTIMIZED: Fetch user details separately for unique users only
-      const uniqueUserIds = new Set<string>();
-      (messages || []).forEach((msg: any) => {
-        if (msg.sender_id !== user.id) uniqueUserIds.add(msg.sender_id);
-        if (msg.recipient_id !== user.id) uniqueUserIds.add(msg.recipient_id);
-      });
-
-      const userDetailsMap = new Map<string, any>();
-      if (uniqueUserIds.size > 0) {
-        const { data: userDetails } = await supabase
-          .from('users')
-          .select('id, first_name, last_name, pickleballer_nickname')
-          .in('id', Array.from(uniqueUserIds));
-        
-        (userDetails || []).forEach((u: any) => {
-          userDetailsMap.set(u.id, u);
-        });
-      }
-
-      // Fetch group chats the user is a member of
-      const userGroupsResult = await logSupabaseQuery(
-        supabase
-          .from('group_members')
-          .select('group_id')
-          .eq('user_id', user.id)
-          .limit(MESSAGES_LIMIT), // ADDED: Pagination limit
-        'MessagesScreen',
-        'group_members.select'
-      );
-      
-      const { data: userGroups, error: userGroupsError } = userGroupsResult;
-
-      if (userGroupsError && userGroupsError.code !== 'PGRST116') {
-        console.error('MessagesScreen: Error fetching user groups:', userGroupsError);
-        console.error('MessagesScreen: Full error details:', JSON.stringify(userGroupsError, null, 2));
-        // Don't throw - continue with just direct messages
-      }
-
-      console.log('MessagesScreen: User is member of', userGroups?.length || 0, 'groups');
-
-      // Now fetch the group details for those groups
-      let groupConversations: Conversation[] = [];
-      if (userGroups && userGroups.length > 0) {
-        const groupIds = userGroups.map(g => g.group_id);
-        
-        const groupsResult = await logSupabaseQuery(
-          supabase
-            .from('group_chats')
-            .select('id, name, created_at')
-            .in('id', groupIds),
-          'MessagesScreen',
-          'group_chats.select'
-        );
-        
-        const { data: groups, error: groupsError } = groupsResult;
-
-        if (groupsError && groupsError.code !== 'PGRST116') {
-          console.error('MessagesScreen: Error fetching groups:', groupsError);
-        } else {
-          console.log('MessagesScreen: Fetched', groups?.length || 0, 'group details');
-
-          // Fetch muted conversations
-          const { data: mutes, error: mutesError } = await supabase
-            .from('conversation_mutes')
-            .select('conversation_type, conversation_id, muted_until')
-            .eq('user_id', user.id);
-
-          if (mutesError && mutesError.code !== 'PGRST116') {
-            console.log('MessagesScreen: Error fetching mutes (non-critical):', mutesError);
-          }
-
-          const mutesMap = new Map<string, boolean>();
-          (mutes || []).forEach((mute: any) => {
-            const key = `${mute.conversation_type}:${mute.conversation_id}`;
-            const isMuted = !mute.muted_until || new Date(mute.muted_until) > new Date();
-            mutesMap.set(key, isMuted);
-          });
-
-          // Process each group
-          for (const group of groups || []) {
-            // OPTIMIZED: Fetch ONLY last message (limit 1) instead of all messages
-            const { data: lastMessages, error: lastMsgError } = await supabase
-              .from('group_messages')
-              .select('content, created_at')
-              .eq('group_id', group.id)
-              .order('created_at', { ascending: false })
-              .limit(1); // OPTIMIZED: Only fetch last message
-
-            if (lastMsgError && lastMsgError.code !== 'PGRST116') {
-              console.log('MessagesScreen: Error fetching group messages (non-critical):', lastMsgError);
-            }
-
-            // Count members
-            const { count: memberCount, error: countError } = await supabase
-              .from('group_members')
-              .select('*', { count: 'exact', head: true })
-              .eq('group_id', group.id);
-
-            if (countError && countError.code !== 'PGRST116') {
-              console.log('MessagesScreen: Error counting group members (non-critical):', countError);
-            }
-
-            const lastMessage = lastMessages && lastMessages.length > 0 ? lastMessages[0] : null;
-            const muteKey = `group:${group.id}`;
-
-            groupConversations.push({
-              id: group.id,
-              type: 'group',
-              title: group.name,
-              lastMessage: lastMessage?.content || 'No messages yet',
-              lastMessageTime: lastMessage?.created_at || group.created_at,
-              unreadCount: 0,
-              memberCount: memberCount || 0,
-              isMuted: mutesMap.get(muteKey) || false,
-            });
-          }
-        }
-      }
-
-      // Process direct messages
-      const directConversationsMap = new Map<string, Conversation>();
-      (messages || []).forEach((message: any) => {
-        const isFromMe = message.sender_id === user.id;
-        const partnerId = isFromMe ? message.recipient_id : message.sender_id;
-        const partner = userDetailsMap.get(partnerId);
-
-        if (!directConversationsMap.has(partnerId)) {
-          const displayName = partner?.first_name && partner?.last_name
-            ? `${partner.first_name} ${partner.last_name.charAt(0)}.`
-            : partner?.pickleballer_nickname || 'Unknown User';
-
-          const muteKey = `direct:${partnerId}`;
-          directConversationsMap.set(partnerId, {
-            id: partnerId,
-            type: 'direct',
-            title: displayName,
-            userId: partnerId,
-            userFirstName: partner?.first_name,
-            userLastName: partner?.last_name,
-            userNickname: partner?.pickleballer_nickname,
-            lastMessage: message.content || '',
-            lastMessageTime: message.created_at,
-            unreadCount: 0,
-            isMuted: false,
-          });
-        }
-
-        // Count unread messages
-        if (!isFromMe && !message.read) {
-          const conv = directConversationsMap.get(partnerId);
-          if (conv) {
-            conv.unreadCount += 1;
-          }
-        }
-      });
-
-      // Combine and sort by last message time
-      const allConversations = [
-        ...Array.from(directConversationsMap.values()),
-        ...groupConversations,
-      ].sort((a, b) => {
-        return new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime();
-      });
-
-      console.log('MessagesScreen: Loaded', allConversations.length, 'total conversations');
-      logPerformance('QUERY_END', 'MessagesScreen', 'fetchConversations', { conversationsCount: allConversations.length });
-      
-      // Cache the result
-      const cacheKey = `conversations_${user.id}`;
-      setCachedData(cacheKey, allConversations);
-      
-      setConversations(allConversations);
-    } catch (err: any) {
-      console.error('MessagesScreen: Error in fetchConversations:', err);
-      console.error('MessagesScreen: Full error details:', JSON.stringify(err, null, 2));
-      logPerformance('QUERY_END', 'MessagesScreen', 'fetchConversations', { error: true });
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  // FIXED: Only fetch on focus (removed duplicate useEffect)
+  // PULL-TO-REFRESH: Refetch on focus
   useFocusEffect(
     useCallback(() => {
-      console.log('MessagesScreen: Screen focused, fetching conversations');
-      logPerformance('SCREEN_FOCUS', 'MessagesScreen');
-      fetchConversations();
+      console.log('MessagesScreen: Screen focused');
       checkAndShowNotificationPrompt();
-    }, [fetchConversations, checkAndShowNotificationPrompt])
+    }, [checkAndShowNotificationPrompt])
   );
 
-  // Log render complete
-  useEffect(() => {
-    if (!loading) {
-      logPerformance('RENDER_COMPLETE', 'MessagesScreen', undefined, { conversationsCount: conversations.length });
-    }
-  }, [loading, conversations.length]);
+  // REALTIME: Subscribe ONLY while Messages tab is focused
+  useFocusEffect(
+    useCallback(() => {
+      if (!user || !isSupabaseConfigured()) {
+        return;
+      }
 
-  // IMPROVED: Use RealtimeManager for robust subscription management
-  useEffect(() => {
-    if (!user || !isSupabaseConfigured()) {
-      return;
-    }
+      console.log('MessagesScreen: Setting up realtime subscriptions (focused)');
 
-    console.log('MessagesScreen: Setting up realtime subscriptions with RealtimeManager');
+      // Subscribe to direct messages with filter for this user
+      const unsubscribeMessages = realtimeManager.subscribe({
+        table: 'messages',
+        filter: `sender_id=eq.${user.id}`,
+        event: '*',
+        onUpdate: () => {
+          console.log('MessagesScreen: Direct message change detected, refreshing');
+          refetch();
+        },
+        fallbackFetch: refetch,
+        timeoutMs: 10000,
+        maxRetries: 3,
+      });
 
-    // Subscribe to direct messages with filter for this user
-    const unsubscribeMessages = realtimeManager.subscribe({
-      table: 'messages',
-      filter: `sender_id=eq.${user.id}`, // NARROW FILTER: Only messages from/to this user
-      event: '*',
-      onUpdate: () => {
-        console.log('MessagesScreen: Direct message change detected, refreshing');
-        fetchConversations();
-      },
-      fallbackFetch: fetchConversations,
-      timeoutMs: 10000,
-      maxRetries: 3,
-    });
+      const unsubscribeMessagesReceived = realtimeManager.subscribe({
+        table: 'messages',
+        filter: `recipient_id=eq.${user.id}`,
+        event: '*',
+        onUpdate: () => {
+          console.log('MessagesScreen: Received message change detected, refreshing');
+          refetch();
+        },
+        fallbackFetch: refetch,
+        timeoutMs: 10000,
+        maxRetries: 3,
+      });
 
-    // Also subscribe to messages where user is recipient
-    const unsubscribeMessagesReceived = realtimeManager.subscribe({
-      table: 'messages',
-      filter: `recipient_id=eq.${user.id}`, // NARROW FILTER: Messages received by this user
-      event: '*',
-      onUpdate: () => {
-        console.log('MessagesScreen: Received message change detected, refreshing');
-        fetchConversations();
-      },
-      fallbackFetch: fetchConversations,
-      timeoutMs: 10000,
-      maxRetries: 3,
-    });
+      const unsubscribeGroupMessages = realtimeManager.subscribe({
+        table: 'group_messages',
+        event: 'INSERT',
+        onUpdate: () => {
+          console.log('MessagesScreen: Group message change detected, refreshing');
+          refetch();
+        },
+        fallbackFetch: refetch,
+        timeoutMs: 10000,
+        maxRetries: 3,
+      });
 
-    // Subscribe to group messages (no filter needed as we'll check group membership)
-    const unsubscribeGroupMessages = realtimeManager.subscribe({
-      table: 'group_messages',
-      event: 'INSERT', // Only care about new messages
-      onUpdate: () => {
-        console.log('MessagesScreen: Group message change detected, refreshing');
-        fetchConversations();
-      },
-      fallbackFetch: fetchConversations,
-      timeoutMs: 10000,
-      maxRetries: 3,
-    });
-
-    // Cleanup on unmount/blur
-    return () => {
-      console.log('MessagesScreen: Cleaning up realtime subscriptions');
-      unsubscribeMessages();
-      unsubscribeMessagesReceived();
-      unsubscribeGroupMessages();
-    };
-  }, [user, fetchConversations, realtimeManager]);
+      // Cleanup on blur/unmount
+      return () => {
+        console.log('MessagesScreen: Cleaning up realtime subscriptions (blurred)');
+        unsubscribeMessages();
+        unsubscribeMessagesReceived();
+        unsubscribeGroupMessages();
+      };
+    }, [user, refetch, realtimeManager])
+  );
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -669,6 +412,14 @@ export default function MessagesScreen() {
           keyExtractor={(item) => `${item.type}:${item.id}`}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         />
       )}
 

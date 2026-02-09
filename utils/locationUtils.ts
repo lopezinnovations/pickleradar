@@ -26,6 +26,25 @@ const toRad = (value: number): number => {
   return (value * Math.PI) / 180;
 };
 
+// Calculate bounding box for nearby search
+export const calculateBoundingBox = (
+  latitude: number,
+  longitude: number,
+  radiusMiles: number
+): { minLat: number; maxLat: number; minLng: number; maxLng: number } => {
+  // Approximate: 1 degree latitude ≈ 69 miles
+  const latDelta = radiusMiles / 69;
+  // Longitude varies by latitude
+  const lngDelta = radiusMiles / (69 * Math.cos((latitude * Math.PI) / 180));
+  
+  return {
+    minLat: latitude - latDelta,
+    maxLat: latitude + latDelta,
+    minLng: longitude - lngDelta,
+    maxLng: longitude + lngDelta,
+  };
+};
+
 // Check if location permission is granted
 export const checkLocationPermission = async (): Promise<boolean> => {
   try {

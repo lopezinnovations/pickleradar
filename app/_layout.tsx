@@ -1,138 +1,42 @@
 
 import { Stack } from 'expo-router';
-import React, { useEffect, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '@/styles/commonStyles';
-import * as Notifications from 'expo-notifications';
-import { isPushNotificationSupported } from '@/utils/notifications';
-
-// Global error boundary component
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    console.log('ErrorBoundary: Caught error:', error);
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.log('ErrorBoundary: Error details:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorMessage}>
-            Please restart the app. If the problem persists, contact support.
-          </Text>
-          {__DEV__ && this.state.error && (
-            <Text style={styles.errorDetails}>{this.state.error.toString()}</Text>
-          )}
-        </View>
-      );
-    }
-
-    return this.props.children;
-  }
-}
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { useMemo } from 'react';
 
 export default function RootLayout() {
-  const notificationListener = useRef<Notifications.Subscription>();
-  const responseListener = useRef<Notifications.Subscription>();
-
-  useEffect(() => {
-    console.log('RootLayout: App initialized');
-
-    // Only initialize push notifications in development or production builds
-    // NOT in Expo Go on Android (due to SDK 53 change)
-    if (!isPushNotificationSupported()) {
-      console.log('[Push] Push notifications not supported in this environment');
-      console.log('[Push] To test push notifications:');
-      console.log('[Push] - iOS: Use TestFlight or a Development Build');
-      console.log('[Push] - Android: Use a Development Build (Expo Go does not support push on SDK 53+)');
-      return;
-    }
-
-    console.log('[Push] Setting up notification listeners');
-
-    // Listen for notifications received while app is foregrounded
-    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-      console.log('[Push] Notification received:', notification);
-    });
-
-    // Listen for user interactions with notifications
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('[Push] Notification response received:', response);
-      // Handle notification tap - navigate to relevant screen based on notification data
-      const data = response.notification.request.content.data;
-      console.log('[Push] Notification data:', data);
-    });
-
-    return () => {
-      console.log('[Push] Cleaning up notification listeners');
-      if (notificationListener.current) {
-        notificationListener.current.remove();
-      }
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
-    };
-  }, []); // Empty dependency array - only run once on mount
-
-  // Memoize screenOptions to prevent recreation on every render
-  const screenOptions = useMemo(() => ({
-    headerShown: false,
-  }), []); // Empty dependency array - options never change
+  // REACT QUERY: Create QueryClient with performance-optimized defaults
+  const queryClient = useMemo(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30000, // 30 seconds - data is fresh for 30s
+        gcTime: 600000, // 10 minutes - keep unused data in cache for 10min
+        refetchOnFocus: false, // Don't refetch when tab regains focus
+        refetchOnReconnect: true, // Refetch when network reconnects
+        retry: 1, // Only retry failed queries once
+      },
+    },
+  }), []);
 
   return (
-    <ErrorBoundary>
-      <Stack screenOptions={screenOptions}>
+    <QueryClientProvider client={queryClient}>
+      <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="auth" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="user/[id]" />
         <Stack.Screen name="conversation/[id]" />
-        <Stack.Screen name="legal/terms-of-service" />
+        <Stack.Screen name="group-conversation/[id]" />
+        <Stack.Screen name="group-info/[id]" />
+        <Stack.Screen name="create-group" />
+        <Stack.Screen name="add-group-members/[id]" />
+        <Stack.Screen name="user/[id]" />
+        <Stack.Screen name="reset-password" />
+        <Stack.Screen name="auth-migration-notice" />
         <Stack.Screen name="legal/privacy-policy" />
+        <Stack.Screen name="legal/terms-of-service" />
         <Stack.Screen name="legal/disclaimer" />
+        <Stack.Screen name="+not-found" />
       </Stack>
-    </ErrorBoundary>
+    </QueryClientProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  errorMessage: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  errorDetails: {
-    fontSize: 12,
-    color: colors.error,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-});
