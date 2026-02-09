@@ -267,15 +267,22 @@ export const useCheckIn = (userId?: string) => {
       
       await fetchCheckInHistory(userId);
 
+      // Send friend notifications (non-blocking)
       notifyFriends(courtId, courtName, skillLevel, durationMinutes)
         .then((result) => {
-          if (result.success && result.message) {
+          if (result.success) {
             console.log('useCheckIn: Friend notification success:', result.message);
-            Alert.alert('Friends Notified', "Friends notified you're here.", [{ text: 'OK' }]);
+            // Show success toast
+            if (isPushNotificationSupported()) {
+              Alert.alert('Success', "Friends notified you're here!", [{ text: 'OK' }]);
+            }
+          } else {
+            console.log('useCheckIn: Friend notification skipped or failed:', result.message);
           }
         })
         .catch((err) => {
           console.error('useCheckIn: Friend notification failed (non-blocking):', err);
+          // Don't block check-in if push fails
         });
       
       return { success: true, error: null };
@@ -320,14 +327,18 @@ export const useCheckIn = (userId?: string) => {
         await sendManualCheckOutNotification(courtName);
       }
 
+      // Send friend checkout notifications (non-blocking)
       notifyFriendsCheckout(courtId, courtName)
         .then((result) => {
-          if (result.success && result.message) {
+          if (result.success) {
             console.log('useCheckIn: Friend checkout notification success:', result.message);
+          } else {
+            console.log('useCheckIn: Friend checkout notification skipped or failed:', result.message);
           }
         })
         .catch((err) => {
           console.error('useCheckIn: Friend checkout notification failed (non-blocking):', err);
+          // Don't block check-out if push fails
         });
 
       return { success: true, error: null };

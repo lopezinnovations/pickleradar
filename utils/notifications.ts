@@ -278,9 +278,15 @@ export const sendTestPushNotification = async (
 
 export const scheduleCheckInNotification = async (courtName: string, durationMinutes: number) => {
   try {
+    // Check if push notifications are supported
+    if (!isPushNotificationSupported()) {
+      console.log('[Notifications] Push not supported in this environment, skipping check-in notification');
+      return null;
+    }
+
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
-      console.log('No notification permission, skipping notification');
+      console.log('[Notifications] No notification permission, skipping notification');
       return null;
     }
 
@@ -331,27 +337,40 @@ export const scheduleCheckInNotification = async (courtName: string, durationMin
       },
     });
 
+    console.log('[Notifications] Check-in notifications scheduled successfully');
     return notificationId;
   } catch (error) {
-    console.log('Error scheduling check-in notification:', error);
+    console.log('[Notifications] Error scheduling check-in notification (non-blocking):', error);
     return null;
   }
 };
 
 export const cancelCheckOutNotification = async (notificationId: string) => {
   try {
+    // Check if push notifications are supported
+    if (!isPushNotificationSupported()) {
+      console.log('[Notifications] Push not supported, skipping cancel notification');
+      return;
+    }
+
     await Notifications.cancelScheduledNotificationAsync(notificationId);
-    console.log('Cancelled scheduled check-out notification');
+    console.log('[Notifications] Cancelled scheduled check-out notification');
   } catch (error) {
-    console.log('Error cancelling notification:', error);
+    console.log('[Notifications] Error cancelling notification (non-blocking):', error);
   }
 };
 
 export const sendManualCheckOutNotification = async (courtName: string) => {
   try {
+    // Check if push notifications are supported
+    if (!isPushNotificationSupported()) {
+      console.log('[Notifications] Push not supported, skipping check-out notification');
+      return;
+    }
+
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
-      console.log('No notification permission, skipping notification');
+      console.log('[Notifications] No notification permission, skipping notification');
       return;
     }
 
@@ -363,16 +382,24 @@ export const sendManualCheckOutNotification = async (courtName: string) => {
       },
       trigger: null, // Immediate
     });
+
+    console.log('[Notifications] Manual check-out notification sent');
   } catch (error) {
-    console.log('Error sending manual check-out notification:', error);
+    console.log('[Notifications] Error sending manual check-out notification (non-blocking):', error);
   }
 };
 
 export const sendFriendCheckInNotification = async (friendEmail: string, courtName: string) => {
   try {
+    // Check if push notifications are supported
+    if (!isPushNotificationSupported()) {
+      console.log('[Notifications] Push not supported, skipping friend check-in notification');
+      return;
+    }
+
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
-      console.log('No notification permission, skipping notification');
+      console.log('[Notifications] No notification permission, skipping notification');
       return;
     }
 
@@ -384,16 +411,24 @@ export const sendFriendCheckInNotification = async (friendEmail: string, courtNa
       },
       trigger: null, // Immediate
     });
+
+    console.log('[Notifications] Friend check-in notification sent');
   } catch (error) {
-    console.log('Error sending friend check-in notification:', error);
+    console.log('[Notifications] Error sending friend check-in notification (non-blocking):', error);
   }
 };
 
 export const sendFriendRequestNotification = async (requesterIdentifier: string) => {
   try {
+    // Check if push notifications are supported
+    if (!isPushNotificationSupported()) {
+      console.log('[Notifications] Push not supported, skipping friend request notification');
+      return;
+    }
+
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
-      console.log('No notification permission, skipping notification');
+      console.log('[Notifications] No notification permission, skipping notification');
       return;
     }
 
@@ -405,8 +440,10 @@ export const sendFriendRequestNotification = async (requesterIdentifier: string)
       },
       trigger: null, // Immediate
     });
+
+    console.log('[Notifications] Friend request notification sent');
   } catch (error) {
-    console.log('Error sending friend request notification:', error);
+    console.log('[Notifications] Error sending friend request notification (non-blocking):', error);
   }
 };
 

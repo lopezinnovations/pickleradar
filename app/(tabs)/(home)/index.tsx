@@ -298,7 +298,12 @@ export default function HomeScreen() {
         </View>
 
         {!hasLocation && (
-          <View style={[commonStyles.card, { marginHorizontal: 20, marginBottom: 16, backgroundColor: colors.highlight }]}>
+          <TouchableOpacity
+            style={[commonStyles.card, styles.locationPromptCard]}
+            onPress={handleRequestLocation}
+            disabled={requestingPermission}
+            activeOpacity={0.7}
+          >
             <View style={styles.locationPromptHeader}>
               <IconSymbol
                 ios_icon_name="location.fill"
@@ -313,13 +318,9 @@ export default function HomeScreen() {
             <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
               Enable location to see courts near you and sort by distance
             </Text>
-            <TouchableOpacity
-              style={[commonStyles.button, { marginTop: 16, backgroundColor: colors.primary }]}
-              onPress={handleRequestLocation}
-              disabled={requestingPermission}
-            >
+            <View style={styles.locationButtonContainer}>
               {requestingPermission ? (
-                <ActivityIndicator color={colors.card} />
+                <ActivityIndicator color={colors.primary} />
               ) : (
                 <>
                   <IconSymbol
@@ -328,13 +329,13 @@ export default function HomeScreen() {
                     size={20}
                     color={colors.card}
                   />
-                  <Text style={[commonStyles.buttonText, { marginLeft: 8 }]}>
+                  <Text style={styles.locationButtonText}>
                     Enable Location
                   </Text>
                 </>
               )}
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
         )}
 
         <View style={styles.searchContainer}>
@@ -753,9 +754,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
+  locationPromptCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: colors.highlight,
+  },
   locationPromptHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  locationButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  locationButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.card,
+    marginLeft: 8,
   },
   searchContainer: {
     flexDirection: 'row',
