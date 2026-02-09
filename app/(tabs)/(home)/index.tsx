@@ -196,6 +196,14 @@ export default function HomeScreen() {
   const handleOpenMapView = () => {
     console.log('User tapped Map View button');
     
+    // Check if react-native-maps is available
+    try {
+      require('react-native-maps');
+    } catch (error) {
+      console.log('Map view not available in this build');
+      // Still navigate - the map screen will show fallback UI
+    }
+    
     // Limit to nearest 50 courts for performance
     const courtsForMap = processedCourts.slice(0, 50);
     

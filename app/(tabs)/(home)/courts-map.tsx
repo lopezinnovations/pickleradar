@@ -1,16 +1,42 @@
 
-import React, { useMemo, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import MapView, { Marker, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Court } from '@/types';
 
+// Runtime check for react-native-maps availability
+function isMapViewAvailable(): boolean {
+  try {
+    // Try to require react-native-maps
+    require('react-native-maps');
+    return true;
+  } catch (error) {
+    console.log('CourtsMapScreen: react-native-maps not available (Expo Go)');
+    return false;
+  }
+}
+
+// Lazy load MapView components only when available
+let MapView: any = null;
+let Marker: any = null;
+let Callout: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+if (isMapViewAvailable()) {
+  const maps = require('react-native-maps');
+  MapView = maps.default;
+  Marker = maps.Marker;
+  Callout = maps.Callout;
+  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+}
+
 export default function CourtsMapScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Parse courts from navigation params
   const courts = useMemo(() => {
@@ -76,7 +102,10 @@ export default function CourtsMapScreen() {
 
   // Fit map to show all markers after mount
   useEffect(() => {
-    if (courts.length > 0 && mapRef.current) {
+    // Set loading to false after component mounts
+    setIsLoading(false);
+
+    if (courts.length > 0 && mapRef.current && MapView) {
       const timeout = setTimeout(() => {
         const coordinates = courts.map(court => ({
           latitude: court.latitude,
@@ -125,6 +154,86 @@ export default function CourtsMapScreen() {
   };
 
   const courtsCountText = `${courts.length} ${courts.length === 1 ? 'Court' : 'Courts'}`;
+  const mapNotAvailableTitle = 'Map View Not Available';
+  const mapNotAvailableMessage = 'Map view is not available in this build. Use an Expo Development Build or production build to enable maps.';
+  const backToListText = 'Back to List';
+  const useListViewText = 'Use List View';
+
+  // Show fallback UI if MapView is not available (Expo Go)
+  if (!MapView) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            title: 'Map View',
+            headerBackTitle: 'Back',
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.text,
+          }}
+        />
+
+        <View style={styles.fallbackContainer}>
+          <IconSymbol
+            ios_icon_name="map"
+            android_material_icon_name="map"
+            size={80}
+            color={colors.textSecondary}
+          />
+          <Text style={styles.fallbackTitle}>{mapNotAvailableTitle}</Text>
+          <Text style={styles.fallbackMessage}>{mapNotAvailableMessage}</Text>
+
+          <TouchableOpacity style={styles.fallbackButton} onPress={handleBackToList}>
+            <IconSymbol
+              ios_icon_name="list.bullet"
+              android_material_icon_name="list"
+              size={20}
+              color={colors.card}
+            />
+            <Text style={styles.fallbackButtonText}>{useListViewText}</Text>
+          </TouchableOpacity>
+
+          <View style={styles.fallbackInfoBox}>
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.fallbackInfoText}>
+              To test maps, create an Expo Development Build with EAS:
+            </Text>
+            <Text style={styles.fallbackCodeText}>eas build --profile development</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            title: 'Map View',
+            headerBackTitle: 'Back',
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.text,
+          }}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading map...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -208,7 +317,7 @@ export default function CourtsMapScreen() {
             size={20}
             color={colors.card}
           />
-          <Text style={styles.backButtonText}>Back to List</Text>
+          <Text style={styles.backButtonText}>{backToListText}</Text>
         </TouchableOpacity>
       </View>
 
@@ -227,6 +336,80 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  fallbackContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 40,
+  },
+  fallbackTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  fallbackMessage: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  fallbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginTop: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  fallbackButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.card,
+    marginLeft: 8,
+  },
+  fallbackInfoBox: {
+    backgroundColor: colors.highlight,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 40,
+    alignItems: 'flex-start',
+  },
+  fallbackInfoText: {
+    fontSize: 14,
+    color: colors.text,
+    marginTop: 8,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  fallbackCodeText: {
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: colors.primary,
+    backgroundColor: colors.card,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginTop: 4,
+    alignSelf: 'stretch',
   },
   backButtonContainer: {
     position: 'absolute',
