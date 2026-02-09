@@ -2,34 +2,31 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import Constants from 'expo-constants';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Court } from '@/types';
 
-// Runtime check for react-native-maps availability
-function isMapViewAvailable(): boolean {
-  try {
-    // Try to require react-native-maps
-    require('react-native-maps');
-    return true;
-  } catch (error) {
-    console.log('CourtsMapScreen: react-native-maps not available (Expo Go)');
-    return false;
-  }
-}
+// Detect if running in Expo Go
+const isExpoGo = Constants.appOwnership === 'expo';
 
-// Lazy load MapView components only when available
+// Conditionally import react-native-maps ONLY if NOT in Expo Go
 let MapView: any = null;
 let Marker: any = null;
 let Callout: any = null;
 let PROVIDER_GOOGLE: any = null;
 
-if (isMapViewAvailable()) {
-  const maps = require('react-native-maps');
-  MapView = maps.default;
-  Marker = maps.Marker;
-  Callout = maps.Callout;
-  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+if (!isExpoGo) {
+  try {
+    const maps = require('react-native-maps');
+    MapView = maps.default;
+    Marker = maps.Marker;
+    Callout = maps.Callout;
+    PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+    console.log('CourtsMapScreen: react-native-maps loaded successfully');
+  } catch (error) {
+    console.warn('CourtsMapScreen: Failed to load react-native-maps:', error);
+  }
 }
 
 export default function CourtsMapScreen() {
@@ -155,12 +152,14 @@ export default function CourtsMapScreen() {
 
   const courtsCountText = `${courts.length} ${courts.length === 1 ? 'Court' : 'Courts'}`;
   const mapNotAvailableTitle = 'Map View Not Available';
-  const mapNotAvailableMessage = 'Map view is not available in this build. Use an Expo Development Build or production build to enable maps.';
+  const mapNotAvailableMessage = "Map view isn't available in Expo Go. Please install an EAS Development Build or TestFlight build to use map features.";
   const backToListText = 'Back to List';
   const useListViewText = 'Use List View';
+  const devBuildInfoText = 'To enable maps, create an Expo Development Build with EAS:';
+  const devBuildCommandText = 'eas build --profile development --platform ios';
 
-  // Show fallback UI if MapView is not available (Expo Go)
-  if (!MapView) {
+  // Show fallback UI if in Expo Go or MapView failed to load
+  if (isExpoGo || !MapView) {
     return (
       <View style={styles.container}>
         <Stack.Screen
@@ -202,10 +201,8 @@ export default function CourtsMapScreen() {
               size={20}
               color={colors.primary}
             />
-            <Text style={styles.fallbackInfoText}>
-              To test maps, create an Expo Development Build with EAS:
-            </Text>
-            <Text style={styles.fallbackCodeText}>eas build --profile development</Text>
+            <Text style={styles.fallbackInfoText}>{devBuildInfoText}</Text>
+            <Text style={styles.fallbackCodeText}>{devBuildCommandText}</Text>
           </View>
         </View>
       </View>
