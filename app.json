@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "PickleRadar",
-    "slug": "pickleradar-app-yetlds",
+    "slug": "PickleRadar",
     "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
@@ -34,9 +34,11 @@
       "package": "com.lopezinnovations.pickleradar",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
       ],
-      "versionCode": 5
+      "versionCode": 6,
+      "privacyPolicy": "https://pickleradar.app/privacy-policy"
     },
     "web": {
       "favicon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
