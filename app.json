@@ -2,8 +2,8 @@
 {
   "expo": {
     "name": "PickleRadar",
-    "slug": "PickleRadar",
-    "version": "1.0.4",
+    "slug": "pickleradar-app-yetlds",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
     "userInterfaceStyle": "automatic",
@@ -24,6 +24,12 @@
         "UIBackgroundModes": [
           "remote-notification"
         ]
+      },
+      "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
       }
     },
     "android": {
@@ -38,7 +44,7 @@
         "ACCESS_FINE_LOCATION",
         "CAMERA"
       ],
-      "versionCode": 6,
+      "versionCode": 7,
       "privacyPolicy": "https://pickleradar.app/privacy-policy"
     },
     "web": {
