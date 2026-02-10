@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "PickleRadar",
@@ -85,6 +86,7 @@
       "supabaseUrl": "https://biczbxmaisdxpcbplddr.supabase.co",
       "supabaseAnonKey": "sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk"
     },
-    "scheme": "PickleRadar"
+    "scheme": "PickleRadar",
+    "privacyPolicy": "https://lopezinnovations.com#privacy-policy"
   }
 }
