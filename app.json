@@ -1,9 +1,8 @@
-
 {
   "expo": {
     "name": "PickleRadar",
-    "slug": "PickleRadar",
-    "version": "1.0.6",
+    "slug": "pickleradar-app-yetlds",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
     "userInterfaceStyle": "automatic",
@@ -53,7 +52,7 @@
           "apiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
         }
       },
-      "versionCode": 7,
+      "versionCode": 11,
       "privacyPolicy": "https://pickleradar.app/privacy-policy"
     },
     "web": {

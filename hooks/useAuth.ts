@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { User } from '@/types';
 import { registerPushToken } from '@/utils/notifications';
 
@@ -63,7 +63,7 @@ export const useAuth = () => {
             privacyOptIn: newProfile.privacy_opt_in || false,
             notificationsEnabled: newProfile.notifications_enabled || false,
             locationEnabled: newProfile.location_enabled || false,
-            friendVisibility: newProfile.friend_visibility !== false, // Default to true
+            friendVisibility: newProfile.friend_visibility !== false,
             latitude: newProfile.latitude,
             longitude: newProfile.longitude,
             zipCode: newProfile.zip_code,
@@ -92,7 +92,7 @@ export const useAuth = () => {
           privacyOptIn: data.privacy_opt_in || false,
           notificationsEnabled: data.notifications_enabled || false,
           locationEnabled: data.location_enabled || false,
-          friendVisibility: data.friend_visibility !== false, // Default to true
+          friendVisibility: data.friend_visibility !== false,
           latitude: data.latitude,
           longitude: data.longitude,
           zipCode: data.zip_code,
@@ -106,21 +106,18 @@ export const useAuth = () => {
         });
       }
 
-      // Register push token after user profile is loaded
       console.log('useAuth: Registering push token for user:', userId);
       registerPushToken(userId).catch(err => {
         console.log('Error registering push token:', err);
       });
     } catch (error) {
       console.log('useAuth: Error in fetchUserProfile:', error);
-      // Don't throw - just log and continue
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Prevent multiple simultaneous initializations
     if (hasInitialized.current || isInitializing.current) {
       return;
     }
@@ -150,7 +147,6 @@ export const useAuth = () => {
         } else {
           console.log('useAuth: Current session:', session ? 'Active' : 'None');
           if (session?.user) {
-            // Verify this is an email-based session
             if (session.user.email) {
               console.log('useAuth: Valid email session found');
               await fetchUserProfile(session.user.id, session.user.email);
@@ -256,7 +252,6 @@ export const useAuth = () => {
         };
       }
 
-      // Validate DUPR rating if provided
       if (duprRating !== undefined && (duprRating < 1 || duprRating > 7)) {
         return {
           success: false,
@@ -282,7 +277,6 @@ export const useAuth = () => {
         console.log('useAuth: Sign up error:', error);
         console.log('useAuth: Error details:', JSON.stringify(error, null, 2));
         
-        // Handle specific error cases
         if (error.message.toLowerCase().includes('already registered')) {
           return {
             success: false,
@@ -291,17 +285,14 @@ export const useAuth = () => {
           };
         }
 
-        // Handle SMTP/email sending errors - but still allow user to proceed
         if (error.message.includes('Error sending confirmation email') || 
             error.message.includes('authentication failed') ||
             error.status === 500) {
           console.log('useAuth: SMTP error detected - proceeding with signup anyway');
           
-          // Check if user was created despite the email error
           if (data?.user) {
             console.log('useAuth: User created despite email error, creating profile...');
             
-            // Create user profile with consent and new fields
             const now = new Date().toISOString();
             
             try {
@@ -339,7 +330,6 @@ export const useAuth = () => {
               console.log('useAuth: Exception creating profile:', profileError);
             }
 
-            // Return success - user can proceed without email verification
             return {
               success: true,
               error: null,
@@ -355,7 +345,6 @@ export const useAuth = () => {
 
       console.log('useAuth: Sign up successful:', data);
 
-      // Create user profile with consent and new fields
       if (data.user) {
         const now = new Date().toISOString();
         
@@ -387,7 +376,6 @@ export const useAuth = () => {
 
           if (profileError) {
             console.log('useAuth: Profile creation error:', profileError);
-            // Don't throw error, just log it - user is still created
           } else {
             console.log('useAuth: User profile created/updated successfully with consent and profile fields');
           }
@@ -396,7 +384,6 @@ export const useAuth = () => {
         }
       }
       
-      // Return success - no email confirmation required
       return { 
         success: true, 
         error: null, 
@@ -428,7 +415,6 @@ export const useAuth = () => {
         console.log('useAuth: Sign in error:', error);
         console.log('useAuth: Error details:', JSON.stringify(error, null, 2));
         
-        // Return generic error message for all sign-in failures
         return {
           success: false,
           error: error.message,
@@ -438,12 +424,10 @@ export const useAuth = () => {
 
       console.log('useAuth: Sign in successful:', data);
 
-      // Check if we have both user and session
       if (data.user && data.session) {
         console.log('useAuth: User signed in successfully');
         console.log('useAuth: User email:', data.user.email);
         
-        // The auth state change listener will handle setting the user
         return { 
           success: true, 
           error: null, 
@@ -479,7 +463,6 @@ export const useAuth = () => {
       console.log('useAuth: Sign out successful');
     } catch (error) {
       console.log('useAuth: Sign out error:', error);
-      // Always clear user state even if signOut fails
       setUser(null);
     }
   };
@@ -509,7 +492,6 @@ export const useAuth = () => {
       if (updates.longitude !== undefined) dbUpdates.longitude = updates.longitude;
       if (updates.zipCode !== undefined) dbUpdates.zip_code = updates.zipCode;
       if (updates.duprRating !== undefined) {
-        // Validate DUPR rating before updating
         if (updates.duprRating !== null && (updates.duprRating < 1 || updates.duprRating > 7)) {
           console.log('useAuth: Invalid DUPR rating:', updates.duprRating);
           throw new Error('DUPR rating must be between 1.0 and 7.0');
@@ -586,7 +568,6 @@ export const useAuth = () => {
     try {
       console.log('useAuth: Deleting account for user:', user.id);
       
-      // Delete user data from database
       const { error: deleteError } = await supabase
         .from('users')
         .delete()
@@ -597,7 +578,6 @@ export const useAuth = () => {
         throw deleteError;
       }
 
-      // Sign out (admin delete requires service role key which we don't have in client)
       await signOut();
 
       console.log('useAuth: Account data deleted successfully');

@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { Court } from '@/types';
 import { logPerformance, getCachedData, setCachedData } from '@/utils/performanceLogger';
 import { useRealtimeManager } from '@/utils/realtimeManager';
@@ -72,7 +72,6 @@ export const useCourts = (userId?: string) => {
     try {
       console.log('useCourts: Fetching from Supabase...');
       
-      // OPTIMIZED: Select only needed fields
       const { data, error } = await supabase
         .from('courts')
         .select('id, name, address, city, zip_code, latitude, longitude, description, open_time, close_time, google_place_id');
@@ -84,7 +83,6 @@ export const useCourts = (userId?: string) => {
       
       console.log('useCourts: Fetched', data?.length || 0, 'courts');
 
-      // Get user's friends if userId is provided
       let friendIds: string[] = [];
       if (userId) {
         const { data: friendsData } = await supabase
@@ -99,7 +97,6 @@ export const useCourts = (userId?: string) => {
       
       const courtsWithActivity = await Promise.all(
         (data || []).map(async (court) => {
-          // OPTIMIZED: Fetch check-ins with only needed fields
           const { data: checkIns, error: checkInsError } = await supabase
             .from('check_ins')
             .select(`
@@ -116,11 +113,9 @@ export const useCourts = (userId?: string) => {
 
           const currentPlayers = checkIns?.length || 0;
           
-          // Count friends playing at this court
           const friendsPlaying = checkIns?.filter(checkIn => friendIds.includes(checkIn.user_id)) || [];
           const friendsPlayingCount = friendsPlaying.length;
           
-          // Calculate average skill level
           let averageSkillLevel = 0;
           if (currentPlayers > 0 && checkIns) {
             const skillSum = checkIns.reduce((sum, checkIn) => {
@@ -129,7 +124,6 @@ export const useCourts = (userId?: string) => {
             averageSkillLevel = skillSum / currentPlayers;
           }
 
-          // Calculate average DUPR if data exists
           let averageDupr: number | undefined;
           if (checkIns && checkIns.length > 0) {
             const duprRatings = checkIns
@@ -169,14 +163,13 @@ export const useCourts = (userId?: string) => {
 
       console.log('useCourts: Successfully processed courts with activity levels, skill averages, friend counts, and DUPR data');
       
-      // Cache the result
       const cacheKey = `courts_${userId || 'all'}`;
       setCachedData(cacheKey, courtsWithActivity);
       
       setCourts(courtsWithActivity);
       logPerformance('QUERY_END', 'useCourts', 'fetchCourts', { courtsCount: courtsWithActivity.length });
     } catch (error) {
-      console.log('useCourts: Error in fetchCourts, falling back to mock data:', error);
+      console.log('useCheckIn: Error in fetchCourts, falling back to mock data:', error);
       setCourts(MOCK_COURTS);
       logPerformance('QUERY_END', 'useCourts', 'fetchCourts', { error: true });
     } finally {
@@ -197,7 +190,6 @@ export const useCourts = (userId?: string) => {
       return;
     }
 
-    // Check cache first (2 minute TTL)
     const cacheKey = `courts_${userId || 'all'}`;
     const cached = getCachedData<Court[]>(cacheKey, 120000);
     if (cached) {
@@ -205,7 +197,6 @@ export const useCourts = (userId?: string) => {
       setCourts(cached);
       setLoading(false);
       
-      // Refresh in background
       setTimeout(() => {
         fetchCourtsFromServer();
       }, 100);
@@ -220,7 +211,6 @@ export const useCourts = (userId?: string) => {
     fetchCourts();
   }, [fetchCourts]);
 
-  // FIXED: Use RealtimeManager for robust subscription management
   useEffect(() => {
     if (!isSupabaseConfigured() || hasSetupRealtime.current) {
       return;
@@ -229,7 +219,6 @@ export const useCourts = (userId?: string) => {
     hasSetupRealtime.current = true;
     console.log('useCourts: Setting up realtime subscription with RealtimeManager');
 
-    // Subscribe to check-ins changes with fallback
     const unsubscribe = realtimeManager.subscribe({
       table: 'check_ins',
       event: '*',

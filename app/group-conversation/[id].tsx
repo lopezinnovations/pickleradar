@@ -4,7 +4,7 @@ import { colors, commonStyles } from '@/styles/commonStyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { IconSymbol } from '@/components/IconSymbol';
 
 interface GroupMessage {
@@ -46,7 +46,7 @@ export default function GroupConversationScreen() {
 
     try {
       const { data: groupData, error: groupError } = await supabase
-        .from('message_groups')
+        .from('group_chats')
         .select('id, name, created_by')
         .eq('id', groupId)
         .single();
@@ -77,7 +77,7 @@ export default function GroupConversationScreen() {
         .from('group_messages')
         .select(`
           *,
-          sender:profiles!group_messages_sender_id_fkey(id, first_name, last_name, pickleballer_nickname)
+          sender:users!group_messages_sender_id_fkey(id, first_name, last_name, pickleballer_nickname)
         `)
         .eq('group_id', groupId)
         .order('created_at', { ascending: true });
@@ -116,7 +116,7 @@ export default function GroupConversationScreen() {
           const newMsg = payload.new as GroupMessage;
 
           const { data: senderData } = await supabase
-            .from('profiles')
+            .from('users')
             .select('id, first_name, last_name, pickleballer_nickname')
             .eq('id', newMsg.sender_id)
             .single();
@@ -153,9 +153,9 @@ export default function GroupConversationScreen() {
       created_at: new Date().toISOString(),
       sender: {
         id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        pickleballer_nickname: user.pickleballer_nickname,
+        first_name: user.firstName,
+        last_name: user.lastName,
+        pickleballer_nickname: user.pickleballerNickname,
       },
       isOptimistic: true,
       optimisticId,

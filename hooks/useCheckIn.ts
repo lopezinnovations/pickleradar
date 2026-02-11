@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { scheduleCheckInNotification, cancelCheckOutNotification, sendManualCheckOutNotification, isPushNotificationSupported } from '@/utils/notifications';
 import { Alert } from 'react-native';
 
@@ -267,12 +267,10 @@ export const useCheckIn = (userId?: string) => {
       
       await fetchCheckInHistory(userId);
 
-      // Send friend notifications (non-blocking)
       notifyFriends(courtId, courtName, skillLevel, durationMinutes)
         .then((result) => {
           if (result.success) {
             console.log('useCheckIn: Friend notification success:', result.message);
-            // Show success toast
             if (isPushNotificationSupported()) {
               Alert.alert('Success', "Friends notified you're here!", [{ text: 'OK' }]);
             }
@@ -282,7 +280,6 @@ export const useCheckIn = (userId?: string) => {
         })
         .catch((err) => {
           console.error('useCheckIn: Friend notification failed (non-blocking):', err);
-          // Don't block check-in if push fails
         });
       
       return { success: true, error: null };
@@ -327,7 +324,6 @@ export const useCheckIn = (userId?: string) => {
         await sendManualCheckOutNotification(courtName);
       }
 
-      // Send friend checkout notifications (non-blocking)
       notifyFriendsCheckout(courtId, courtName)
         .then((result) => {
           if (result.success) {
@@ -338,7 +334,6 @@ export const useCheckIn = (userId?: string) => {
         })
         .catch((err) => {
           console.error('useCheckIn: Friend checkout notification failed (non-blocking):', err);
-          // Don't block check-out if push fails
         });
 
       return { success: true, error: null };

@@ -5,7 +5,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 
 interface GroupMember {
@@ -48,7 +48,6 @@ export default function GroupInfoScreen() {
     try {
       console.log('Fetching group info for:', groupId);
       
-      // Fetch group info
       const { data: groupData, error: groupError } = await supabase
         .from('group_chats')
         .select('*')
@@ -64,7 +63,6 @@ export default function GroupInfoScreen() {
       setGroupInfo(groupData);
       setNewGroupName(groupData.name);
 
-      // Fetch members
       const { data: membersData, error: membersError } = await supabase
         .from('group_members')
         .select(`
@@ -90,7 +88,6 @@ export default function GroupInfoScreen() {
 
       setMembers(membersList);
 
-      // Check mute status
       if (user) {
         const { data: muteData, error: muteError } = await supabase
           .from('conversation_mutes')
@@ -415,7 +412,6 @@ export default function GroupInfoScreen() {
         </View>
       </ScrollView>
 
-      {/* Rename Modal */}
       <Modal
         visible={showRenameModal}
         transparent
@@ -457,7 +453,6 @@ export default function GroupInfoScreen() {
         </View>
       </Modal>
 
-      {/* Leave Confirmation Modal */}
       <Modal
         visible={showLeaveConfirm}
         transparent
@@ -488,7 +483,6 @@ export default function GroupInfoScreen() {
         </View>
       </Modal>
 
-      {/* Message Modal */}
       <Modal
         visible={showMessageModal}
         transparent
@@ -508,7 +502,6 @@ export default function GroupInfoScreen() {
         </View>
       </Modal>
 
-      {/* Mute Options Modal */}
       <MuteOptionsModal
         visible={showMuteModal}
         onClose={() => setShowMuteModal(false)}
