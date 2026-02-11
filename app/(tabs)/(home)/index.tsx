@@ -49,6 +49,7 @@ export default function HomeScreen() {
   });
   const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY_COUNT);
   const [showAddCourtModal, setShowAddCourtModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   
   // Auto-refresh timer
   const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -273,6 +274,8 @@ export default function HomeScreen() {
   const mapViewLabel = 'Map';
   const courtsCountText = processedCourts.length === 1 ? 'Court' : 'Courts';
   const mapNotAvailableText = '(Not available in Expo Go)';
+  const hideFiltersLabel = 'Hide Filters';
+  const showFiltersLabel = 'Show Filters';
 
   return (
     <View style={commonStyles.container}>
@@ -364,164 +367,188 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.filtersContainer}>
-          <Text style={styles.sectionHeader}>Sort By</Text>
-          <View style={styles.sortButtons}>
+          <View style={styles.filtersHeader}>
+            <Text style={styles.sectionHeader}>Sort By</Text>
             <TouchableOpacity
-              style={[
-                styles.sortButton,
-                sortBy === 'favorites' && styles.sortButtonActive,
-              ]}
-              onPress={() => setSortBy('favorites')}
+              style={styles.toggleFiltersButton}
+              onPress={() => {
+                console.log('User toggled filters visibility');
+                setShowFilters(!showFilters);
+              }}
             >
-              <Text
-                style={[
-                  styles.sortButtonText,
-                  sortBy === 'favorites' && styles.sortButtonTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {favoritesLabel}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.sortButton,
-                sortBy === 'activity' && styles.sortButtonActive,
-              ]}
-              onPress={() => setSortBy('activity')}
-            >
-              <Text
-                style={[
-                  styles.sortButtonText,
-                  sortBy === 'activity' && styles.sortButtonTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {activityLabel}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.sortButton,
-                sortBy === 'nearest' && styles.sortButtonActive,
-                !hasLocation && styles.sortButtonDisabled,
-              ]}
-              onPress={() => hasLocation && setSortBy('nearest')}
-              disabled={!hasLocation}
-            >
-              <Text
-                style={[
-                  styles.sortButtonText,
-                  sortBy === 'nearest' && styles.sortButtonTextActive,
-                  !hasLocation && styles.sortButtonTextDisabled,
-                ]}
-                numberOfLines={1}
-              >
-                {nearestLabel}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.sortButton,
-                sortBy === 'alphabetical' && styles.sortButtonActive,
-              ]}
-              onPress={() => setSortBy('alphabetical')}
-            >
-              <Text
-                style={[
-                  styles.sortButtonText,
-                  sortBy === 'alphabetical' && styles.sortButtonTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {alphabeticalLabel}
+              <IconSymbol
+                ios_icon_name={showFilters ? "chevron.up" : "chevron.down"}
+                android_material_icon_name={showFilters ? "expand-less" : "expand-more"}
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.toggleFiltersText}>
+                {showFilters ? hideFiltersLabel : showFiltersLabel}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {!hasLocation && (
-            <Text style={[commonStyles.textSecondary, { fontSize: 12, marginTop: 4, fontStyle: 'italic' }]}>
-              {enableLocationText}
-            </Text>
+          {showFilters && (
+            <>
+              <View style={styles.sortButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.sortButton,
+                    sortBy === 'favorites' && styles.sortButtonActive,
+                  ]}
+                  onPress={() => setSortBy('favorites')}
+                >
+                  <Text
+                    style={[
+                      styles.sortButtonText,
+                      sortBy === 'favorites' && styles.sortButtonTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {favoritesLabel}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sortButton,
+                    sortBy === 'activity' && styles.sortButtonActive,
+                  ]}
+                  onPress={() => setSortBy('activity')}
+                >
+                  <Text
+                    style={[
+                      styles.sortButtonText,
+                      sortBy === 'activity' && styles.sortButtonTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {activityLabel}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sortButton,
+                    sortBy === 'nearest' && styles.sortButtonActive,
+                    !hasLocation && styles.sortButtonDisabled,
+                  ]}
+                  onPress={() => hasLocation && setSortBy('nearest')}
+                  disabled={!hasLocation}
+                >
+                  <Text
+                    style={[
+                      styles.sortButtonText,
+                      sortBy === 'nearest' && styles.sortButtonTextActive,
+                      !hasLocation && styles.sortButtonTextDisabled,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {nearestLabel}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sortButton,
+                    sortBy === 'alphabetical' && styles.sortButtonActive,
+                  ]}
+                  onPress={() => setSortBy('alphabetical')}
+                >
+                  <Text
+                    style={[
+                      styles.sortButtonText,
+                      sortBy === 'alphabetical' && styles.sortButtonTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {alphabeticalLabel}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {!hasLocation && (
+                <Text style={[commonStyles.textSecondary, { fontSize: 12, marginTop: 4, fontStyle: 'italic' }]}>
+                  {enableLocationText}
+                </Text>
+              )}
+
+              <Text style={[styles.sectionHeader, { marginTop: 12 }]}>Filter by Skill Level</Text>
+              <View style={styles.filterButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    filters.skillLevels.includes('Beginner') && styles.filterButtonActive,
+                  ]}
+                  onPress={() => toggleSkillLevelFilter('Beginner')}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      filters.skillLevels.includes('Beginner') && styles.filterButtonTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {beginnerLabel}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    filters.skillLevels.includes('Intermediate') && styles.filterButtonActive,
+                  ]}
+                  onPress={() => toggleSkillLevelFilter('Intermediate')}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      filters.skillLevels.includes('Intermediate') && styles.filterButtonTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {intermediateLabel}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    filters.skillLevels.includes('Advanced') && styles.filterButtonActive,
+                  ]}
+                  onPress={() => toggleSkillLevelFilter('Advanced')}
+                >
+                  <Text
+                    style={[
+                      styles.filterButtonText,
+                      filters.skillLevels.includes('Advanced') && styles.filterButtonTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {advancedLabel}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.friendsFilterButton, { height: null }]}
+                onPress={() => {
+                  console.log('User toggled friends filter');
+                  setFilters(prev => ({ ...prev, showFriendsOnly: !prev.showFriendsOnly }));
+                }}
+              >
+                <IconSymbol
+                  ios_icon_name={filters.showFriendsOnly ? "checkmark.square.fill" : "square"}
+                  android_material_icon_name={filters.showFriendsOnly ? "check-box" : "check-box-outline-blank"}
+                  size={22}
+                  color={filters.showFriendsOnly ? colors.primary : colors.textSecondary}
+                />
+                <Text style={[commonStyles.text, { marginLeft: 10, fontSize: 15, paddingTop: 2, marginBottom: null }]}>
+                  Show only courts with friends
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
-
-          <Text style={[styles.sectionHeader, { marginTop: 12 }]}>Filter by Skill Level</Text>
-          <View style={styles.filterButtons}>
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                filters.skillLevels.includes('Beginner') && styles.filterButtonActive,
-              ]}
-              onPress={() => toggleSkillLevelFilter('Beginner')}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  filters.skillLevels.includes('Beginner') && styles.filterButtonTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {beginnerLabel}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                filters.skillLevels.includes('Intermediate') && styles.filterButtonActive,
-              ]}
-              onPress={() => toggleSkillLevelFilter('Intermediate')}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  filters.skillLevels.includes('Intermediate') && styles.filterButtonTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {intermediateLabel}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.filterButton,
-                filters.skillLevels.includes('Advanced') && styles.filterButtonActive,
-              ]}
-              onPress={() => toggleSkillLevelFilter('Advanced')}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  filters.skillLevels.includes('Advanced') && styles.filterButtonTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {advancedLabel}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.friendsFilterButton, { height: null }]}
-            onPress={() => {
-              console.log('User toggled friends filter');
-              setFilters(prev => ({ ...prev, showFriendsOnly: !prev.showFriendsOnly }));
-            }}
-          >
-            <IconSymbol
-              ios_icon_name={filters.showFriendsOnly ? "checkmark.square.fill" : "square"}
-              android_material_icon_name={filters.showFriendsOnly ? "check-box" : "check-box-outline-blank"}
-              size={22}
-              color={filters.showFriendsOnly ? colors.primary : colors.textSecondary}
-            />
-            <Text style={[commonStyles.text, { marginLeft: 10, fontSize: 15, paddingTop: 2, marginBottom: null }]}>
-              Show only courts with friends
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.courtsList}>
@@ -806,11 +833,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
+  filtersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   sectionHeader: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 6,
+  },
+  toggleFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  toggleFiltersText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 4,
   },
   sortButtons: {
     flexDirection: 'row',
