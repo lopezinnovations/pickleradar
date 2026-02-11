@@ -4426,3 +4426,812 @@ Performance optimizations: OFF.
 2026-02-11T06:06:32.060Z expo:start:server:metro:router Using app as the root directory for Expo Router.
 2026-02-11T06:06:34.227Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
 2026-02-11T06:06:34.227Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:14.866Z expo:env /expo-project/.env does not exist, skipping this env file
+2026-02-11T06:35:14.867Z expo:env /expo-project/.env.development does not exist, skipping this env file
+2026-02-11T06:35:14.867Z expo:env /expo-project/.env.local does not exist, skipping this env file
+2026-02-11T06:35:14.867Z expo:env /expo-project/.env.development.local does not exist, skipping this env file
+Starting project at /expo-project
+2026-02-11T06:35:15.078Z expo:utils:fileNotifier Observing /expo-project/babel.config.js
+2026-02-11T06:35:15.194Z expo:start:server:devServer Stopping dev server (bundler: metro)
+2026-02-11T06:35:15.194Z expo:start:server:devServer Stopped dev server (bundler: metro)
+2026-02-11T06:35:15.218Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:15.536Z expo:metro:config react-native-reanimated package.json: /expo-project/node_modules/react-native-reanimated/package.json
+2026-02-11T06:35:15.537Z expo:metro:config react-native-worklets package.json: /expo-project/node_modules/react-native-worklets/package.json
+
+2026-02-11T06:35:15.541Z expo:metro:config react-native-reanimated package.json: /expo-project/node_modules/react-native-reanimated/package.json
+2026-02-11T06:35:15.542Z expo:metro:config react-native-worklets package.json: /expo-project/node_modules/react-native-worklets/package.json
+Expo Metro config:
+- Version: 54.0.14
+- Extensions: ts, tsx, mjs, js, jsx, json, cjs, scss, sass, css
+- React Native: /expo-project/node_modules/react-native
+- Watch Folders: 
+- Node Module Paths: 
+- Sass: null
+- Reanimated: 4.1.6
+- Worklets: 0.5.1
+- Babel Runtime: null
+
+
+Expo Metro config:
+- Version: 54.0.14
+- Extensions: ts, tsx, mjs, js, jsx, json, cjs, scss, sass, css
+- React Native: /expo-project/node_modules/react-native
+- Watch Folders: 
+- Node Module Paths: 
+- Sass: null
+- Reanimated: 4.1.6
+- Worklets: 0.5.1
+- Babel Runtime: null
+
+2026-02-11T06:35:15.756Z expo:metro:withMetroResolvers Appending 8 custom resolvers to Metro config. (has custom resolver: false)
+2026-02-11T06:35:15.771Z expo:start:server:urlCreator URL: http://127.0.0.1:8081
+Starting Metro Bundler
+2026-02-11T06:35:16.038Z expo:start:server:middleware:serveStatic Serving static files from: /expo-project/public
+2026-02-11T06:35:16.043Z expo:start:server:devServer [tunnel] connect to port: 8081
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+2026-02-11T06:35:16.162Z expo:start:platforms:android:adbServer /usr/lib/android-sdk/platform-tools/adb devices -l
+2026-02-11T06:35:16.173Z expo:start:server:ngrok Stopping Tunnel
+2026-02-11T06:35:16.174Z expo:start:server:ngrok Global config path: /root/.expo/ngrok.yml
+2026-02-11T06:35:16.177Z expo:start:server:ngrok Hostname: bTtKJxQ-anonymous-8081.exp.direct
+Tunnel connected.
+2026-02-11T06:35:16.537Z expo:start:server:ngrok Tunnel URL: https://bttkjxq-anonymous-8081.exp.direct
+Tunnel ready.
+2026-02-11T06:35:16.537Z expo:start:server:urlCreator URL: exp://bttkjxq-anonymous-8081.exp.direct
+2026-02-11T06:35:16.543Z expo:start:server:developmentSession Development session will not ping because the user is not authenticated and there are no devices.
+2026-02-11T06:35:16.544Z expo:utils:fileNotifier Observing /expo-project/metro.config.js
+2026-02-11T06:35:16.545Z expo:start:server:metro:waitForTypescript Watching file changes: [
+  '/expo-project/.env.development.local',
+  '/expo-project/.env.local',
+  '/expo-project/.env.development',
+  '/expo-project/.env'
+]
+2026-02-11T06:35:16.545Z expo:doctor:typescriptSupport Ensuring TypeScript support is setup
+2026-02-11T06:35:16.551Z expo:doctor:dependencies:getMissingPackages Required package "typescript" found (no version constraint specified).
+2026-02-11T06:35:16.551Z expo:doctor:dependencies:getMissingPackages Required package "@types/react" found (no version constraint specified).
+2026-02-11T06:35:16.556Z expo:typed-routes Ensuring typed routes side-effects are setup (experiments.typedRoutes: true, typesDirectory: /expo-project/.expo/types)
+2026-02-11T06:35:16.558Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:16.565Z expo:start:server:metro:metroWatchTypeScriptFiles Waiting for TypeScript files to be added to the project...
+2026-02-11T06:35:16.566Z expo:doctor:dependencies:bundledNativeModules Fetching bundled native modules from the server...
+2026-02-11T06:35:16.778Z expo:doctor:dependencies:validate Checking dependencies for 54.0.0: {
+  '@babel/plugin-proposal-export-namespace-from': '^7.18.9',
+  '@babel/runtime': '^7.26.9',
+  '@bacons/apple-targets': '^3.0.2',
+  '@expo/metro-runtime': '~6.1.1',
+  '@expo/ngrok': '^4.1.3',
+  '@expo/vector-icons': '^15.0.2',
+  '@react-native-async-storage/async-storage': '^2.2.0',
+  '@react-native-community/datetimepicker': '^8.3.0',
+  '@react-navigation/drawer': '^7.1.1',
+  '@react-navigation/native': '^7.0.14',
+  '@react-navigation/native-stack': '^7.2.0',
+  '@supabase/supabase-js': '^2.89.0',
+  '@tanstack/react-query': '^5.90.20',
+  '@types/difflib': '^0.2.7',
+  difflib: '^0.2.4',
+  eas: '^0.1.0',
+  expo: '~54.0.1',
+  'expo-blur': '^15.0.6',
+  'expo-constants': '~18.0.8',
+  'expo-device': '^8.0.10',
+  'expo-font': '^14.0.7',
+  'expo-glass-effect': '^0.1.1',
+  'expo-haptics': '^15.0.6',
+  'expo-image-picker': '^17.0.7',
+  'expo-linear-gradient': '^15.0.6',
+  'expo-linking': '^8.0.7',
+  'expo-location': '^19.0.8',
+  'expo-network': '^8.0.7',
+  'expo-notifications': '^0.32.15',
+  'expo-router': '^6.0.0',
+  'expo-secure-store': '^15.0.8',
+  'expo-splash-screen': '^31.0.8',
+  'expo-status-bar': '~3.0.7',
+  'expo-symbols': '^1.0.6',
+  'expo-system-ui': '^6.0.7',
+  'expo-web-browser': '^15.0.6',
+  react: '19.1.0',
+  'react-dom': '19.1.0',
+  'react-native': '0.81.4',
+  'react-native-css-interop': '^0.1.22',
+  'react-native-edge-to-edge': '^1.7.0',
+  'react-native-gesture-handler': '^2.24.0',
+  'react-native-maps': '^1.20.1',
+  'react-native-reanimated': '~4.1.0',
+  'react-native-safe-area-context': '^5.4.0',
+  'react-native-screens': '~4.16.0',
+  'react-native-url-polyfill': '^2.0.0',
+  'react-native-web': '~0.21.1',
+  'react-native-webview': '^13.15.0',
+  'react-native-worklets': '0.5.1',
+  'react-router-dom': '^7.1.3',
+  'workbox-cli': '^7.3.0',
+  'workbox-precaching': '^7.3.0',
+  'workbox-webpack-plugin': '^7.3.0',
+  '@babel/core': '^7.20.0',
+  '@eslint/js': '^9.19.0',
+  '@types/react': '~19.1.12',
+  '@typescript-eslint/eslint-plugin': '^6.21.0',
+  '@typescript-eslint/parser': '^6.21.0',
+  'babel-plugin-module-resolver': '^5.0.2',
+  eslint: '^8.57.0',
+  'eslint-config-expo': '~10.0.0',
+  'eslint-plugin-import': '^2.31.0',
+  'eslint-plugin-react': '^7.37.4',
+  globals: '^15.14.0',
+  typescript: '^5.9.3',
+  'webpack-cli': '^6.0.1'
+}
+2026-02-11T06:35:16.778Z expo:doctor:dependencies:validate Comparing known versions: [
+  '@expo/metro-runtime',
+  '@expo/vector-icons',
+  '@react-native-async-storage/async-storage',
+  '@react-native-community/datetimepicker',
+  'expo',
+  'expo-blur',
+  'expo-constants',
+  'expo-device',
+  'expo-font',
+  'expo-glass-effect',
+  'expo-haptics',
+  'expo-image-picker',
+  'expo-linear-gradient',
+  'expo-linking',
+  'expo-location',
+  'expo-network',
+  'expo-notifications',
+  'expo-router',
+  'expo-secure-store',
+  'expo-splash-screen',
+  'expo-status-bar',
+  'expo-symbols',
+  'expo-system-ui',
+  'expo-web-browser',
+  'react',
+  'react-dom',
+  'react-native',
+  'react-native-gesture-handler',
+  'react-native-maps',
+  'react-native-reanimated',
+  'react-native-safe-area-context',
+  'react-native-screens',
+  'react-native-web',
+  'react-native-webview',
+  'react-native-worklets',
+  '@babel/core',
+  '@types/react',
+  'eslint-config-expo',
+  'typescript'
+]
+2026-02-11T06:35:16.778Z expo:doctor:dependencies:validate Skipping packages that cannot be versioned automatically: [
+  '@babel/plugin-proposal-export-namespace-from',
+  '@babel/runtime',
+  '@bacons/apple-targets',
+  '@expo/ngrok',
+  '@react-navigation/drawer',
+  '@react-navigation/native',
+  '@react-navigation/native-stack',
+  '@supabase/supabase-js',
+  '@tanstack/react-query',
+  '@types/difflib',
+  'difflib',
+  'eas',
+  'react-native-css-interop',
+  'react-native-edge-to-edge',
+  'react-native-url-polyfill',
+  'react-router-dom',
+  'workbox-cli',
+  'workbox-precaching',
+  'workbox-webpack-plugin',
+  '@eslint/js',
+  '@typescript-eslint/eslint-plugin',
+  '@typescript-eslint/parser',
+  'babel-plugin-module-resolver',
+  'eslint',
+  'eslint-plugin-import',
+  'eslint-plugin-react',
+  'globals',
+  'webpack-cli'
+]
+2026-02-11T06:35:16.788Z expo:doctor:dependencies:validate Package versions: {
+  '@expo/metro-runtime': '6.1.2',
+  '@expo/vector-icons': '15.0.3',
+  '@react-native-async-storage/async-storage': '2.2.0',
+  '@react-native-community/datetimepicker': '8.6.0',
+  expo: '54.0.33',
+  'expo-blur': '15.0.8',
+  'expo-constants': '18.0.13',
+  'expo-device': '8.0.10',
+  'expo-font': '14.0.11',
+  'expo-glass-effect': '0.1.8',
+  'expo-haptics': '15.0.8',
+  'expo-image-picker': '17.0.10',
+  'expo-linear-gradient': '15.0.8',
+  'expo-linking': '8.0.11',
+  'expo-location': '19.0.8',
+  'expo-network': '8.0.8',
+  'expo-notifications': '0.32.16',
+  'expo-router': '6.0.23',
+  'expo-secure-store': '15.0.8',
+  'expo-splash-screen': '31.0.13',
+  'expo-status-bar': '3.0.9',
+  'expo-symbols': '1.0.8',
+  'expo-system-ui': '6.0.9',
+  'expo-web-browser': '15.0.10',
+  react: '19.1.0',
+  'react-dom': '19.1.0',
+  'react-native': '0.81.4',
+  'react-native-gesture-handler': '2.30.0',
+  'react-native-maps': '1.27.1',
+  'react-native-reanimated': '4.1.6',
+  'react-native-safe-area-context': '5.6.2',
+  'react-native-screens': '4.16.0',
+  'react-native-web': '0.21.2',
+  'react-native-webview': '13.16.0',
+  'react-native-worklets': '0.5.1',
+  '@babel/core': '7.29.0',
+  '@types/react': '19.1.17',
+  'eslint-config-expo': '10.0.0',
+  typescript: '5.9.3'
+}
+2026-02-11T06:35:16.791Z expo:doctor:dependencies:validate Incorrect dependencies: [
+  {
+    packageName: '@react-native-community/datetimepicker',
+    packageType: 'dependencies',
+    expectedVersionOrRange: '8.4.4',
+    actualVersion: '8.6.0'
+  },
+  {
+    packageName: 'react-native',
+    packageType: 'dependencies',
+    expectedVersionOrRange: '0.81.5',
+    actualVersion: '0.81.4'
+  },
+  {
+    packageName: 'react-native-gesture-handler',
+    packageType: 'dependencies',
+    expectedVersionOrRange: '~2.28.0',
+    actualVersion: '2.30.0'
+  },
+  {
+    packageName: 'react-native-maps',
+    packageType: 'dependencies',
+    expectedVersionOrRange: '1.20.1',
+    actualVersion: '1.27.1'
+  },
+  {
+    packageName: 'react-native-webview',
+    packageType: 'dependencies',
+    expectedVersionOrRange: '13.15.0',
+    actualVersion: '13.16.0'
+  }
+]
+The following packages should be updated for best compatibility with the installed expo version:
+  @react-native-community/datetimepicker@8.6.0 - expected version: 8.4.4
+  react-native@0.81.4 - expected version: 0.81.5
+  react-native-gesture-handler@2.30.0 - expected version: ~2.28.0
+  react-native-maps@1.27.1 - expected version: 1.20.1
+  react-native-webview@13.16.0 - expected version: 13.15.0
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+2026-02-11T06:35:17.524Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:17.524Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:17.676Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:17.677Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:17.906Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:17.907Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+[METRO] Request: GET /index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+2026-02-11T06:35:20.236Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:20.236Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:24.791Z expo:start:server:metro:multi-platform Enabling alias: react-native-vector-icons -> @expo/vector-icons
+2026-02-11T06:35:24.802Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:24.802Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+| 2026-02-11T06:35:25.764Z expo:babel:exports Found assignment to module.exports or exports at 10
+2026-02-11T06:35:25.789Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react-jsx-dev-runtime.production.js
+| 2026-02-11T06:35:25.785Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:25.786Z expo:babel:router getExpoRouterAppRoot /expo-project/node_modules/expo-router/_ctx.web.js /expo-project/app ../../app
+| 2026-02-11T06:35:25.815Z expo:babel:exports Found assignment to module.exports or exports at 46
+| 2026-02-11T06:35:25.841Z expo:babel:exports Found assignment to module.exports or exports at 325
+| 2026-02-11T06:35:26.243Z expo:babel:exports Found assignment to module.exports or exports at 4
+2026-02-11T06:35:26.263Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react.production.js
+| 2026-02-11T06:35:26.245Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:26.312Z expo:babel:exports Found assignment to module.exports or exports at 37
+| 2026-02-11T06:35:26.491Z expo:babel:exports Found assignment to module.exports or exports at 17
+| 2026-02-11T06:35:26.707Z expo:babel:inline-manifest public manifest {
+2026-02-11T06:35:26.754Z expo:start:server:metro:multi-platform Redirecting module "/expo-project/node_modules/react-native-web/dist/exports/BackHandler/index.js" to shim
+|   name: 'PickleRadar',
+|   slug: 'PickleRadar',
+|   version: '1.0.6',
+|   orientation: 'portrait',
+|   icon: './assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png',
+|   userInterfaceStyle: 'automatic',
+|   newArchEnabled: true,
+|   privacyPolicy: 'https://pickleradar.app/privacy-policy',
+|   splash: {
+|     image: './assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png',
+|     resizeMode: 'contain',
+|     backgroundColor: '#1B4D3E'
+|   },
+|   web: {
+|     favicon: './assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png',
+|     bundler: 'metro',
+|     meta: undefined,
+|     build: undefined,
+|     scope: undefined,
+|     crossorigin: undefined,
+|     description: undefined,
+|     startUrl: undefined,
+|     shortName: 'PickleRadar',
+|     display: undefined,
+|     orientation: 'portrait',
+|     dir: undefined,
+|     barStyle: undefined,
+|     backgroundColor: '#1B4D3E',
+|     themeColor: undefined,
+|     lang: undefined,
+|     name: 'PickleRadar'
+|   },
+|   experiments: { typedRoutes: true },
+|   extra: {
+|     router: {},
+|     supabaseUrl: 'https://biczbxmaisdxpcbplddr.supabase.co',
+|     supabaseAnonKey: 'sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk'
+|   },
+|   scheme: 'PickleRadar',
+|   description: undefined,
+|   sdkVersion: '54.0.0',
+|   platforms: [ 'ios', 'android', 'web' ],
+|   primaryColor: undefined
+| }
+| 2026-02-11T06:35:26.737Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:26.746Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:26.785Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:26.793Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:26.793Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:26.795Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:26.797Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:26.798Z expo:babel:exports Found assignment to module.exports or exports at 739
+| 2026-02-11T06:35:26.804Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:26.804Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:26.805Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:26.807Z expo:babel:exports Found assignment to module.exports or exports at 40
+| 2026-02-11T06:35:26.811Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:26.823Z expo:babel:exports Found assignment to module.exports or exports at 6
+2026-02-11T06:35:26.863Z expo:start:server:metro:multi-platform Using React Navigation's web modal implementation.
+| 2026-02-11T06:35:26.823Z expo:babel:router getExpoRouterAppRoot /expo-project/node_modules/expo-router/build/onboard/Tutorial.js /expo-project/app ../../../../app
+| 2026-02-11T06:35:26.828Z expo:babel:router getExpoRouterAppRoot /expo-project/node_modules/expo-router/build/onboard/Tutorial.js /expo-project/app ../../../../app
+| 2026-02-11T06:35:26.824Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:26.826Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:26.854Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:26.862Z expo:babel:exports Found assignment to module.exports or exports at 39
+| 2026-02-11T06:35:26.865Z expo:babel:exports Found assignment to module.exports or exports at 6
+2026-02-11T06:35:26.920Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:26.920Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+| 2026-02-11T06:35:26.926Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:26.936Z expo:babel:exports Found assignment to module.exports or exports at 14
+| 2026-02-11T06:35:27.016Z expo:babel:exports Found assignment to module.exports or exports at 52
+| 2026-02-11T06:35:27.055Z expo:babel:exports Found assignment to module.exports or exports at 54
+| 2026-02-11T06:35:27.168Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.175Z expo:babel:exports Found assignment to module.exports or exports at 37
+| 2026-02-11T06:35:27.177Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.178Z expo:babel:exports Found assignment to module.exports or exports at 28
+| 2026-02-11T06:35:27.186Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.187Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.188Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.191Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.197Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.197Z expo:babel:exports Found assignment to module.exports or exports at 39
+| 2026-02-11T06:35:27.200Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.203Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.206Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.207Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.208Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.213Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.214Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:27.214Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.218Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.220Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.222Z expo:babel:exports Found assignment to module.exports or exports at 40
+| 2026-02-11T06:35:27.227Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:27.229Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.231Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:27.233Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.233Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.235Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.238Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:27.241Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.242Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.259Z expo:babel:exports Found assignment to module.exports or exports at 1
+| 2026-02-11T06:35:27.266Z expo:babel:exports Found assignment to module.exports or exports at 51
+| 2026-02-11T06:35:27.266Z expo:babel:exports Found assignment to module.exports or exports at 37
+| 2026-02-11T06:35:27.273Z expo:babel:exports Found assignment to module.exports or exports at 38
+| 2026-02-11T06:35:27.276Z expo:babel:exports Found assignment to module.exports or exports at 37
+| 2026-02-11T06:35:27.276Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.288Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.288Z expo:babel:exports Found assignment to module.exports or exports at 49
+| 2026-02-11T06:35:27.301Z expo:babel:exports Found assignment to module.exports or exports at 12
+| 2026-02-11T06:35:27.307Z expo:babel:exports Found assignment to module.exports or exports at 28
+| 2026-02-11T06:35:27.605Z expo:babel:exports Found assignment to module.exports or exports at 4
+2026-02-11T06:35:27.613Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react-jsx-runtime.production.js
+2026-02-11T06:35:27.616Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react-dom.production.js
+2026-02-11T06:35:27.619Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react-dom-client.production.js
+2026-02-11T06:35:27.630Z expo:start:server:metro:multi-platform Redirecting module "/expo-project/node_modules/react-native-web/dist/exports/AppRegistry/AppContainer.js" to shim
+| 2026-02-11T06:35:27.607Z expo:babel:exports Found assignment to module.exports or exports at 38
+| 2026-02-11T06:35:27.611Z expo:babel:exports Found assignment to module.exports or exports at 35
+| 2026-02-11T06:35:27.612Z expo:babel:exports Found assignment to module.exports or exports at 35
+| 2026-02-11T06:35:27.623Z expo:babel:exports Found assignment to module.exports or exports at 461
+| 2026-02-11T06:35:27.743Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.758Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.762Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.762Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.766Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:27.775Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.776Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.778Z expo:babel:exports Found assignment to module.exports or exports at 123
+| 2026-02-11T06:35:27.782Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.782Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.782Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:27.785Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.786Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.788Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.789Z expo:babel:exports Found assignment to module.exports or exports at 40
+| 2026-02-11T06:35:27.800Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.800Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:27.800Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.803Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:27.803Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:27.808Z expo:babel:exports Found assignment to module.exports or exports at 37
+| 2026-02-11T06:35:27.811Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.812Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.821Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.815Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.820Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.822Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.823Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:27.825Z expo:babel:exports Found assignment to module.exports or exports at 9
+| 2026-02-11T06:35:27.831Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.832Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:27.846Z expo:babel:exports Found assignment to module.exports or exports at 1
+| 2026-02-11T06:35:27.849Z expo:babel:exports Found assignment to module.exports or exports at 48
+| 2026-02-11T06:35:27.853Z expo:babel:exports Found assignment to module.exports or exports at 48
+| 2026-02-11T06:35:27.853Z expo:babel:exports Found assignment to module.exports or exports at 15
+| 2026-02-11T06:35:27.861Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.057Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:28.065Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:28.091Z expo:babel:exports Found assignment to module.exports or exports at 12
+| 2026-02-11T06:35:28.116Z expo:babel:exports Found assignment to exports at 1012
+| 2026-02-11T06:35:28.140Z expo:babel:exports Found assignment to module.exports or exports at 325
+| 2026-02-11T06:35:28.147Z expo:babel:exports Found assignment to module.exports or exports at 117
+| 2026-02-11T06:35:28.200Z expo:babel:exports Found assignment to module.exports or exports at 4
+2026-02-11T06:35:28.218Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react-is.production.js
+| 2026-02-11T06:35:28.207Z expo:babel:exports Found assignment to module.exports or exports at 360
+| 2026-02-11T06:35:28.208Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:28.233Z expo:babel:exports Found assignment to module.exports or exports at 154
+| 2026-02-11T06:35:28.306Z expo:babel:exports Found assignment to module.exports or exports at 40
+Web ./index.ts ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.2% (818/998)
+| 2026-02-11T06:35:28.306Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.312Z expo:babel:exports Found assignment to module.exports or exports at 39
+| 2026-02-11T06:35:28.312Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:28.315Z expo:babel:exports Found assignment to module.exports or exports at 37
+| 2026-02-11T06:35:28.351Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.354Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.356Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.359Z expo:babel:exports Found assignment to module.exports or exports at 39
+| 2026-02-11T06:35:28.361Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.364Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.367Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.369Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.371Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.371Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.371Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.380Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.389Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.406Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.410Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:28.439Z expo:babel:exports Found assignment to module.exports or exports at 140
+| 2026-02-11T06:35:28.697Z expo:babel:exports Found assignment to module.exports or exports at 18
+| 2026-02-11T06:35:28.705Z expo:babel:exports Found assignment to module.exports or exports at 22
+| 2026-02-11T06:35:28.706Z expo:babel:exports Found assignment to module.exports or exports at 2
+| 2026-02-11T06:35:28.707Z expo:babel:exports Found assignment to module.exports or exports at 28
+| 2026-02-11T06:35:28.709Z expo:babel:exports Found assignment to module.exports or exports at 59
+| 2026-02-11T06:35:28.710Z expo:babel:exports Found assignment to module.exports or exports at 80
+| 2026-02-11T06:35:28.711Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.711Z expo:babel:exports Found assignment to module.exports or exports at 2
+| 2026-02-11T06:35:28.714Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.744Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:28.744Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.746Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.746Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.746Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:28.748Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.749Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.754Z expo:babel:exports Found assignment to module.exports or exports at 36
+| 2026-02-11T06:35:28.758Z expo:babel:exports Found assignment to module.exports or exports at 20
+| 2026-02-11T06:35:28.770Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:28.854Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:28.858Z expo:babel:exports Found assignment to module.exports or exports at 625
+| 2026-02-11T06:35:28.867Z expo:babel:exports Found assignment to module.exports or exports at 74
+| 2026-02-11T06:35:28.929Z expo:babel:exports Found assignment to module.exports or exports at 63
+| 2026-02-11T06:35:28.941Z expo:babel:exports Found assignment to module.exports or exports at 496
+| 2026-02-11T06:35:28.988Z expo:babel:exports Found assignment to module.exports or exports at 4
+2026-02-11T06:35:28.991Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react-refresh-runtime.production.min.js
+| 2026-02-11T06:35:28.994Z expo:babel:exports Found assignment to module.exports or exports at 1
+| 2026-02-11T06:35:29.004Z expo:babel:exports Found assignment to module.exports or exports at 44
+| 2026-02-11T06:35:29.004Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.005Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.006Z expo:babel:exports Found assignment to module.exports or exports at 9
+| 2026-02-11T06:35:29.011Z expo:babel:exports Found assignment to module.exports or exports at 171
+| 2026-02-11T06:35:29.018Z expo:babel:exports Found assignment to module.exports or exports at 33
+| 2026-02-11T06:35:29.024Z expo:babel:exports Found assignment to module.exports or exports at 445
+2026-02-11T06:35:29.039Z expo:start:server:metro:multi-platform Redirecting module "/expo-project/node_modules/react-native-web/dist/exports/BackHandler/index.js" to shim
+2026-02-11T06:35:29.061Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:29.061Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+| 2026-02-11T06:35:29.031Z expo:babel:exports Found assignment to module.exports or exports at 572
+| 2026-02-11T06:35:29.051Z expo:babel:exports Found assignment to module.exports or exports at 12
+| 2026-02-11T06:35:29.054Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:29.063Z expo:babel:exports Found assignment to module.exports or exports at 81
+| 2026-02-11T06:35:29.070Z expo:babel:exports Found assignment to module.exports or exports at 15
+| 2026-02-11T06:35:29.073Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:29.095Z expo:babel:exports Found assignment to module.exports or exports at 645
+| 2026-02-11T06:35:29.100Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:29.100Z expo:babel:exports Found assignment to module.exports or exports at 160
+| 2026-02-11T06:35:29.101Z expo:babel:exports Found assignment to module.exports or exports at 13
+| 2026-02-11T06:35:29.107Z expo:babel:exports Found assignment to module.exports or exports at 10
+| 2026-02-11T06:35:29.109Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.111Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.111Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.112Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.113Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.115Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.117Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.120Z expo:babel:exports Found assignment to module.exports or exports at 297
+| 2026-02-11T06:35:29.124Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:29.125Z expo:babel:exports Found assignment to module.exports or exports at 18
+| 2026-02-11T06:35:29.125Z expo:babel:exports Found assignment to module.exports or exports at 1
+| 2026-02-11T06:35:29.126Z expo:babel:exports Found assignment to module.exports or exports at 24876
+| 2026-02-11T06:35:29.127Z expo:babel:exports Found assignment to module.exports or exports at 18
+| 2026-02-11T06:35:29.129Z expo:babel:exports Found assignment to module.exports or exports at 20
+| 2026-02-11T06:35:29.130Z expo:babel:exports Found assignment to module.exports or exports at 44
+| 2026-02-11T06:35:29.138Z expo:babel:exports Found assignment to module.exports or exports at 18
+| 2026-02-11T06:35:29.145Z expo:babel:exports Found assignment to module.exports or exports at 78
+| 2026-02-11T06:35:29.153Z expo:babel:exports Found assignment to module.exports or exports at 215
+| 2026-02-11T06:35:29.177Z expo:babel:exports Found assignment to module.exports or exports at 32
+| 2026-02-11T06:35:29.189Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:29.193Z expo:babel:exports Found assignment to module.exports or exports at 3
+| 2026-02-11T06:35:29.234Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.234Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.235Z expo:babel:exports Found assignment to module.exports or exports at 32
+| 2026-02-11T06:35:29.236Z expo:babel:exports Found assignment to module.exports or exports at 11
+2026-02-11T06:35:29.275Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/react-is.production.min.js
+| 2026-02-11T06:35:29.244Z expo:babel:exports Found assignment to module.exports or exports at 182
+| 2026-02-11T06:35:29.260Z expo:babel:exports Found assignment to module.exports or exports at 12
+| 2026-02-11T06:35:29.261Z expo:babel:exports Found assignment to module.exports or exports at 14
+| 2026-02-11T06:35:29.262Z expo:babel:exports Found assignment to module.exports or exports at 10
+| 2026-02-11T06:35:29.262Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:29.266Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.266Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.269Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.269Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.269Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.271Z expo:babel:exports Found assignment to module.exports or exports at 47
+| 2026-02-11T06:35:29.273Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:29.275Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.275Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.277Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.279Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.279Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.279Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.279Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.280Z expo:babel:exports Found assignment to module.exports or exports at 319
+| 2026-02-11T06:35:29.282Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.283Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.283Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.283Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.285Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.286Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.286Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.286Z expo:babel:exports Found assignment to module.exports or exports at 15
+| 2026-02-11T06:35:29.288Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:29.290Z expo:babel:exports Found assignment to module.exports or exports at 9
+| 2026-02-11T06:35:29.290Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.290Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.291Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.291Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.292Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.292Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:29.294Z expo:babel:exports Found assignment to module.exports or exports at 15
+| 2026-02-11T06:35:29.298Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.300Z expo:babel:exports Found assignment to module.exports or exports at 44
+| 2026-02-11T06:35:29.302Z expo:babel:exports Found assignment to module.exports or exports at 106
+| 2026-02-11T06:35:29.321Z expo:babel:exports Found assignment to module.exports or exports at 11
+| 2026-02-11T06:35:29.321Z expo:babel:exports Found assignment to module.exports or exports at 17
+| 2026-02-11T06:35:29.322Z expo:babel:exports Found assignment to module.exports or exports at 42
+| 2026-02-11T06:35:29.324Z expo:babel:exports Found assignment to module.exports or exports at 28
+| 2026-02-11T06:35:29.325Z expo:babel:exports Found assignment to module.exports or exports at 136
+| 2026-02-11T06:35:29.328Z expo:babel:exports Found assignment to module.exports or exports at 1
+| 2026-02-11T06:35:29.329Z expo:babel:exports Found assignment to exports at 9
+| 2026-02-11T06:35:29.343Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.352Z expo:babel:exports Found assignment to module.exports or exports at 22
+| 2026-02-11T06:35:29.352Z expo:babel:exports Found assignment to module.exports or exports at 122
+| 2026-02-11T06:35:29.352Z expo:babel:exports Found assignment to module.exports or exports at 10
+| 2026-02-11T06:35:29.354Z expo:babel:exports Found assignment to module.exports or exports at 11
+| 2026-02-11T06:35:29.354Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.357Z expo:babel:exports Found assignment to module.exports or exports at 192
+| 2026-02-11T06:35:29.358Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.359Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.360Z expo:babel:exports Found assignment to module.exports or exports at 22
+| 2026-02-11T06:35:29.362Z expo:babel:exports Found assignment to module.exports or exports at 42
+| 2026-02-11T06:35:29.362Z expo:babel:exports Found assignment to module.exports or exports at 23
+| 2026-02-11T06:35:29.365Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:29.366Z expo:babel:exports Found assignment to module.exports or exports at 10
+| 2026-02-11T06:35:29.367Z expo:babel:exports Found assignment to module.exports or exports at 6
+| 2026-02-11T06:35:29.374Z expo:babel:exports Found assignment to module.exports or exports at 52
+| 2026-02-11T06:35:29.374Z expo:babel:exports Found assignment to module.exports or exports at 8
+| 2026-02-11T06:35:29.381Z expo:babel:exports Found assignment to module.exports or exports at 54
+| 2026-02-11T06:35:29.382Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.386Z expo:babel:exports Found assignment to module.exports or exports at 4
+| 2026-02-11T06:35:29.386Z expo:babel:exports Found assignment to module.exports or exports at 69
+| 2026-02-11T06:35:29.390Z expo:babel:exports Found assignment to module.exports or exports at 80
+| 2026-02-11T06:35:29.396Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.396Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.396Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.397Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.398Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.398Z expo:babel:exports Found assignment to module.exports or exports at 5
+| 2026-02-11T06:35:29.406Z expo:babel:exports Found assignment to module.exports or exports at 7
+| 2026-02-11T06:35:29.784Z expo:babel:exports Found assignment to module.exports or exports at 4
+2026-02-11T06:35:29.786Z expo:start:server:metro:multi-platform Skipping production module: ./cjs/scheduler.production.js
+| 2026-02-11T06:35:29.802Z expo:babel:exports Found assignment to module.exports or exports at 182
+2026-02-11T06:35:29.881Z expo:metro-config:serializer:env-var Injecting environment variables in virtual module.
+Web Bundled 5149ms index.ts (1418 modules)
+2026-02-11T06:35:31.161Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:31.161Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:33.711Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:33.711Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:35.796Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:35.796Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+[METRO] Request: GET /index.ts.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable
+Web ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+2026-02-11T06:35:36.000Z expo:metro-config:serializer:env-var Injecting environment variables in virtual module.
+Web Bundled 60ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+2026-02-11T06:35:37.894Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:37.894Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:38.074Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:38.635Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:38.423Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:38.622Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:39.333Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:39.324Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+2026-02-11T06:35:39.384Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:39.384Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:39.982Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:39.982Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:39.900Z] [Web] [LOG] LandingScreen: No active session
+[NATIVELY-LOGS] Received POST request
+[NATIVELY-LOGS] Writing log: [2026-02-11T06:35:39.792Z] [Web] [LOG] LandingScreen: Checking authentication status...
+2026-02-11T06:35:42.069Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:42.069Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:44.156Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:44.156Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:46.228Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:46.228Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:48.314Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:48.314Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:50.409Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:50.409Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:52.499Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:52.500Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:54.579Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:54.579Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:56.648Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:56.649Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:35:58.721Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:35:58.722Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:00.808Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:00.808Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:02.887Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:02.888Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:04.977Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:04.977Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:07.059Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:07.060Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:09.177Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:09.177Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:11.249Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:11.249Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:13.339Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:13.340Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:15.430Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:15.430Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:17.518Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:17.518Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:19.606Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:19.607Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:21.792Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:21.792Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:23.880Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:23.880Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:25.968Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:25.968Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:28.059Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:28.059Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:30.196Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:30.196Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:32.265Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:32.265Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:34.347Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:34.347Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:36.440Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:36.440Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:38.525Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:38.525Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:40.611Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:40.612Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:42.694Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:42.694Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:44.805Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:44.805Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:46.894Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:46.894Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:48.981Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:48.981Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:51.076Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:51.076Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:53.168Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:53.168Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:55.251Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:55.251Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:57.337Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:57.337Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:36:59.424Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:36:59.424Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:01.514Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:01.514Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:03.597Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:03.597Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:05.680Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:05.680Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:07.766Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:07.766Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:09.837Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:09.837Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:11.908Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:11.908Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:13.996Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:13.997Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:16.072Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:16.073Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:18.168Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:18.168Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:20.251Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:20.251Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:22.337Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:22.337Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:24.426Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:24.426Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:26.514Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:26.514Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:28.600Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:28.600Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:30.682Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:30.682Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:32.762Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:32.762Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:34.856Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:34.856Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:36.943Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:36.943Z expo:start:server:metro:router Using app as the root directory for Expo Router.
+2026-02-11T06:37:39.031Z expo:start:server:middleware:manifest Resolved entry point: index.ts (project root: /expo-project)
+2026-02-11T06:37:39.032Z expo:start:server:metro:router Using app as the root directory for Expo Router.
