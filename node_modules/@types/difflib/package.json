@@ -1,0 +1,35 @@
+{
+    "name": "@types/difflib",
+    "version": "0.2.7",
+    "description": "TypeScript definitions for difflib",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/difflib",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "majames",
+            "githubUsername": "majames",
+            "url": "https://github.com/majames"
+        },
+        {
+            "name": "Hugues Le Gendre",
+            "githubUsername": "hlegendre",
+            "url": "https://github.com/hlegendre"
+        },
+        {
+            "name": "Antonio Min",
+            "githubUsername": "antoniomin",
+            "url": "https://github.com/antoniomin"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/difflib"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "bbfdf82a7e96d7210ffdb3fdf72446420648547938802d6ac3ebd693494d4745",
+    "typeScriptVersion": "4.6"
+}

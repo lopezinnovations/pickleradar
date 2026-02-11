@@ -1,0 +1,401 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.withXcodeChanges = void 0;
+const xcode_1 = require("@bacons/xcode");
+const fs_1 = __importDefault(require("fs"));
+const glob_1 = require("glob");
+const path_1 = __importDefault(require("path"));
+const target_1 = require("./target");
+const with_bacons_xcode_1 = require("./with-bacons-xcode");
+const assert_1 = __importDefault(require("assert"));
+const configuration_list_1 = require("./configuration-list");
+const util_1 = require("./util");
+const withXcodeChanges = (config, props) => {
+    return (0, with_bacons_xcode_1.withXcodeProjectBeta)(config, async (config) => {
+        await applyXcodeChanges(config, config.modResults, props);
+        return config;
+    });
+};
+exports.withXcodeChanges = withXcodeChanges;
+// function getMainMarketingVersion(project: XcodeProject) {
+//   const mainTarget = getMainAppTarget(project);
+//   const config = mainTarget.getDefaultConfiguration();
+//   const info = config.getInfoPlist();
+//   const version = info.CFBundleShortVersionString;
+//   // console.log('getMainMarketingVersion', mainTarget.getDisplayName(), version)
+//   if (!version || version === "$(MARKETING_VERSION)") {
+//     // console.log('getMainMarketingVersion.fallback', config.props.buildSettings.MARKETING_VERSION)
+//     return config.props.buildSettings.MARKETING_VERSION;
+//   }
+//   return version;
+// }
+async function applyXcodeChanges(config, project, props) {
+    var _a, _b;
+    var _c;
+    const mainAppTarget = (0, target_1.getMainAppTarget)(project);
+    // Special setting for share extensions.
+    if ((0, target_1.needsEmbeddedSwift)(props.type)) {
+        // Add ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES to the main app target
+        mainAppTarget.setBuildSetting("ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES", "YES");
+    }
+    function getExtensionTargets() {
+        return project.rootObject.props.targets.filter((target) => {
+            return (xcode_1.PBXNativeTarget.is(target) && (0, target_1.isNativeTargetOfType)(target, props.type));
+        });
+    }
+    const targets = getExtensionTargets();
+    const productName = props.productName;
+    let targetToUpdate = (_a = targets.find((target) => target.props.productName === productName)) !== null && _a !== void 0 ? _a : targets[0];
+    if (targetToUpdate) {
+        (0, util_1.warnOnce)(`Target "${targetToUpdate.props.productName}" already exists, updating instead of creating a new one`);
+    }
+    const magicCwd = path_1.default.join(config._internal.projectRoot, "ios", props.cwd);
+    function applyDevelopmentTeamIdToTargets() {
+        var _a, _b;
+        var _c, _d, _e;
+        // Set to the provided value or any value.
+        const devTeamId = props.teamId ||
+            project.rootObject.props.targets
+                .map((target) => target.getDefaultBuildSetting("DEVELOPMENT_TEAM"))
+                .find(Boolean);
+        project.rootObject.props.targets.forEach((target) => {
+            if (devTeamId) {
+                target.setBuildSetting("DEVELOPMENT_TEAM", devTeamId);
+            }
+            else {
+                target.removeBuildSetting("DEVELOPMENT_TEAM");
+            }
+        });
+        for (const target of project.rootObject.props.targets) {
+            (_a = (_c = project.rootObject.props.attributes).TargetAttributes) !== null && _a !== void 0 ? _a : (_c.TargetAttributes = {});
+            // idk, attempting to prevent EAS Build from failing when it codesigns
+            (_b = (_d = project.rootObject.props.attributes.TargetAttributes)[_e = target.uuid]) !== null && _b !== void 0 ? _b : (_d[_e] = {
+                CreatedOnToolsVersion: "14.3",
+                ProvisioningStyle: "Automatic",
+                DevelopmentTeam: devTeamId,
+            });
+        }
+    }
+    function configureTargetWithKnownSettings(target) {
+        var _a, _b;
+        if ((_a = props.colors) === null || _a === void 0 ? void 0 : _a.$accent) {
+            target.setBuildSetting("ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME", "$accent");
+        }
+        else {
+            target.removeBuildSetting("ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME");
+        }
+        if ((_b = props.colors) === null || _b === void 0 ? void 0 : _b.$widgetBackground) {
+            target.setBuildSetting("ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME", "$widgetBackground");
+        }
+        else {
+            target.removeBuildSetting("ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME");
+        }
+    }
+    function configureTargetWithEntitlements(target) {
+        const entitlements = (0, glob_1.globSync)("*.entitlements", {
+            absolute: false,
+            cwd: magicCwd,
+        });
+        if (entitlements.length > 0) {
+            target.setBuildSetting("CODE_SIGN_ENTITLEMENTS", props.cwd + "/" + entitlements[0]);
+        }
+        else {
+            target.removeBuildSetting("CODE_SIGN_ENTITLEMENTS");
+        }
+        return entitlements;
+        // CODE_SIGN_ENTITLEMENTS = MattermostShare/MattermostShare.entitlements;
+    }
+    function syncMarketingVersions() {
+        var _a;
+        // In Expo managed projects, the version will always be overwritten. 
+        // Because the overwrite happens after this script runs, we just set it to the config value.
+        const mainVersion = ((_a = config.ios) === null || _a === void 0 ? void 0 : _a.version) || config.version || '1.0.0';
+        // const mainVersion = getMainMarketingVersion(project);
+        project.rootObject.props.targets.forEach((target) => {
+            if (xcode_1.PBXNativeTarget.is(target)) {
+                target.setBuildSetting("MARKETING_VERSION", mainVersion);
+            }
+        });
+    }
+    function configureTargetWithPreview(target) {
+        const assets = (0, glob_1.globSync)("preview/*.xcassets", {
+            absolute: true,
+            cwd: magicCwd,
+        })[0];
+        if (assets) {
+            target.setBuildSetting("DEVELOPMENT_ASSET_PATHS", `"${props.cwd + "/preview"}"`);
+        }
+        else {
+            target.removeBuildSetting("DEVELOPMENT_ASSET_PATHS");
+        }
+        return assets;
+    }
+    function configureJsExport(target) {
+        if (props.exportJs) {
+            const shellScript = mainAppTarget.props.buildPhases.find((phase) => xcode_1.PBXShellScriptBuildPhase.is(phase) &&
+                phase.props.name === "Bundle React Native code and images");
+            if (!shellScript) {
+                console.warn('Failed to find the "Bundle React Native code and images" build phase in the main app target. Will not be able to configure: ' +
+                    props.type);
+                return;
+            }
+            const currentShellScript = target.props.buildPhases.find((phase) => xcode_1.PBXShellScriptBuildPhase.is(phase) &&
+                phase.props.name === "Bundle React Native code and images");
+            if (!currentShellScript) {
+                // Link the same build script across targets to simplify updates.
+                target.props.buildPhases.push(shellScript);
+                // Alternatively, create a duplicate.
+                // target.createBuildPhase(PBXShellScriptBuildPhase, {
+                //   ...shellScript.props,
+                // });
+            }
+            else {
+                // If there already is a bundler shell script and it's not the one from the main target, then update it.
+                if (currentShellScript.uuid !== shellScript.uuid) {
+                    for (const key in shellScript.props) {
+                        // @ts-expect-error
+                        currentShellScript.props[key] = shellScript.props[key];
+                    }
+                }
+            }
+        }
+        else {
+            // Remove the shell script build phase if it exists from a subsequent build.
+            const shellScript = target.props.buildPhases.findIndex((phase) => xcode_1.PBXShellScriptBuildPhase.is(phase) &&
+                phase.props.name === "Bundle React Native code and images");
+            if (shellScript !== -1) {
+                target.props.buildPhases.splice(shellScript, 1);
+            }
+        }
+    }
+    if (targetToUpdate) {
+        // Remove existing build phases
+        targetToUpdate.props.buildConfigurationList.props.buildConfigurations.forEach((config) => {
+            config.getReferrers().forEach((ref) => {
+                ref.removeReference(config.uuid);
+            });
+            config.removeFromProject();
+        });
+        // Remove existing build configuration list
+        targetToUpdate.props.buildConfigurationList
+            .getReferrers()
+            .forEach((ref) => {
+            ref.removeReference(targetToUpdate.props.buildConfigurationList.uuid);
+        });
+        targetToUpdate.props.buildConfigurationList.removeFromProject();
+        // Create new build phases
+        targetToUpdate.props.buildConfigurationList =
+            (0, configuration_list_1.createConfigurationListForType)(project, props);
+    }
+    else {
+        const productType = (0, target_1.productTypeForType)(props.type);
+        const isExtension = productType === "com.apple.product-type.app-extension";
+        const isExtensionKit = productType === "com.apple.product-type.extensionkit-extension";
+        const appExtensionBuildFile = xcode_1.PBXBuildFile.create(project, {
+            fileRef: xcode_1.PBXFileReference.create(project, {
+                explicitFileType: isExtensionKit
+                    ? "wrapper.extensionkit-extension"
+                    : "wrapper.app-extension",
+                includeInIndex: 0,
+                path: props.name + (isExtension ? ".appex" : ".app"),
+                sourceTree: "BUILT_PRODUCTS_DIR",
+            }),
+            settings: {
+                ATTRIBUTES: ["RemoveHeadersOnCopy"],
+            },
+        });
+        project.rootObject.ensureProductGroup().props.children.push(
+        // @ts-expect-error
+        appExtensionBuildFile.props.fileRef);
+        targetToUpdate = project.rootObject.createNativeTarget({
+            buildConfigurationList: (0, configuration_list_1.createConfigurationListForType)(project, props),
+            name: props.name,
+            productName,
+            // @ts-expect-error
+            productReference: appExtensionBuildFile.props.fileRef /* alphaExtension.appex */,
+            productType: productType,
+        });
+        const copyPhase = mainAppTarget.getCopyBuildPhaseForTarget(targetToUpdate);
+        if (!copyPhase.getBuildFile(appExtensionBuildFile.props.fileRef)) {
+            copyPhase.props.files.push(appExtensionBuildFile);
+        }
+    }
+    configureTargetWithKnownSettings(targetToUpdate);
+    configureTargetWithEntitlements(targetToUpdate);
+    configureTargetWithPreview(targetToUpdate);
+    targetToUpdate.ensureFrameworks(props.frameworks);
+    targetToUpdate.getSourcesBuildPhase();
+    targetToUpdate.getResourcesBuildPhase();
+    configureJsExport(targetToUpdate);
+    mainAppTarget.addDependency(targetToUpdate);
+    const assetsDir = path_1.default.join(magicCwd, "assets");
+    // TODO: Maybe just limit this to Safari extensions?
+    const explicitFolders = !fs_1.default.existsSync(assetsDir)
+        ? []
+        : fs_1.default
+            .readdirSync(assetsDir)
+            .filter((file) => file !== ".DS_Store" &&
+            fs_1.default.statSync(path_1.default.join(assetsDir, file)).isDirectory())
+            .map((file) => path_1.default.join("assets", file));
+    const protectedGroup = ensureProtectedGroup(project, path_1.default.dirname(props.cwd));
+    const sharedAssets = (0, glob_1.globSync)("_shared/*", {
+        absolute: false,
+        cwd: magicCwd,
+    });
+    // Also look for global shared assets in the parent targets/_shared directory
+    const targetsDir = path_1.default.dirname(magicCwd);
+    const globalSharedAssets = (0, glob_1.globSync)("_shared/*", {
+        absolute: false,
+        cwd: targetsDir,
+    });
+    let syncRootGroup = protectedGroup.props.children.find((child) => child.props.path === path_1.default.basename(props.cwd));
+    if (!syncRootGroup) {
+        syncRootGroup = xcode_1.PBXFileSystemSynchronizedRootGroup.create(project, {
+            path: path_1.default.basename(props.cwd),
+            exceptions: [
+                xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet.create(project, {
+                    target: targetToUpdate,
+                    membershipExceptions: [
+                        // TODO: What other files belong here, why is this here?
+                        "Info.plist",
+                        // Exclude the config path
+                        path_1.default.relative(magicCwd, props.configPath),
+                    ].sort(),
+                }),
+            ],
+            explicitFileTypes: {},
+            explicitFolders: [
+                // Replaces the previous `lastKnownFileType: "folder",` system that's used in things like Safari extensions to include folders of assets.
+                // ex: `"Resources/_locales", "Resources/images"`
+                ...explicitFolders,
+            ],
+            sourceTree: "<group>",
+        });
+        if (!targetToUpdate.props.fileSystemSynchronizedGroups) {
+            targetToUpdate.props.fileSystemSynchronizedGroups = [];
+        }
+        targetToUpdate.props.fileSystemSynchronizedGroups.push(syncRootGroup);
+        protectedGroup.props.children.push(syncRootGroup);
+    }
+    // If there's a `_shared` folder, create a PBXFileSystemSynchronizedBuildFileExceptionSet and set the `target` to the main app target. Then add exceptions to the new target's PBXFileSystemSynchronizedRootGroup's exceptions. Finally, ensure the relative paths for each file in the _shared folder are added to the `membershipExceptions` array.
+    (0, assert_1.default)(syncRootGroup instanceof xcode_1.PBXFileSystemSynchronizedRootGroup);
+    (_b = (_c = syncRootGroup.props).exceptions) !== null && _b !== void 0 ? _b : (_c.exceptions = []);
+    const existingExceptionSet = syncRootGroup.props.exceptions.find((exception) => exception instanceof xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet &&
+        exception.props.target === mainAppTarget);
+    if (sharedAssets.length) {
+        const exceptionSet = existingExceptionSet ||
+            xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet.create(project, {
+                target: mainAppTarget,
+            });
+        exceptionSet.props.membershipExceptions = sharedAssets.sort();
+        syncRootGroup.props.exceptions.push(exceptionSet);
+    }
+    else {
+        // Remove the exception set if there are no shared assets.
+        existingExceptionSet === null || existingExceptionSet === void 0 ? void 0 : existingExceptionSet.removeFromProject();
+    }
+    function configureTargetWithGlobalSharedAssets(target) {
+        var _a;
+        var _b;
+        if (!globalSharedAssets.length)
+            return;
+        // Create or find the global shared synchronized root group
+        let globalSharedSyncGroup = protectedGroup.props.children.find((child) => child.props.path === "_shared" &&
+            child instanceof xcode_1.PBXFileSystemSynchronizedRootGroup);
+        if (!globalSharedSyncGroup) {
+            globalSharedSyncGroup = xcode_1.PBXFileSystemSynchronizedRootGroup.create(project, {
+                path: "_shared",
+                exceptions: [
+                    // Create exception set for the main app target
+                    xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet.create(project, {
+                        target: mainAppTarget,
+                        membershipExceptions: globalSharedAssets.sort(),
+                    }),
+                    // Create exception set for the extension target
+                    xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet.create(project, {
+                        target: target,
+                        membershipExceptions: globalSharedAssets.sort(),
+                    }),
+                ],
+                explicitFileTypes: {},
+                explicitFolders: [],
+                sourceTree: "<group>",
+            });
+            // Add to both targets' fileSystemSynchronizedGroups
+            if (!mainAppTarget.props.fileSystemSynchronizedGroups) {
+                mainAppTarget.props.fileSystemSynchronizedGroups = [];
+            }
+            mainAppTarget.props.fileSystemSynchronizedGroups.push(globalSharedSyncGroup);
+            if (!target.props.fileSystemSynchronizedGroups) {
+                target.props.fileSystemSynchronizedGroups = [];
+            }
+            target.props.fileSystemSynchronizedGroups.push(globalSharedSyncGroup);
+            protectedGroup.props.children.push(globalSharedSyncGroup);
+        }
+        else {
+            // Update existing synchronized group with current global shared assets
+            (_a = (_b = globalSharedSyncGroup.props).exceptions) !== null && _a !== void 0 ? _a : (_b.exceptions = []);
+            // Update or create exception set for main app target
+            let mainAppExceptionSet = globalSharedSyncGroup.props.exceptions.find((exception) => exception instanceof xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet &&
+                exception.props.target === mainAppTarget);
+            if (!mainAppExceptionSet) {
+                mainAppExceptionSet =
+                    xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet.create(project, {
+                        target: mainAppTarget,
+                        membershipExceptions: globalSharedAssets.sort(),
+                    });
+                globalSharedSyncGroup.props.exceptions.push(mainAppExceptionSet);
+            }
+            else {
+                mainAppExceptionSet.props.membershipExceptions =
+                    globalSharedAssets.sort();
+            }
+            // Update or create exception set for extension target
+            let extensionExceptionSet = globalSharedSyncGroup.props.exceptions.find((exception) => exception instanceof xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet &&
+                exception.props.target === target);
+            if (!extensionExceptionSet) {
+                extensionExceptionSet =
+                    xcode_1.PBXFileSystemSynchronizedBuildFileExceptionSet.create(project, {
+                        target: target,
+                        membershipExceptions: globalSharedAssets.sort(),
+                    });
+                globalSharedSyncGroup.props.exceptions.push(extensionExceptionSet);
+            }
+            else {
+                extensionExceptionSet.props.membershipExceptions =
+                    globalSharedAssets.sort();
+            }
+            // Ensure the current target has the synchronized group in its fileSystemSynchronizedGroups
+            if (!target.props.fileSystemSynchronizedGroups) {
+                target.props.fileSystemSynchronizedGroups = [];
+            }
+            // Check if this target already has the synchronized group
+            const hasGroup = target.props.fileSystemSynchronizedGroups.some((group) => group === globalSharedSyncGroup);
+            if (!hasGroup) {
+                target.props.fileSystemSynchronizedGroups.push(globalSharedSyncGroup);
+            }
+        }
+    }
+    configureTargetWithGlobalSharedAssets(targetToUpdate);
+    applyDevelopmentTeamIdToTargets();
+    syncMarketingVersions();
+    return project;
+}
+const PROTECTED_GROUP_NAME = "expo:targets";
+function ensureProtectedGroup(project, relativePath = "../targets") {
+    const hasProtectedGroup = project.rootObject.props.mainGroup
+        .getChildGroups()
+        .find((group) => group.getDisplayName() === PROTECTED_GROUP_NAME);
+    const protectedGroup = hasProtectedGroup !== null && hasProtectedGroup !== void 0 ? hasProtectedGroup : xcode_1.PBXGroup.create(project, {
+        name: PROTECTED_GROUP_NAME,
+        path: relativePath,
+        sourceTree: "<group>",
+    });
+    if (!hasProtectedGroup) {
+        project.rootObject.props.mainGroup.props.children.unshift(protectedGroup);
+    }
+    return protectedGroup;
+}

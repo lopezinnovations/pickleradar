@@ -1,0 +1,522 @@
+[2026-02-11T02:47:55.593Z] [Android] [WARN] `expo-notifications` functionality is not fully supported in Expo Go:
+We recommend you instead use a development build to avoid limitations. Learn more: https://expo.fyi/dev-client.
+[2026-02-11T02:47:55.880Z] [Android] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:47:55.567Z] [Android] [ERROR] expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use a development build instead of Expo Go. Read more at https://docs.expo.dev/develop/development-builds/introduction/.
+[2026-02-11T02:47:55.632Z] [Android] [LOG] CourtsMapScreen: Running in Expo Go, maps not available
+[2026-02-11T02:47:55.343Z] [Android] [LOG] Running "main" with {"rootTag":1,"initialProps":{"exp":{"initialUri":"exp://bttkjxq-anonymous-8081.exp.direct","shell":false,"manifestString":"{\"id\":\"2de50585-fcf7-46a0-acac-989ac522aee8\",\"createdAt\":\"2026-02-11T02:47:42.474Z\",\"runtimeVersion\":\"exposdk:54.0.0\",\"launchAsset\":{\"key\":\"bundle\",\"contentType\":\"application\\/javascript\",\"url\":\"http:\\/\\/bttkjxq-anonymous-8081.exp.direct\\/index.ts.bundle?platform=android&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable\"},\"assets\":[],\"metadata\":{},\"extra\":{\"eas\":{},\"expoClient\":{\"name\":\"PickleRadar\",\"slug\":\"PickleRadar\",\"version\":\"1.0.6\",\"orientation\":\"portrait\",\"icon\":\".\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\",\"userInterfaceStyle\":\"automatic\",\"newArchEnabled\":true,\"splash\":{\"image\":\".\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\",\"resizeMode\":\"contain\",\"backgroundColor\":\"#1B4D3E\",\"imageUrl\":\"http:\\/\\/bttkjxq-anonymous-8081.exp.direct\\/assets\\/.\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\"},\"ios\":{\"supportsTablet\":true,\"bundleIdentifier\":\"com.anonymous.PickleRadar\",\"config\":{\"googleMapsApiKey\":\"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"},\"infoPlist\":{\"ITSAppUsesNonExemptEncryption\":false,\"NSLocationWhenInUseUsageDescription\":\"PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features.\",\"NSCameraUsageDescription\":\"PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background.\",\"NSPhotoLibraryUsageDescription\":\"PickleRadar needs access to your photo library to allow you to upload profile photos or court images.\",\"UIBackgroundModes\":[\"remote-notification\"]},\"usesAppleSignIn\":true,\"entitlements\":{\"com.apple.developer.applesignin\":[\"Default\"]}},\"android\":{\"adaptiveIcon\":{\"foregroundImage\":\".\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\",\"backgroundColor\":\"#1B4D3E\",\"foregroundImageUrl\":\"http:\\/\\/bttkjxq-anonymous-8081.exp.direct\\/assets\\/.\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\"},\"edgeToEdgeEnabled\":true,\"package\":\"com.lopezinnovations.pickleradar\",\"permissions\":[\"android.permission.ACCESS_COARSE_LOCATION\",\"android.permission.ACCESS_FINE_LOCATION\",\"android.permission.CAMERA\",\"android.permission.ACCESS_COARSE_LOCATION\",\"android.permission.ACCESS_FINE_LOCATION\",\"android.permission.RECORD_AUDIO\"],\"config\":{\"googleMaps\":{\"apiKey\":\"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"}},\"versionCode\":7,\"privacyPolicy\":\"https:\\/\\/pickleradar.app\\/privacy-policy\"},\"web\":{\"favicon\":\".\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\",\"bundler\":\"metro\"},\"plugins\":[\"expo-font\",\"expo-router\",\"expo-web-browser\",[\"expo-location\",{\"locationAlwaysAndWhenInUsePermission\":\"PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features.\"}],[\"expo-notifications\",{\"icon\":\".\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\",\"color\":\"#1B4D3E\",\"sounds\":[],\"mode\":\"production\"}],[\"expo-image-picker\",{\"photosPermission\":\"PickleRadar needs access to your photo library to allow you to upload profile photos or court images.\",\"cameraPermission\":\"PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background.\"}],[\"react-native-maps\",{\"iosGoogleMapsApiKey\":\"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\"androidGoogleMapsApiKey\":\"AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"}]],\"experiments\":{\"typedRoutes\":true},\"extra\":{\"router\":{},\"supabaseUrl\":\"https:\\/\\/biczbxmaisdxpcbplddr.supabase.co\",\"supabaseAnonKey\":\"sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk\"},\"scheme\":\"PickleRadar\",\"privacyPolicy\":\"https:\\/\\/lopezinnovations.com#privacy-policy\",\"_internal\":{\"isDebug\":true,\"projectRoot\":\"\\/expo-project\",\"dynamicConfigPath\":{},\"staticConfigPath\":\"\\/expo-project\\/app.json\",\"packageJsonPath\":\"\\/expo-project\\/package.json\",\"pluginHistory\":{\"expo-font\":{\"name\":\"expo-font\",\"version\":\"14.0.11\"},\"expo-web-browser\":{\"name\":\"expo-web-browser\",\"version\":\"15.0.10\"},\"expo-location\":{\"name\":\"expo-location\",\"version\":\"19.0.8\"},\"expo-notifications\":{\"name\":\"expo-notifications\",\"version\":\"0.32.16\"},\"expo-image-picker\":{\"name\":\"expo-image-picker\",\"version\":\"17.0.10\"}}},\"sdkVersion\":\"54.0.0\",\"platforms\":[\"ios\",\"android\",\"web\"],\"iconUrl\":\"http:\\/\\/bttkjxq-anonymous-8081.exp.direct\\/assets\\/.\\/assets\\/images\\/1df577f2-3672-4bc4-a347-721aa5fb58e0.png\",\"hostUri\":\"bttkjxq-anonymous-8081.exp.direct\"},\"expoGo\":{\"debuggerHost\":\"bttkjxq-anonymous-8081.exp.direct\",\"developer\":{\"tool\":\"expo-cli\",\"projectRoot\":\"\\/expo-project\"},\"packagerOpts\":{\"dev\":true},\"mainModuleName\":\"index.ts\"},\"scopeKey\":\"@anonymous\\/PickleRadar-de1fe1c3-41d4-4c67-b9d4-6e5dab49bc62\"},\"isVerified\":true}"}},"fabric":true}
+[2026-02-11T02:47:55.888Z] [Android] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:47:56.166Z] [Android] [LOG] [InternalBytecode.js:1] LandingScreen: Checking authentication status...
+[2026-02-11T02:47:56.182Z] [Android] [LOG] [InternalBytecode.js:1] LandingScreen: No active session
+[2026-02-11T02:48:00.992Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:48:01.067Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged out
+[2026-02-11T02:48:01.045Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:48:01.068Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: None
+[2026-02-11T02:48:17.762Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Signing in with email: cdlopez8@gmail.com
+[2026-02-11T02:48:19.345Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: SIGNED_IN User logged in
+[2026-02-11T02:48:19.760Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:19.754Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:48:19.362Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:19.353Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User signed in via: email
+[2026-02-11T02:48:19.770Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:48:19.781Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:48:19.777Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:48:19.795Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User signed in successfully
+[2026-02-11T02:48:19.798Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User email: cdlopez8@gmail.com
+[2026-02-11T02:48:19.792Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Sign in successful: {"user":{"id":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","aud":"authenticated","role":"authenticated","email":"cdlopez8@gmail.com","email_confirmed_at":"2025-12-31T05:08:28.511764Z","phone":"","confirmed_at":"2025-12-31T05:08:28.511764Z","recovery_sent_at":"2026-02-10T20:14:11.973004Z","last_sign_in_at":"2026-02-11T02:48:18.848002877Z","app_metadata":{"provider":"email","providers":["email"]},"user_metadata":{"accepted_at":"2025-12-31T05:08:28.264Z","accepted_version":"v1.0","email":"cdlopez8@gmail.com","email_verified":true,"phone_verified":false,"privacy_accepted":true,"sub":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","terms_accepted":true},"identities":[{"identity_id":"8f086095-fca3-40dd-adb7-b7ed407ef245","id":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","user_id":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","identity_data":{"accepted_at":"2025-12-31T05:08:28.264Z","accepted_version":"v1.0","email":"cdlopez8@gmail.com","email_verified":false,"phone_verified":false,"privacy_accepted":true,"sub":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","terms_accepted":true},"provider":"email","last_sign_in_at":"2025-12-31T05:08:28.508531Z","created_at":"2025-12-31T05:08:28.508591Z","updated_at":"2025-12-31T05:08:28.508591Z","email":"cdlopez8@gmail.com"}],"created_at":"2025-12-31T05:08:28.500655Z","updated_at":"2026-02-11T02:48:18.871111Z","is_anonymous":false},"session":{"access_token":"eyJhbGciOiJIUzI1NiIsImtpZCI6IlJxa0t1bkFYMDJzZGZBNjgiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2JpY3pieG1haXNkeHBjYnBsZGRyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI2YWJiM2JkMS02OTc5LTRhZjItYTQwOS00MDNhZWVlY2IwZWYiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcwNzgxNjk4LCJpYXQiOjE3NzA3NzgwOTgsImVtYWlsIjoiY2Rsb3BlejhAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJhY2NlcHRlZF9hdCI6IjIwMjUtMTItMzFUMDU6MDg6MjguMjY0WiIsImFjY2VwdGVkX3ZlcnNpb24iOiJ2MS4wIiwiZW1haWwiOiJjZGxvcGV6OEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJwcml2YWN5X2FjY2VwdGVkIjp0cnVlLCJzdWIiOiI2YWJiM2JkMS02OTc5LTRhZjItYTQwOS00MDNhZWVlY2IwZWYiLCJ0ZXJtc19hY2NlcHRlZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NzA3NzgwOTh9XSwic2Vzc2lvbl9pZCI6IjkxOWMwYTkwLTUyZWMtNGViNy1hZmUzLTI0MmRjOThlODJmYyIsImlzX2Fub255bW91cyI6ZmFsc2V9.tbajnIzi4BaTafqAiytrQRhB9yZO8QBDaW6WdF91RFU","token_type":"bearer","expires_in":3600,"expires_at":1770781698,"refresh_token":"fyyzapml7o5h","user":{"id":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","aud":"authenticated","role":"authenticated","email":"cdlopez8@gmail.com","email_confirmed_at":"2025-12-31T05:08:28.511764Z","phone":"","confirmed_at":"2025-12-31T05:08:28.511764Z","recovery_sent_at":"2026-02-10T20:14:11.973004Z","last_sign_in_at":"2026-02-11T02:48:18.848002877Z","app_metadata":{"provider":"email","providers":["email"]},"user_metadata":{"accepted_at":"2025-12-31T05:08:28.264Z","accepted_version":"v1.0","email":"cdlopez8@gmail.com","email_verified":true,"phone_verified":false,"privacy_accepted":true,"sub":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","terms_accepted":true},"identities":[{"identity_id":"8f086095-fca3-40dd-adb7-b7ed407ef245","id":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","user_id":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","identity_data":{"accepted_at":"2025-12-31T05:08:28.264Z","accepted_version":"v1.0","email":"cdlopez8@gmail.com","email_verified":false,"phone_verified":false,"privacy_accepted":true,"sub":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","terms_accepted":true},"provider":"email","last_sign_in_at":"2025-12-31T05:08:28.508531Z","created_at":"2025-12-31T05:08:28.508591Z","updated_at":"2025-12-31T05:08:28.508591Z","email":"cdlopez8@gmail.com"}],"created_at":"2025-12-31T05:08:28.500655Z","updated_at":"2026-02-11T02:48:18.871111Z","is_anonymous":false},"weak_password":null}}
+[2026-02-11T02:48:19.800Z] [Android] [LOG] [InternalBytecode.js:1] User signed in successfully
+[2026-02-11T02:48:20.988Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:48:21.042Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:48:20.917Z] [Android] [LOG] useAuth: Cleaning up subscription
+[2026-02-11T02:48:21.248Z] [Android] [LOG] HomeScreen: Map tab focused, setting up auto-refresh
+[2026-02-11T02:48:21.158Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetching courts with params: {"radiusMiles":25}
+[2026-02-11T02:48:21.256Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged in
+[2026-02-11T02:48:21.261Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Valid email session found
+[2026-02-11T02:48:21.260Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: Active
+[2026-02-11T02:48:21.258Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:21.522Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:48:21.519Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:21.517Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:48:21.528Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:48:21.525Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:48:21.531Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetched 24 courts
+[2026-02-11T02:48:21.577Z] [Android] [LOG] HomeScreen: Debounced search query: 
+[2026-02-11T02:48:21.644Z] [Android] [LOG] HomeScreen: Map tab blurred, clearing auto-refresh
+[2026-02-11T02:48:21.657Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Applying bounding box filter: {"minLat":32.041511559420286,"maxLat":32.76614924057971,"minLng":-111.4472333040128,"maxLng":-110.5889548959872}
+[2026-02-11T02:48:21.721Z] [Android] [LOG] HomeScreen: Map tab focused, setting up auto-refresh
+[2026-02-11T02:48:21.650Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetching courts with params: {"userLat":32.4038304,"userLng":-111.0180941,"radiusMiles":25}
+[2026-02-11T02:48:21.731Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:48:21.733Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:21.735Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:48:21.741Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:48:21.739Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:48:21.849Z] [Android] [LOG] HomeScreen: Map tab blurred, clearing auto-refresh
+[2026-02-11T02:48:21.853Z] [Android] [LOG] [InternalBytecode.js:1] useFavorites: Fetching favorites for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:21.859Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetching courts with params: {"userId":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","userLat":32.4038304,"userLng":-111.0180941,"radiusMiles":25}
+[2026-02-11T02:48:21.863Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Applying bounding box filter: {"minLat":32.041511559420286,"maxLat":32.76614924057971,"minLng":-111.4472333040128,"maxLng":-110.5889548959872}
+[2026-02-11T02:48:23.024Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetched 24 courts
+[2026-02-11T02:48:23.089Z] [Android] [LOG] [InternalBytecode.js:1] useFavorites: Loaded 1 favorites
+[2026-02-11T02:48:23.186Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetched 24 courts
+[2026-02-11T02:48:23.192Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Successfully processed courts with activity levels, skill averages, friend counts, DUPR data, distances, and favorites
+[2026-02-11T02:48:24.422Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: User has 1 favorite courts
+[2026-02-11T02:48:24.630Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: User has 1 friends
+[2026-02-11T02:48:24.361Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Successfully processed courts with activity levels, skill averages, friend counts, DUPR data, distances, and favorites
+[2026-02-11T02:48:26.697Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:48:26.473Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Successfully processed courts with activity levels, skill averages, friend counts, DUPR data, distances, and favorites
+[2026-02-11T02:48:26.751Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:48:26.761Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: Active
+[2026-02-11T02:48:26.762Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Valid email session found
+[2026-02-11T02:48:26.764Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:26.767Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged in
+[2026-02-11T02:48:26.975Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:26.970Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:48:26.983Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:48:26.991Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:48:26.996Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:48:27.097Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:27.091Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:48:30.602Z] [Android] [LOG] User toggled filters visibility
+[2026-02-11T02:48:32.474Z] [Android] [LOG] User toggled filters visibility
+[2026-02-11T02:48:35.330Z] [Android] [LOG] User toggled filters visibility
+[2026-02-11T02:48:36.622Z] [Android] [LOG] User tapped Map View button
+[2026-02-11T02:48:36.774Z] [Android] [LOG] CourtsMapScreen: Loaded courts: 24
+[2026-02-11T02:48:36.855Z] [Android] [LOG] HomeScreen: Map tab blurred, clearing auto-refresh
+[2026-02-11T02:48:36.784Z] [Android] [LOG] CourtsMapScreen: User location: {"latitude":32.4038304,"longitude":-111.0180941}
+[2026-02-11T02:48:38.370Z] [Android] [LOG] CourtsMapScreen: Back to list pressed
+[2026-02-11T02:48:38.469Z] [Android] [LOG] HomeScreen: Map tab focused, setting up auto-refresh
+[2026-02-11T02:48:39.335Z] [Android] [LOG] User toggled filters visibility
+[2026-02-11T02:48:41.766Z] [Android] [LOG] User toggled skill level filter: Advanced
+[2026-02-11T02:48:42.223Z] [Android] [LOG] User toggled skill level filter: Intermediate
+[2026-02-11T02:48:42.769Z] [Android] [LOG] User toggled skill level filter: Beginner
+[2026-02-11T02:48:43.331Z] [Android] [LOG] User toggled skill level filter: Advanced
+[2026-02-11T02:48:43.618Z] [Android] [LOG] User toggled skill level filter: Intermediate
+[2026-02-11T02:48:43.878Z] [Android] [LOG] User toggled skill level filter: Beginner
+[2026-02-11T02:48:46.186Z] [Android] [LOG] [InternalBytecode.js:1] User tapped favorite for court: af9b2e1b-afd5-4fc5-93ed-1d28557b3200
+[2026-02-11T02:48:46.196Z] [Android] [LOG] [InternalBytecode.js:1] useFavorites: Toggling favorite for court: af9b2e1b-afd5-4fc5-93ed-1d28557b3200 Currently favorited: false
+[2026-02-11T02:48:46.545Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetching courts with params: {"userId":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","userLat":32.4038304,"userLng":-111.0180941,"radiusMiles":25}
+[2026-02-11T02:48:46.554Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Applying bounding box filter: {"minLat":32.041511559420286,"maxLat":32.76614924057971,"minLng":-111.4472333040128,"maxLng":-110.5889548959872}
+[2026-02-11T02:48:46.530Z] [Android] [LOG] [InternalBytecode.js:1] useFavorites: Successfully added favorite
+[2026-02-11T02:48:46.758Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetched 24 courts
+[2026-02-11T02:48:47.063Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: User has 1 friends
+[2026-02-11T02:48:46.904Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: User has 2 favorite courts
+[2026-02-11T02:48:47.832Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:48:47.887Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:48:48.014Z] [Android] [LOG] FriendsScreen: Screen focused
+[2026-02-11T02:48:47.940Z] [Android] [LOG] HomeScreen: Map tab blurred, clearing auto-refresh
+[2026-02-11T02:48:48.021Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: Active
+[2026-02-11T02:48:48.022Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Valid email session found
+[2026-02-11T02:48:48.024Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:48.312Z] [Android] [LOG] FriendsScreen: Debounced search query: 
+[2026-02-11T02:48:48.027Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged in
+[2026-02-11T02:48:48.567Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:48.562Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:48:48.429Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Successfully processed courts with activity levels, skill averages, friend counts, DUPR data, distances, and favorites
+[2026-02-11T02:48:48.573Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:48:48.579Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:48:48.584Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:48:48.646Z] [Android] [LOG] [InternalBytecode.js:1] useFriendsQuery: Fetching friends for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:49.299Z] [Android] [LOG] [InternalBytecode.js:1] useFriendsQuery: Loaded 1 friends, 0 pending requests, 3 total users
+[2026-02-11T02:48:50.855Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:48:50.801Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:48:50.687Z] [Android] [LOG] User tapped message button for: John  Doe
+[2026-02-11T02:48:50.907Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged in
+[2026-02-11T02:48:50.909Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:50.925Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: Active
+[2026-02-11T02:48:50.926Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Valid email session found
+[2026-02-11T02:48:51.311Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:48:51.323Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:48:51.316Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:48:51.330Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:48:51.335Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:48:51.443Z] [Android] [LOG] Setting up real-time subscription for conversation
+[2026-02-11T02:48:51.381Z] [Android] [LOG] [InternalBytecode.js:1] Fetching messages for conversation with: d748b003-25cb-4c40-b5f1-5dfa729ccfcc
+[2026-02-11T02:48:52.917Z] [Android] [LOG] [InternalBytecode.js:1] Subscription status: SUBSCRIBED
+[2026-02-11T02:48:59.143Z] [Android] [LOG] useAuth: Cleaning up subscription
+[2026-02-11T02:48:59.198Z] [Android] [LOG] Cleaning up real-time subscription on unmount
+[2026-02-11T02:48:59.205Z] [Android] [LOG] [InternalBytecode.js:1] Subscription status: CLOSED
+[2026-02-11T02:48:59.258Z] [Android] [LOG] FriendsScreen: Screen focused
+[2026-02-11T02:49:00.456Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:49:00.589Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: Active
+[2026-02-11T02:49:00.511Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:49:00.590Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Valid email session found
+[2026-02-11T02:49:00.582Z] [Android] [LOG] MessagesScreen: Screen focused
+[2026-02-11T02:49:00.592Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:00.595Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged in
+[2026-02-11T02:49:00.929Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:00.935Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:00.941Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:00.924Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:00.945Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:00.947Z] [Android] [LOG] MessagesScreen: Debounced search query: 
+[2026-02-11T02:49:01.060Z] [Android] [LOG] [InternalBytecode.js:1] MessagesScreen: Checking if should show notification prompt
+[2026-02-11T02:49:01.056Z] [Android] [LOG] MessagesScreen: Screen focused
+[2026-02-11T02:49:01.001Z] [Android] [LOG] [InternalBytecode.js:1] useMessagesQuery: Fetching conversations for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:01.220Z] [Android] [LOG] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.167Z] [Android] [LOG] [MessagesScreen] Setting up realtime subscription: messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.114Z] [Android] [LOG] MessagesScreen: Setting up realtime subscriptions (focused)
+[2026-02-11T02:49:01.275Z] [Android] [LOG] [MessagesScreen] Setting up realtime subscription: messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.328Z] [Android] [LOG] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.383Z] [Android] [WARN] [MessagesScreen] ⚠️ WARNING: Subscribing to large table "group_messages" without filter. This may cause performance issues. Consider adding a filter (e.g., "user_id=eq.123").
+[2026-02-11T02:49:01.436Z] [Android] [LOG] [MessagesScreen] Setting up realtime subscription: group_messages_all_INSERT
+[2026-02-11T02:49:01.503Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] ✅ Successfully subscribed to messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.489Z] [Android] [LOG] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - group_messages_all_INSERT
+[2026-02-11T02:49:01.500Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: SUBSCRIBED
+[2026-02-11T02:49:01.506Z] [Android] [LOG] [InternalBytecode.js:1] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* - {"status":"success","retryCount":0}
+[2026-02-11T02:49:01.509Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: SUBSCRIBED
+[2026-02-11T02:49:01.515Z] [Android] [LOG] [InternalBytecode.js:1] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* - {"status":"success","retryCount":0}
+[2026-02-11T02:49:01.518Z] [Android] [LOG] [InternalBytecode.js:1] MessagesScreen: Showing notification prompt
+[2026-02-11T02:49:01.517Z] [Android] [LOG] [InternalBytecode.js:1] [Notifications] Never dismissed, should show prompt
+[2026-02-11T02:49:01.512Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] ✅ Successfully subscribed to messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.522Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:01.524Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:01.526Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:01.592Z] [Android] [LOG] MessagesScreen: Cleaning up realtime subscriptions (blurred)
+[2026-02-11T02:49:01.528Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:01.530Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:01.700Z] [Android] [LOG] ⏱️ PERF [REALTIME_UNSUBSCRIBE] MessagesScreen - messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* (478.82ms)
+[2026-02-11T02:49:01.646Z] [Android] [LOG] [MessagesScreen] Unsubscribing from messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.707Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: CLOSED
+[2026-02-11T02:49:01.714Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Channel closed for messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.831Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: CLOSED
+[2026-02-11T02:49:01.821Z] [Android] [LOG] ⏱️ PERF [REALTIME_UNSUBSCRIBE] MessagesScreen - messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* (492.16ms)
+[2026-02-11T02:49:01.767Z] [Android] [LOG] [MessagesScreen] Unsubscribing from messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.839Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Channel closed for messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:01.948Z] [Android] [LOG] ⏱️ PERF [REALTIME_UNSUBSCRIBE] MessagesScreen - group_messages_all_INSERT (457.46ms)
+[2026-02-11T02:49:01.893Z] [Android] [LOG] [MessagesScreen] Unsubscribing from group_messages_all_INSERT
+[2026-02-11T02:49:01.955Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for group_messages_all_INSERT: CLOSED
+[2026-02-11T02:49:02.018Z] [Android] [LOG] MessagesScreen: Screen focused
+[2026-02-11T02:49:01.962Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Channel closed for group_messages_all_INSERT
+[2026-02-11T02:49:02.021Z] [Android] [LOG] [InternalBytecode.js:1] MessagesScreen: Checking if should show notification prompt
+[2026-02-11T02:49:02.076Z] [Android] [LOG] MessagesScreen: Setting up realtime subscriptions (focused)
+[2026-02-11T02:49:02.185Z] [Android] [LOG] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:02.241Z] [Android] [LOG] [MessagesScreen] Setting up realtime subscription: messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:02.350Z] [Android] [WARN] [MessagesScreen] ⚠️ WARNING: Subscribing to large table "group_messages" without filter. This may cause performance issues. Consider adding a filter (e.g., "user_id=eq.123").
+[2026-02-11T02:49:02.130Z] [Android] [LOG] [MessagesScreen] Setting up realtime subscription: messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:02.295Z] [Android] [LOG] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:02.477Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: SUBSCRIBED
+[2026-02-11T02:49:02.479Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] ✅ Successfully subscribed to messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:02.482Z] [Android] [LOG] [InternalBytecode.js:1] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* - {"status":"success","retryCount":0}
+[2026-02-11T02:49:02.489Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] ✅ Successfully subscribed to messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:02.487Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: SUBSCRIBED
+[2026-02-11T02:49:02.497Z] [Android] [LOG] [InternalBytecode.js:1] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* - {"status":"success","retryCount":0}
+[2026-02-11T02:49:02.499Z] [Android] [LOG] [InternalBytecode.js:1] [Notifications] Never dismissed, should show prompt
+[2026-02-11T02:49:02.500Z] [Android] [LOG] [InternalBytecode.js:1] MessagesScreen: Showing notification prompt
+[2026-02-11T02:49:02.502Z] [Android] [LOG] [InternalBytecode.js:1] useMessagesQuery: Fetched 10 direct messages
+[2026-02-11T02:49:02.626Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for group_messages_all_INSERT: SUBSCRIBED
+[2026-02-11T02:49:02.635Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] ✅ Successfully subscribed to group_messages_all_INSERT
+[2026-02-11T02:49:02.643Z] [Android] [LOG] [InternalBytecode.js:1] ⏱️ PERF [REALTIME_SUBSCRIBE] MessagesScreen - group_messages_all_INSERT - {"status":"success","retryCount":0}
+[2026-02-11T02:49:02.974Z] [Android] [LOG] [InternalBytecode.js:1] useMessagesQuery: User is member of 1 groups
+[2026-02-11T02:49:03.161Z] [Android] [LOG] [InternalBytecode.js:1] useMessagesQuery: Fetched 1 group details
+[2026-02-11T02:49:03.766Z] [Android] [LOG] [InternalBytecode.js:1] useMessagesQuery: Loaded 3 total conversations
+[2026-02-11T02:49:05.498Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:05.504Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:05.489Z] [Android] [LOG] [InternalBytecode.js:1] MessagesScreen: User tapped Enable Notifications
+[2026-02-11T02:49:05.539Z] [Android] [LOG] [InternalBytecode.js:1] MessagesScreen: Notifications not granted
+[2026-02-11T02:49:06.676Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:49:06.731Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:49:06.784Z] [Android] [LOG] MessagesScreen: Cleaning up realtime subscriptions (blurred)
+[2026-02-11T02:49:06.836Z] [Android] [LOG] [MessagesScreen] Unsubscribing from messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:06.888Z] [Android] [LOG] ⏱️ PERF [REALTIME_UNSUBSCRIBE] MessagesScreen - messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* (5333.53ms)
+[2026-02-11T02:49:06.896Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: CLOSED
+[2026-02-11T02:49:06.903Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Channel closed for messages_sender_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:06.954Z] [Android] [LOG] [MessagesScreen] Unsubscribing from messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:07.024Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Channel closed for messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*
+[2026-02-11T02:49:07.009Z] [Android] [LOG] ⏱️ PERF [REALTIME_UNSUBSCRIBE] MessagesScreen - messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_* (5442.24ms)
+[2026-02-11T02:49:07.017Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for messages_recipient_id=eq.6abb3bd1-6979-4af2-a409-403aeeecb0ef_*: CLOSED
+[2026-02-11T02:49:07.075Z] [Android] [LOG] [MessagesScreen] Unsubscribing from group_messages_all_INSERT
+[2026-02-11T02:49:07.129Z] [Android] [LOG] ⏱️ PERF [REALTIME_UNSUBSCRIBE] MessagesScreen - group_messages_all_INSERT (4670.86ms)
+[2026-02-11T02:49:07.157Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: Active
+[2026-02-11T02:49:07.136Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Subscription status for group_messages_all_INSERT: CLOSED
+[2026-02-11T02:49:07.144Z] [Android] [LOG] [InternalBytecode.js:1] [MessagesScreen] Channel closed for group_messages_all_INSERT
+[2026-02-11T02:49:07.159Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Valid email session found
+[2026-02-11T02:49:07.161Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:07.332Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:07.163Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged in
+[2026-02-11T02:49:07.327Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:07.338Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:07.344Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:07.348Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:07.498Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:07.494Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:07.501Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:07.613Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:49:07.505Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:07.694Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:07.692Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:07.667Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:49:07.699Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:07.697Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:07.705Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Current session: Active
+[2026-02-11T02:49:07.701Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:07.711Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:07.706Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Valid email session found
+[2026-02-11T02:49:07.714Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Auth state changed: INITIAL_SESSION User logged in
+[2026-02-11T02:49:07.945Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:07.952Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:07.961Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:07.973Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:07.968Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:08.062Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:08.061Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:08.064Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:08.231Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:08.065Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:08.238Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:08.246Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:08.258Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:08.253Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:08.400Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:08.404Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:08.407Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:08.634Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:08.412Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:08.638Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:08.649Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:08.652Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:08.644Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:08.751Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:08.755Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:08.759Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:08.797Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:08.763Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:08.799Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:08.800Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:08.802Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:09.069Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:09.056Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:09.064Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:09.051Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:09.074Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:09.081Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:09.083Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:09.087Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:09.178Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:09.085Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:09.182Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:09.190Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:09.185Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:09.743Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:09.749Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:09.739Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:09.761Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:09.754Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:09.764Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:09.758Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:09.767Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:09.769Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:09.858Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:09.862Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:09.865Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:09.870Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:10.121Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:10.125Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:10.137Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:10.131Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:10.141Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:10.188Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:10.187Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:10.192Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:10.190Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:10.249Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:10.253Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:10.256Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:10.593Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:10.596Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:10.261Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:10.601Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:10.605Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:10.611Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:10.608Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:10.617Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:10.613Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:10.615Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:10.706Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:10.710Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:10.718Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:10.713Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:11.109Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:11.116Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:11.104Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:11.122Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:11.127Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:11.237Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:11.233Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:11.245Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:11.249Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:11.240Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:11.251Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:11.252Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:11.500Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:11.254Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:11.336Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:11.341Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:11.502Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:11.505Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:11.507Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:11.518Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:11.515Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:11.522Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:11.526Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:11.529Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:11.621Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:12.404Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:11.628Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:11.625Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:11.633Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:11.930Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:11.924Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:11.938Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:11.944Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:11.956Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:11.949Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:11.953Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:11.962Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:11.959Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:12.063Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:12.059Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:12.546Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:12.067Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:12.416Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:12.071Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:12.409Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:12.422Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:12.426Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:12.433Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:12.429Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:12.436Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:12.539Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:12.439Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:12.551Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:12.543Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:13.040Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:13.043Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:13.047Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:13.054Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:13.051Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:13.063Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:13.061Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:13.158Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:13.065Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:13.067Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:13.162Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:13.166Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:13.170Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:13.454Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:13.456Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:13.459Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:13.461Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:13.463Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:13.467Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:13.465Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:13.469Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:13.470Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:13.555Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:13.551Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:13.559Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:13.564Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:13.832Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:13.839Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:13.835Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:13.843Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:13.854Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:13.851Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:13.846Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:13.856Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:13.859Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:13.951Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:13.947Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:13.962Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:13.957Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:14.320Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:14.114Z] [Android] [LOG] useAuth: Cleaning up subscription
+[2026-02-11T02:49:14.314Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:14.334Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:14.328Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:14.338Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:14.349Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:14.358Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:14.355Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:14.352Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:14.502Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:14.505Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:14.518Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:14.514Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:14.510Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:14.624Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:14.617Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:14.621Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:14.628Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:14.641Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:14.643Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:14.644Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:14.912Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:14.908Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:14.646Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:14.916Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:14.919Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:14.944Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:14.938Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:14.932Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:14.947Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:15.463Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:15.042Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:15.039Z] [Android] [LOG] ProfileScreen: Screen focused, refetching data
+[2026-02-11T02:49:14.950Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:15.365Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] User push token: Present
+[2026-02-11T02:49:15.050Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:15.046Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:15.366Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Notification permission: denied
+[2026-02-11T02:49:15.368Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Admin status: false
+[2026-02-11T02:49:15.370Z] [Android] [LOG] [InternalBytecode.js:1] [Profile] Build type: Dev/TestFlight
+[2026-02-11T02:49:15.374Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: User profile fetched successfully
+[2026-02-11T02:49:15.378Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+
+[2026-02-11T02:49:15.382Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Push notifications not supported in this environment
+[2026-02-11T02:49:15.375Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Registering push token for user: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:15.380Z] [Android] [LOG] [InternalBytecode.js:1] [Push] Please use a Development Build or TestFlight/Production build to test push notifications
+[2026-02-11T02:49:15.467Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Refetching user profile
+[2026-02-11T02:49:15.470Z] [Android] [LOG] [InternalBytecode.js:1] useAuth: Fetching user profile for: 6abb3bd1-6979-4af2-a409-403aeeecb0ef
+[2026-02-11T02:49:15.475Z] [Android] [LOG] [InternalBytecode.js:1] useCheckIn: Refetching check-in history
+[2026-02-11T02:49:15.722Z] [Android] [LOG] useAuth: Initializing...
+[2026-02-11T02:49:15.777Z] [Android] [LOG] useAuth: Supabase configured: true
+[2026-02-11T02:49:16.007Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetching courts with params: {"radiusMiles":25}
+[2026-02-11T02:47:48.499Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T02:47:50.206Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T02:47:49.107Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T02:47:50.266Z] [Web] [LOG] LandingScreen: No active session
+[2026-02-11T02:47:48.892Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T02:47:49.832Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:47:49.821Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:47:49.097Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T02:49:32.412Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T02:49:32.747Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T02:49:33.031Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T02:49:33.050Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T02:49:33.949Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:49:33.957Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:49:34.380Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T02:49:34.503Z] [Web] [LOG] LandingScreen: No active session
+[2026-02-11T02:50:07.086Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T02:50:07.203Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T02:50:07.297Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T02:50:07.307Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T02:50:07.502Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:50:07.495Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:50:28.702Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T02:50:29.136Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T02:50:29.391Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T02:50:29.408Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T02:50:30.366Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:50:30.819Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T02:50:30.376Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T02:50:30.911Z] [Web] [LOG] LandingScreen: No active session
