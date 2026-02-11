@@ -5497,3 +5497,44 @@ Performance optimizations: OFF.
 [2026-02-11T06:35:39.324Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
 [2026-02-11T06:35:39.900Z] [Web] [LOG] LandingScreen: No active session
 [2026-02-11T06:35:39.792Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T06:57:36.387Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T06:57:36.838Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T06:57:37.507Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T06:57:36.671Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T06:57:36.828Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T06:57:37.518Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T06:57:37.832Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T06:57:37.908Z] [Web] [LOG] LandingScreen: No active session
+[2026-02-11T06:57:45.397Z] [Web] [WARN] Disconnected from Metro (1006)
+To reconnect:
+- Ensure that Metro is running and available on the same network
+- Reload this app (will trigger further help if Metro cannot be connected to)
+[2026-02-11T06:59:51.036Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T06:59:51.405Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T06:59:52.647Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T06:59:52.657Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T06:59:51.687Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T06:59:51.708Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T06:59:53.196Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T06:59:53.319Z] [Web] [LOG] LandingScreen: No active session
+[2026-02-11T07:00:08.312Z] [Web] [WARN] Disconnected from Metro (1006)
+To reconnect:
+- Ensure that Metro is running and available on the same network
+- Reload this app (will trigger further help if Metro cannot be connected to)
+[2026-02-11T07:01:08.517Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T07:01:09.271Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T07:01:08.977Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T07:01:10.056Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T07:01:10.043Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T07:01:09.257Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T07:01:10.511Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T07:01:10.717Z] [Web] [LOG] LandingScreen: No active session
