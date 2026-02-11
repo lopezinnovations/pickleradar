@@ -4995,3 +4995,32 @@ Performance optimizations: OFF.
 [2026-02-11T05:25:13.885Z] [Web] [ERROR] Unexpected text node: . A text node cannot be a child of a <View>.
 [2026-02-11T05:25:13.983Z] [Web] [LOG] useAuth: Cleaning up subscription
 [2026-02-11T05:25:14.234Z] [Web] [ERROR] Unexpected text node: . A text node cannot be a child of a <View>.
+[2026-02-11T05:26:00.703Z] [Web] [LOG] Running application "main" with appParams:
+ {"rootTag":"#root"} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-02-11T05:26:01.070Z] [Web] [WARN] [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+[2026-02-11T05:26:01.282Z] [Web] [WARN] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-02-11T05:26:01.269Z] [Web] [WARN] CourtsMapScreen: Failed to load react-native-maps: {}
+[2026-02-11T05:26:01.952Z] [Web] [WARN] Route "./integrations/supabase/types.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T05:26:01.942Z] [Web] [WARN] Route "./integrations/supabase/client.ts" is missing the required default export. Ensure a React component is exported as default.
+[2026-02-11T05:26:02.395Z] [Web] [LOG] LandingScreen: Checking authentication status...
+[2026-02-11T05:26:02.490Z] [Web] [LOG] LandingScreen: No active session
+[2026-02-11T05:13:26.629Z] [Android] [WARN] Cannot connect to Metro.
+
+Try the following to fix the issue:
+- Ensure that Metro is running and available on the same network
+- Ensure that your device/emulator is connected to your machine and has USB debugging enabled - run 'adb devices' to see a list of connected devices
+- If you're on a physical device connected to the same machine, run 'adb reverse tcp:8081 tcp:8081' to forward requests from your device
+- If your device is on the same Wi-Fi network, set 'Debug server host & port for device' in 'Dev settings' to your machine's IP address and the port of the local dev server - e.g. 10.0.1.1:8081
+
+URL: bttkjxq-anonymous-8081.exp.direct:80
+
+Error: undefined
+[2026-02-11T05:26:07.108Z] [Android] [LOG] HomeScreen: Auto-refresh triggered
+[2026-02-11T05:26:07.119Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetching courts with params: {"userId":"6abb3bd1-6979-4af2-a409-403aeeecb0ef","userLat":32.4038304,"userLng":-111.0180941,"radiusMiles":25}
+[2026-02-11T05:26:07.124Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Applying bounding box filter: {"minLat":32.041511559420286,"maxLat":32.76614924057971,"minLng":-111.4472333040128,"maxLng":-110.5889548959872}
+[2026-02-11T05:26:07.112Z] [Android] [LOG] useCourtsQuery: Manual refetch triggered
+[2026-02-11T05:26:07.891Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: Fetched 24 courts
+[2026-02-11T05:26:08.193Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: User has 1 friends
+[2026-02-11T05:26:08.049Z] [Android] [LOG] [InternalBytecode.js:1] useCourtsQuery: User has 2 favorite courts
