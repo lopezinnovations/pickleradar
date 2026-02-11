@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { requestNotificationPermissions, checkNotificationPermissionStatus } from '@/utils/notifications';
 
 interface Friend {
@@ -100,6 +100,8 @@ export default function CreateGroupScreen() {
         throw new Error('User not authenticated');
       }
 
+      // Use RPC function to create group and add members atomically
+      // This bypasses RLS policies using SECURITY DEFINER
       const memberIds = selectedFriends.map(f => f.id);
       
       console.log('Calling create_group_with_members RPC with:', { groupName: groupName.trim(), memberIds });
@@ -119,6 +121,7 @@ export default function CreateGroupScreen() {
         throw new Error('Failed to create group - no ID returned');
       }
 
+      // Check if we should prompt for notifications (first group created)
       const permissionStatus = await checkNotificationPermissionStatus();
       if (permissionStatus !== 'granted') {
         const granted = await requestNotificationPermissions();
@@ -134,6 +137,7 @@ export default function CreateGroupScreen() {
       setModalMessage('Group created successfully!');
       setShowModal(true);
       
+      // Navigate after a short delay
       setTimeout(() => {
         router.replace(`/group-conversation/${groupId}`);
       }, 1000);
@@ -154,6 +158,7 @@ export default function CreateGroupScreen() {
     return friend.nickname || 'Unknown User';
   };
 
+  // Live type-ahead search - filters as user types
   const filteredFriends = useMemo(() => {
     if (!searchQuery.trim()) return friends;
     
@@ -310,6 +315,7 @@ export default function CreateGroupScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Custom Modal for messages */}
       <Modal
         visible={showModal}
         transparent

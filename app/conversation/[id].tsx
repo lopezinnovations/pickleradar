@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -53,7 +53,7 @@ export default function ConversationScreen() {
 
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('id, first_name, last_name, pickleballer_nickname')
         .eq('id', recipientId)
         .single();
@@ -70,7 +70,7 @@ export default function ConversationScreen() {
 
     try {
       const { data, error } = await supabase
-        .from('friends')
+        .from('friendships')
         .select('id')
         .or(`and(user_id.eq.${user.id},friend_id.eq.${recipientId}),and(user_id.eq.${recipientId},friend_id.eq.${user.id})`)
         .eq('status', 'accepted')
@@ -106,7 +106,7 @@ export default function ConversationScreen() {
 
     try {
       const { data, error } = await supabase
-        .from('conversation_mutes')
+        .from('muted_conversations')
         .select('muted_until')
         .eq('user_id', user.id)
         .eq('conversation_type', 'direct')
@@ -282,7 +282,7 @@ export default function ConversationScreen() {
       const mutedUntil = minutes === null ? null : new Date(Date.now() + minutes * 60000).toISOString();
 
       const { error } = await supabase
-        .from('conversation_mutes')
+        .from('muted_conversations')
         .upsert(
           {
             user_id: user.id,
@@ -309,7 +309,7 @@ export default function ConversationScreen() {
 
     try {
       const { error } = await supabase
-        .from('conversation_mutes')
+        .from('muted_conversations')
         .delete()
         .eq('user_id', user.id)
         .eq('conversation_type', 'direct')

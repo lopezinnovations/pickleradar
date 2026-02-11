@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, RefreshControl, Modal } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
@@ -26,7 +26,7 @@ export default function FriendsScreen() {
   const [notifyCheckin, setNotifyCheckin] = useState(true);
   const [notifyMessages, setNotifyMessages] = useState(true);
 
-  const debouncedSearch = React.useCallback(
+  const debouncedSearch = useCallback(
     debounce((query: string) => {
       console.log('FriendsScreen: Debounced search query:', query);
       setDebouncedSearchQuery(query);
@@ -39,7 +39,7 @@ export default function FriendsScreen() {
   }, [searchQuery, debouncedSearch]);
 
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       console.log('FriendsScreen: Screen focused');
     }, [])
   );

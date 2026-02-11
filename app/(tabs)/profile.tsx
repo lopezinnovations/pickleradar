@@ -18,7 +18,6 @@ import {
   registerPushToken,
   clearNotificationsPromptDismissedAt
 } from '@/utils/notifications';
-import { runNotificationDiagnostics } from '@/utils/notificationDebug';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -50,13 +49,38 @@ export default function ProfileScreen() {
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [enablingNotifications, setEnablingNotifications] = useState(false);
-  const [runningDiagnostics, setRunningDiagnostics] = useState(false);
   
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
 
   // Check if we're in a dev/TestFlight build (not production)
   const isDevOrTestFlightBuild = Constants.appOwnership !== 'standalone';
+
+  // PULL-TO-REFRESH: Manual refetch
+  const onRefresh = useCallback(async () => {
+    console.log('ProfileScreen: Pull-to-refresh triggered');
+    setRefreshing(true);
+    await Promise.all([
+      refetchUser(),
+      refetchCheckIns(),
+      loadCurrentCheckIn(),
+      fetchAdminStatusAndPushToken(),
+    ]);
+    setRefreshing(false);
+  }, [refetchUser, refetchCheckIns]);
+
+  // Auto-refresh when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      
+      console.log('ProfileScreen: Screen focused, refetching data');
+      refetchUser();
+      refetchCheckIns();
+      loadCurrentCheckIn();
+      fetchAdminStatusAndPushToken();
+    }, [user, refetchUser, refetchCheckIns])
+  );
 
   const fetchAdminStatusAndPushToken = useCallback(async () => {
     if (!user) return;
@@ -91,45 +115,6 @@ export default function ProfileScreen() {
       console.error('[Profile] Error in fetchAdminStatusAndPushToken:', error);
     }
   }, [user, isDevOrTestFlightBuild]);
-
-  const loadCurrentCheckIn = useCallback(async () => {
-    if (!user) return;
-    const checkIn = await getUserCheckIn(user.id);
-    if (checkIn) {
-      setCurrentCheckIn(checkIn);
-      const time = getRemainingTime(checkIn.expires_at);
-      setRemainingTime({ hours: time.hours, minutes: time.minutes });
-    } else {
-      setCurrentCheckIn(null);
-      setRemainingTime(null);
-    }
-  }, [user, getUserCheckIn, getRemainingTime]);
-
-  // PULL-TO-REFRESH: Manual refetch
-  const onRefresh = useCallback(async () => {
-    console.log('ProfileScreen: Pull-to-refresh triggered');
-    setRefreshing(true);
-    await Promise.all([
-      refetchUser(),
-      refetchCheckIns(),
-      loadCurrentCheckIn(),
-      fetchAdminStatusAndPushToken(),
-    ]);
-    setRefreshing(false);
-  }, [refetchUser, refetchCheckIns, loadCurrentCheckIn, fetchAdminStatusAndPushToken]);
-
-  // Auto-refresh when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) return;
-      
-      console.log('ProfileScreen: Screen focused, refetching data');
-      refetchUser();
-      refetchCheckIns();
-      loadCurrentCheckIn();
-      fetchAdminStatusAndPushToken();
-    }, [user, refetchUser, refetchCheckIns, loadCurrentCheckIn, fetchAdminStatusAndPushToken])
-  );
 
   useEffect(() => {
     if (user && !hasLoadedUserData.current) {
@@ -181,6 +166,19 @@ export default function ProfileScreen() {
     setDuprRating(value);
     validateDuprRating(value);
   };
+
+  const loadCurrentCheckIn = useCallback(async () => {
+    if (!user) return;
+    const checkIn = await getUserCheckIn(user.id);
+    if (checkIn) {
+      setCurrentCheckIn(checkIn);
+      const time = getRemainingTime(checkIn.expires_at);
+      setRemainingTime({ hours: time.hours, minutes: time.minutes });
+    } else {
+      setCurrentCheckIn(null);
+      setRemainingTime(null);
+    }
+  }, [user, getUserCheckIn, getRemainingTime]);
 
   useEffect(() => {
     if (user && !hasLoadedCheckIn.current) {
@@ -269,56 +267,6 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Failed to enable notifications. Please try again.');
     } finally {
       setEnablingNotifications(false);
-    }
-  };
-
-  const handleRunDiagnostics = async () => {
-    console.log('[Profile] User tapped Run Diagnostics button');
-    setRunningDiagnostics(true);
-    
-    try {
-      const diagnostics = await runNotificationDiagnostics();
-      
-      let message = '📊 DIAGNOSTICS RESULTS\n\n';
-      
-      if (diagnostics.supported && diagnostics.issues.length === 0) {
-        message += '✅ Push notifications are fully configured and ready!\n\n';
-      } else {
-        message += '⚠️ Issues detected:\n\n';
-      }
-      
-      if (diagnostics.issues.length > 0) {
-        message += '🔴 ISSUES:\n';
-        diagnostics.issues.forEach((issue, i) => {
-          message += `${i + 1}. ${issue}\n`;
-        });
-        message += '\n';
-      }
-      
-      if (diagnostics.warnings.length > 0) {
-        message += '⚠️ WARNINGS:\n';
-        diagnostics.warnings.forEach((warning, i) => {
-          message += `${i + 1}. ${warning}\n`;
-        });
-        message += '\n';
-      }
-      
-      message += '📱 DEVICE INFO:\n';
-      message += `Platform: ${diagnostics.info.platform}\n`;
-      message += `Physical Device: ${diagnostics.info.isPhysicalDevice ? 'Yes' : 'No'}\n`;
-      message += `Expo Go: ${diagnostics.info.isExpoGo ? 'Yes' : 'No'}\n`;
-      message += `Permission: ${diagnostics.info.permissionStatus}\n`;
-      message += `Project ID: ${diagnostics.info.hasProjectId ? 'Configured ✓' : 'Missing ✗'}\n`;
-      message += `Push Token: ${diagnostics.info.hasPushToken ? 'Registered ✓' : 'Not registered ✗'}\n`;
-      
-      Alert.alert('Push Notification Diagnostics', message, [
-        { text: 'OK' }
-      ]);
-    } catch (error: any) {
-      console.error('[Profile] Error running diagnostics:', error);
-      Alert.alert('Error', `Failed to run diagnostics: ${error.message}`);
-    } finally {
-      setRunningDiagnostics(false);
     }
   };
 
@@ -1159,28 +1107,6 @@ export default function ProfileScreen() {
                   )}
                 </TouchableOpacity>
               )}
-
-              <TouchableOpacity
-                style={[buttonStyles.secondary, { marginTop: 12, backgroundColor: colors.highlight, borderWidth: 2, borderColor: colors.primary }]}
-                onPress={handleRunDiagnostics}
-                disabled={runningDiagnostics}
-              >
-                {runningDiagnostics ? (
-                  <ActivityIndicator color={colors.primary} />
-                ) : (
-                  <React.Fragment>
-                    <IconSymbol 
-                      ios_icon_name="stethoscope" 
-                      android_material_icon_name="bug-report" 
-                      size={20} 
-                      color={colors.primary} 
-                    />
-                    <Text style={[buttonStyles.text, { marginLeft: 8, color: colors.primary }]}>
-                      Run Diagnostics
-                    </Text>
-                  </React.Fragment>
-                )}
-              </TouchableOpacity>
             </React.Fragment>
           )}
         </View>

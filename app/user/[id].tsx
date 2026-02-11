@@ -6,7 +6,7 @@ import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars } from '@/components/SkillLevelBars';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
 interface UserProfile {
   id: string;
@@ -419,7 +419,7 @@ export default function UserProfileScreen() {
               <View style={styles.presenceHeader}>
                 <IconSymbol 
                   ios_icon_name="location.fill" 
-                  android_material_icon_name="location-on" 
+                  android_material_icon_name="location_on" 
                   size={20} 
                   color={colors.success} 
                 />
@@ -609,7 +609,7 @@ export default function UserProfileScreen() {
                     <View style={styles.historyIcon}>
                       <IconSymbol 
                         ios_icon_name="location.fill" 
-                        android_material_icon_name="location-on" 
+                        android_material_icon_name="location_on" 
                         size={20} 
                         color={colors.primary} 
                       />

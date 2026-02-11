@@ -15,19 +15,20 @@ let MapView: any = null;
 let Marker: any = null;
 let Callout: any = null;
 let PROVIDER_GOOGLE: any = null;
-const mapsAvailable = !isExpoGo;
+let mapsAvailable = false;
 
 if (!isExpoGo) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const maps = require('react-native-maps');
     MapView = maps.default;
     Marker = maps.Marker;
     Callout = maps.Callout;
     PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
+    mapsAvailable = true;
     console.log('CourtsMapScreen: react-native-maps loaded successfully');
   } catch (e) {
     console.warn('CourtsMapScreen: Failed to load react-native-maps:', e);
+    mapsAvailable = false;
   }
 } else {
   console.log('CourtsMapScreen: Running in Expo Go, maps not available');
@@ -119,7 +120,7 @@ export default function CourtsMapScreen() {
     } catch (error) {
       console.error('CourtsMapScreen: Error fitting map to coordinates:', error);
     }
-  }, [courts, userLocation]);
+  }, [courts, userLocation, mapsAvailable]);
 
   const handleMarkerPress = (court: Court) => {
     console.log('CourtsMapScreen: Marker pressed for court:', court.name);

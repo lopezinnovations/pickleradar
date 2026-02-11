@@ -4,60 +4,87 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator,
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase/client';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
+import { supabase } from '@/app/integrations/supabase/client';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signUp, signIn } = useAuth();
-  const { successMessage } = useLocalSearchParams<{ successMessage?: string }>();
+  const params = useLocalSearchParams();
+  const prefilledEmail = params.email as string;
+  const successMessage = params.message as string;
+  const { signUp, signIn, isConfigured } = useAuth();
   
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(prefilledEmail || '');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [pickleballerNickname, setPickleballerNickname] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
   const [duprRating, setDuprRating] = useState('');
   const [duprError, setDuprError] = useState('');
-  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [experienceLevel, setExperienceLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
   const [loading, setLoading] = useState(false);
-  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
-  const [resetEmailSent, setResetEmailSent] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  
-  const emailInputRef = useRef<TextInput>(null);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [showCodeInput, setShowCodeInput] = useState(false);
+  const [loginCode, setLoginCode] = useState('');
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [resendDisabled, setResendDisabled] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [isSendingCode, setIsSendingCode] = useState(false);
 
+  // Refs to track loading states for timeout checks
+  const isVerificationSuccessfulRef = useRef(false);
+  const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resendIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Show success message if present
   useEffect(() => {
     if (successMessage) {
-      setShowSuccessMessage(true);
-      const timer = setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 5000);
-      return () => clearTimeout(timer);
+      Alert.alert('Success', successMessage);
     }
   }, [successMessage]);
 
+  // Clear any existing sessions on mount to ensure clean state
   useEffect(() => {
-    const timer = setTimeout(() => {
-      emailInputRef.current?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
+    const clearOldSessions = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user.phone) {
+          await supabase.auth.signOut();
+        }
+      } catch (error) {
+        console.log('Error clearing old sessions:', error);
+      }
+    };
+    clearOldSessions();
   }, []);
 
-  const validateEmail = (email: string): boolean => {
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (verificationTimeoutRef.current) {
+        clearTimeout(verificationTimeoutRef.current);
+      }
+      if (resendIntervalRef.current) {
+        clearInterval(resendIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const validatePassword = (password: string): boolean => {
+  const validatePassword = (password: string) => {
     return password.length >= 6;
   };
 
-  const validateDuprRating = (value: string): boolean => {
+  const validateDuprRating = (value: string) => {
     if (!value.trim()) {
       setDuprError('');
       return true;
@@ -84,203 +111,388 @@ export default function AuthScreen() {
   };
 
   const handleSignUp = async () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+
     if (!validateEmail(email)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address');
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert('Error', 'Please enter a password');
       return;
     }
 
     if (!validatePassword(password)) {
-      Alert.alert('Invalid Password', 'Password must be at least 6 characters long');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match');
+      Alert.alert('Error', 'Password must be at least 6 characters long');
       return;
     }
 
     if (!firstName.trim()) {
-      Alert.alert('Missing Information', 'Please enter your first name');
+      Alert.alert('Error', 'Please enter your first name');
       return;
     }
 
     if (!lastName.trim()) {
-      Alert.alert('Missing Information', 'Please enter your last name');
+      Alert.alert('Error', 'Please enter your last name');
       return;
+    }
+
+    if (!pickleballerNickname.trim()) {
+      Alert.alert('Error', 'Please enter your pickleballer nickname');
+      return;
+    }
+
+    if (duprRating.trim()) {
+      const duprValue = parseFloat(duprRating);
+      if (isNaN(duprValue) || duprValue < 1 || duprValue > 7) {
+        Alert.alert('Error', 'DUPR rating must be between 1.0 and 7.0');
+        return;
+      }
     }
 
     if (!consentAccepted) {
+      Alert.alert('Consent Required', 'You must agree to the Privacy Policy and Terms of Service to continue.');
+      return;
+    }
+
+    if (!isConfigured) {
       Alert.alert(
-        'Consent Required',
-        'Please accept the Privacy Policy and Terms of Service to continue'
+        'Supabase Required',
+        'Please enable Supabase by pressing the Supabase button in Natively and connecting to a project to use authentication features.'
       );
       return;
     }
 
-    const duprValue = duprRating.trim() ? parseFloat(duprRating) : undefined;
-    if (duprValue !== undefined && !validateDuprRating(duprRating)) {
-      Alert.alert('Invalid DUPR Rating', 'Please enter a valid DUPR rating between 1.0 and 7.0');
-      return;
-    }
-
     setLoading(true);
-    console.log('AuthScreen: Attempting sign up with email:', email);
-    
-    const result = await signUp(
-      email, 
-      password, 
-      consentAccepted,
-      firstName.trim(),
-      lastName.trim(),
-      pickleballerNickname.trim() || undefined,
-      experienceLevel,
-      duprValue
-    );
-    
-    setLoading(false);
-
-    if (result.success) {
-      console.log('AuthScreen: Sign up successful');
-      Alert.alert(
-        'Success!',
-        result.message || 'Account created successfully! You can now sign in.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setMode('signin');
-              setPassword('');
-              setConfirmPassword('');
-            },
-          },
-        ]
-      );
-    } else {
-      console.log('AuthScreen: Sign up failed:', result.error);
-      Alert.alert('Sign Up Failed', result.message || result.error || 'Failed to create account. Please try again.');
-    }
-  };
-
-  const handleSignIn = async () => {
-    if (!validateEmail(email)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address');
-      return;
-    }
-
-    if (!validatePassword(password)) {
-      Alert.alert('Invalid Password', 'Password must be at least 6 characters long');
-      return;
-    }
-
-    setLoading(true);
-    console.log('AuthScreen: Attempting sign in with email:', email);
-    
-    const result = await signIn(email, password);
-    
-    setLoading(false);
-
-    if (result.success) {
-      console.log('AuthScreen: Sign in successful, navigating to home');
-      router.replace('/(tabs)/(home)');
-    } else {
-      console.log('AuthScreen: Sign in failed:', result.error);
-      Alert.alert('Sign In Failed', result.message || result.error || 'Incorrect email or password. Please try again.');
-    }
-  };
-
-  const handleSendCode = async () => {
-    if (!validateEmail(email)) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address');
-      return;
-    }
-
-    setLoading(true);
-    console.log('AuthScreen: Sending password reset email to:', email);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'pickleradar://reset-password',
-      });
-
-      if (error) {
-        console.log('AuthScreen: Password reset error:', error);
+      const result = await signUp(
+        email, 
+        password, 
+        consentAccepted,
+        firstName,
+        lastName,
+        pickleballerNickname,
+        experienceLevel,
+        duprRating.trim() ? parseFloat(duprRating) : undefined
+      );
+      
+      if (result.success) {
+        // Clear form
+        setEmail('');
+        setPassword('');
+        setFirstName('');
+        setLastName('');
+        setPickleballerNickname('');
+        setDuprRating('');
+        setDuprError('');
+        setExperienceLevel('Beginner');
+        setConsentAccepted(false);
         
-        if (error.message.includes('Email rate limit exceeded')) {
-          Alert.alert(
-            'Too Many Requests',
-            'Please wait a few minutes before requesting another password reset email.'
-          );
-        } else if (error.message.includes('Error sending email')) {
-          Alert.alert(
-            'Email Service Unavailable',
-            'Unable to send password reset email at this time. Please try again later or contact support.'
-          );
-        } else {
-          Alert.alert('Error', error.message || 'Failed to send password reset email');
-        }
-      } else {
-        console.log('AuthScreen: Password reset email sent successfully');
-        setResetEmailSent(true);
+        // Show success message and redirect to sign in
         Alert.alert(
-          'Check Your Email',
-          'We have sent you a password reset link. Please check your email and follow the instructions.',
+          'Account Created!',
+          'Your account has been created successfully. You can now sign in.',
           [
             {
               text: 'OK',
               onPress: () => {
-                setForgotPasswordMode(false);
-                setResetEmailSent(false);
+                setIsSignUp(false);
               },
             },
           ]
         );
+      } else {
+        Alert.alert('Sign Up Failed', result.message || 'Failed to create account. Please try again.');
       }
     } catch (error: any) {
-      console.log('AuthScreen: Password reset exception:', error);
-      Alert.alert('Error', error.message || 'Failed to send password reset email');
+      console.log('Sign up error:', error);
+      Alert.alert('Error', error?.message || 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyCode = async () => {
-    console.log('AuthScreen: Verify code not implemented yet');
-    Alert.alert('Not Implemented', 'Code verification will be implemented soon');
-  };
+  const handleSignIn = async () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
 
-  const handleBack = () => {
-    console.log('AuthScreen: User tapped back button');
-    if (forgotPasswordMode) {
-      setForgotPasswordMode(false);
-      setResetEmailSent(false);
-    } else {
-      router.back();
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert('Error', 'Please enter your password');
+      return;
+    }
+
+    if (!isConfigured) {
+      Alert.alert(
+        'Supabase Required',
+        'Please enable Supabase by pressing the Supabase button in Natively and connecting to a project to use authentication features.'
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await signIn(email, password);
+      
+      if (result.success) {
+        console.log('User signed in successfully');
+        // Clear form
+        setEmail('');
+        setPassword('');
+        // Show success message before redirect
+        Alert.alert(
+          'Welcome Back!',
+          'You have successfully signed in.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                router.replace('/(tabs)/(home)/');
+              },
+            },
+          ]
+        );
+      } else {
+        // Show generic error message
+        Alert.alert('Sign In Failed', 'Incorrect email or password. Please try again.');
+      }
+    } catch (error: any) {
+      console.log('Sign in error:', error);
+      Alert.alert('Sign In Failed', 'Incorrect email or password. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleSendCode = async () => {
+    console.log('User tapped Send Code button for password reset');
+
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    if (!isConfigured) {
+      Alert.alert(
+        'Supabase Required',
+        'Please enable Supabase by pressing the Supabase button in Natively and connecting to a project to use authentication features.'
+      );
+      return;
+    }
+
+    setIsSendingCode(true);
+    setResendDisabled(true);
+    setResendCountdown(30);
+
+    // Start countdown timer
+    if (resendIntervalRef.current) {
+      clearInterval(resendIntervalRef.current);
+    }
+    
+    resendIntervalRef.current = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          if (resendIntervalRef.current) {
+            clearInterval(resendIntervalRef.current);
+          }
+          setResendDisabled(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    try {
+      console.log('Sending OTP to email:', email);
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { 
+          shouldCreateUser: false
+        }
+      });
+
+      if (error) {
+        console.log('Error sending OTP:', error);
+        
+        // Clear countdown on error
+        if (resendIntervalRef.current) {
+          clearInterval(resendIntervalRef.current);
+        }
+        setResendDisabled(false);
+        setResendCountdown(0);
+        
+        Alert.alert(
+          'Error',
+          error.message || 'Unable to send reset code. Please try again.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      console.log('OTP sent successfully');
+      setShowCodeInput(true);
+      Alert.alert(
+        'Check Your Email',
+        'We sent a six-digit code to your email. Enter it below to reset your password.',
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.log('Unexpected error sending OTP:', error);
+      
+      // Clear countdown on error
+      if (resendIntervalRef.current) {
+        clearInterval(resendIntervalRef.current);
+      }
+      setResendDisabled(false);
+      setResendCountdown(0);
+      
+      Alert.alert(
+        'Error',
+        'Unable to send reset code. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    console.log('User tapped Verify Code button');
+
+    if (!loginCode.trim() || loginCode.length !== 6) {
+      Alert.alert('Error', 'Please enter the six-digit code from your email');
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationError(null);
+    isVerificationSuccessfulRef.current = false;
+
+    // Set timeout for verification (15 seconds)
+    verificationTimeoutRef.current = setTimeout(() => {
+      if (!isVerificationSuccessfulRef.current) {
+        console.log('OTP verification timeout exceeded');
+        setVerificationError('This is taking longer than expected. Please try again.');
+        setIsVerifying(false);
+      }
+    }, 15000);
+
+    try {
+      console.log('Verifying OTP code');
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: loginCode,
+        type: 'email'
+      });
+
+      if (error) {
+        console.log('OTP verification error:', error);
+        
+        // Check for specific error types
+        const errorMessage = error.message.toLowerCase();
+        
+        if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
+          setVerificationError('Too many attempts. Please wait 30-60 seconds before retrying.');
+        } else if (errorMessage.includes('invalid') || errorMessage.includes('token')) {
+          setVerificationError('Invalid code. Please check your email and try again.');
+        } else if (errorMessage.includes('expired')) {
+          setVerificationError('The code has expired. Please request a new one.');
+        } else {
+          setVerificationError(error.message || 'Failed to verify code. Please try again.');
+        }
+        isVerificationSuccessfulRef.current = false;
+        return;
+      }
+
+      if (!data.session && !data.user) {
+        console.log('No session or user after OTP verification');
+        setVerificationError('Verification successful, but no session found. Please try again.');
+        isVerificationSuccessfulRef.current = false;
+        return;
+      }
+
+      console.log('OTP verified successfully, routing to Reset Password screen');
+      isVerificationSuccessfulRef.current = true;
+
+      // Clear code input
+      setLoginCode('');
+      setVerificationError(null);
+
+      // Route directly to Reset Password screen (no modal)
+      router.replace({
+        pathname: '/reset-password',
+        params: { email }
+      });
+    } catch (error: any) {
+      console.log('Unexpected error during OTP verification:', error);
+      setVerificationError(error.message || 'An unexpected error occurred during verification.');
+      isVerificationSuccessfulRef.current = false;
+    } finally {
+      // Clear timeout
+      if (verificationTimeoutRef.current) {
+        clearTimeout(verificationTimeoutRef.current);
+      }
+      setIsVerifying(false);
+    }
+  };
+
+  const handleBack = () => {
+    router.back();
+  };
+
   const toggleMode = () => {
-    console.log('AuthScreen: Toggling mode from', mode, 'to', mode === 'signin' ? 'signup' : 'signin');
-    setMode(mode === 'signin' ? 'signup' : 'signin');
+    setIsSignUp(!isSignUp);
+    setIsForgotPassword(false);
+    setShowCodeInput(false);
+    setEmail('');
     setPassword('');
-    setConfirmPassword('');
+    setLoginCode('');
     setFirstName('');
     setLastName('');
     setPickleballerNickname('');
-    setExperienceLevel('Beginner');
     setDuprRating('');
     setDuprError('');
+    setExperienceLevel('Beginner');
     setConsentAccepted(false);
+    setVerificationError(null);
   };
 
   const toggleForgotPassword = () => {
-    console.log('AuthScreen: Toggling forgot password mode');
-    setForgotPasswordMode(!forgotPasswordMode);
-    setResetEmailSent(false);
+    setIsForgotPassword(!isForgotPassword);
+    setIsSignUp(false);
+    setShowCodeInput(false);
+    setPassword('');
+    setLoginCode('');
+    setConsentAccepted(false);
+    setVerificationError(null);
   };
 
-  const beginnerLabel = 'Beginner';
-  const intermediateLabel = 'Intermediate';
-  const advancedLabel = 'Advanced';
+  const experienceLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['Beginner', 'Intermediate', 'Advanced'];
+
+  // Compute button text and disabled state
+  const verifyButtonText = isVerifying ? 'Verifying...' : 'Verify Code';
+  const verifyButtonDisabled = isVerifying || !loginCode || loginCode.length !== 6;
+  
+  const resendButtonText = resendDisabled && resendCountdown > 0 
+    ? `Resend (${resendCountdown}s)` 
+    : 'Resend Code';
 
   return (
     <View style={commonStyles.container}>
@@ -290,269 +502,217 @@ export default function AuthScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={handleBack}
+        >
           <IconSymbol 
             ios_icon_name="chevron.left" 
-            android_material_icon_name="arrow-back" 
+            android_material_icon_name="chevron-left" 
             size={24} 
             color={colors.primary} 
           />
-          <Text style={styles.backButtonText}>Back</Text>
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
 
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('@/assets/images/icon.png')}
+        <View style={styles.header}>
+          <Image 
+            source={require('@/assets/images/d00ee021-be7a-42f9-a115-ea45cb937f7f.jpeg')}
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.appName}>PickleRadar</Text>
-          <Text style={styles.tagline}>Find Your Game</Text>
+          <Text style={[commonStyles.title, { color: colors.primary }]}>
+            {isForgotPassword ? 'Forgot Password?' : isSignUp ? 'Create Account' : 'Welcome Back'}
+          </Text>
+          <Text style={commonStyles.textSecondary}>
+            {isForgotPassword 
+              ? showCodeInput 
+                ? 'Enter the six-digit code from your email'
+                : 'Enter your email to receive a reset code' 
+              : isSignUp 
+                ? 'Sign up to start finding pickleball courts' 
+                : 'Sign in to continue'}
+          </Text>
         </View>
 
-        {showSuccessMessage && successMessage && (
-          <View style={styles.successBanner}>
-            <IconSymbol 
-              ios_icon_name="checkmark.circle.fill" 
-              android_material_icon_name="check-circle" 
-              size={24} 
-              color={colors.success} 
-            />
-            <Text style={styles.successText}>{successMessage}</Text>
-          </View>
-        )}
+        <View style={styles.form}>
+          {isSignUp && (
+            <React.Fragment>
+              <Text style={styles.label}>First Name</Text>
+              <TextInput
+                style={commonStyles.input}
+                placeholder="John"
+                placeholderTextColor={colors.textSecondary}
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!loading}
+              />
 
-        {forgotPasswordMode ? (
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>Reset Password</Text>
-            <Text style={[commonStyles.textSecondary, { marginBottom: 24, textAlign: 'center' }]}>
-              Enter your email address and we&apos;ll send you a link to reset your password
-            </Text>
+              <Text style={styles.label}>Last Name</Text>
+              <TextInput
+                style={commonStyles.input}
+                placeholder="Doe"
+                placeholderTextColor={colors.textSecondary}
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!loading}
+              />
 
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              ref={emailInputRef}
-              style={commonStyles.input}
-              placeholder="Enter your email"
-              placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
+              <Text style={styles.label}>Pickleballer Nickname</Text>
+              <TextInput
+                style={commonStyles.input}
+                placeholder="The Dink Master"
+                placeholderTextColor={colors.textSecondary}
+                value={pickleballerNickname}
+                onChangeText={setPickleballerNickname}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!loading}
+              />
 
-            <TouchableOpacity
-              style={[buttonStyles.primary, { marginTop: 24 }]}
-              onPress={handleSendCode}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.card} />
+              <Text style={styles.label}>DUPR Rating (Optional)</Text>
+              <TextInput
+                style={[commonStyles.input, duprError ? styles.inputError : null]}
+                placeholder="e.g., 3.5"
+                placeholderTextColor={colors.textSecondary}
+                value={duprRating}
+                onChangeText={handleDuprChange}
+                keyboardType="decimal-pad"
+                maxLength={4}
+                editable={!loading}
+              />
+              {duprError ? (
+                <Text style={styles.errorText}>{duprError}</Text>
               ) : (
-                <Text style={buttonStyles.text}>Send Reset Link</Text>
+                <Text style={styles.helperText}>Enter a value between 1.0 and 7.0</Text>
               )}
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[buttonStyles.secondary, { marginTop: 12 }]}
-              onPress={toggleForgotPassword}
-              disabled={loading}
-            >
-              <Text style={[buttonStyles.text, { color: colors.text }]}>Back to Sign In</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.formContainer}>
-            <Text style={styles.title}>
-              {mode === 'signin' ? 'Welcome Back' : 'Create Account'}
-            </Text>
-            <Text style={[commonStyles.textSecondary, { marginBottom: 24, textAlign: 'center' }]}>
-              {mode === 'signin' 
-                ? 'Sign in to find pickleball courts and connect with players' 
-                : 'Join PickleRadar to discover courts and meet players'}
-            </Text>
-
-            {mode === 'signup' && (
-              <>
-                <Text style={styles.label}>First Name *</Text>
-                <TextInput
-                  style={commonStyles.input}
-                  placeholder="Enter your first name"
-                  placeholderTextColor={colors.textSecondary}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-
-                <Text style={styles.label}>Last Name *</Text>
-                <TextInput
-                  style={commonStyles.input}
-                  placeholder="Enter your last name"
-                  placeholderTextColor={colors.textSecondary}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-
-                <Text style={styles.label}>Pickleballer Nickname (Optional)</Text>
-                <Text style={[commonStyles.textSecondary, { marginBottom: 12 }]}>
-                  Your fun pickleball nickname
-                </Text>
-                <TextInput
-                  style={commonStyles.input}
-                  placeholder="e.g., Dink Master, Ace, Smash King"
-                  placeholderTextColor={colors.textSecondary}
-                  value={pickleballerNickname}
-                  onChangeText={setPickleballerNickname}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-
-                <Text style={styles.label}>Experience Level</Text>
-                <View style={styles.skillLevelContainer}>
+              <Text style={styles.label}>Experience Level</Text>
+              <View style={styles.experienceLevelContainer}>
+                {experienceLevels.map((level, index) => (
                   <TouchableOpacity
+                    key={index}
                     style={[
-                      styles.skillLevelButton,
-                      experienceLevel === 'Beginner' && styles.skillLevelButtonActive,
+                      styles.experienceLevelButton,
+                      experienceLevel === level && styles.experienceLevelButtonActive,
                     ]}
-                    onPress={() => setExperienceLevel('Beginner')}
+                    onPress={() => setExperienceLevel(level)}
                     disabled={loading}
                   >
                     <Text
                       style={[
-                        styles.skillLevelText,
-                        experienceLevel === 'Beginner' && styles.skillLevelTextActive,
+                        styles.experienceLevelText,
+                        experienceLevel === level && styles.experienceLevelTextActive,
                       ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
                     >
-                      {beginnerLabel}
+                      {level}
                     </Text>
                   </TouchableOpacity>
+                ))}
+              </View>
+            </React.Fragment>
+          )}
 
-                  <TouchableOpacity
-                    style={[
-                      styles.skillLevelButton,
-                      experienceLevel === 'Intermediate' && styles.skillLevelButtonActive,
-                    ]}
-                    onPress={() => setExperienceLevel('Intermediate')}
-                    disabled={loading}
-                  >
-                    <Text
-                      style={[
-                        styles.skillLevelText,
-                        experienceLevel === 'Intermediate' && styles.skillLevelTextActive,
-                      ]}
-                    >
-                      {intermediateLabel}
-                    </Text>
-                  </TouchableOpacity>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={commonStyles.input}
+            placeholder="your@email.com"
+            placeholderTextColor={colors.textSecondary}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            editable={!loading && !showCodeInput && !isVerifying}
+          />
 
-                  <TouchableOpacity
-                    style={[
-                      styles.skillLevelButton,
-                      experienceLevel === 'Advanced' && styles.skillLevelButtonActive,
-                    ]}
-                    onPress={() => setExperienceLevel('Advanced')}
-                    disabled={loading}
-                  >
-                    <Text
-                      style={[
-                        styles.skillLevelText,
-                        experienceLevel === 'Advanced' && styles.skillLevelTextActive,
-                      ]}
-                    >
-                      {advancedLabel}
-                    </Text>
-                  </TouchableOpacity>
+          {isForgotPassword && showCodeInput && (
+            <React.Fragment>
+              <Text style={styles.label}>Six-Digit Code</Text>
+              <TextInput
+                style={[commonStyles.input, styles.codeInput]}
+                placeholder="000000"
+                placeholderTextColor={colors.textSecondary}
+                value={loginCode}
+                onChangeText={(text) => setLoginCode(text.replace(/[^0-9]/g, ''))}
+                keyboardType="number-pad"
+                maxLength={6}
+                editable={!isVerifying}
+              />
+              <Text style={styles.helperText}>
+                Check your email for a six-digit code and enter it here
+              </Text>
+              
+              {verificationError && (
+                <View style={styles.errorContainer}>
+                  <IconSymbol 
+                    ios_icon_name="exclamationmark.triangle.fill" 
+                    android_material_icon_name="warning" 
+                    size={20} 
+                    color={colors.accent} 
+                  />
+                  <Text style={styles.errorMessage}>{verificationError}</Text>
                 </View>
+              )}
+            </React.Fragment>
+          )}
 
-                <Text style={styles.label}>DUPR Rating (Optional)</Text>
-                <Text style={[commonStyles.textSecondary, { marginBottom: 12 }]}>
-                  Enter your DUPR rating (1.0 - 7.0)
+          {!isForgotPassword && (
+            <React.Fragment>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={commonStyles.input}
+                placeholder={isSignUp ? 'At least 6 characters' : 'Enter your password'}
+                placeholderTextColor={colors.textSecondary}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={styles.showPasswordButton}
+                onPress={() => setShowPassword(!showPassword)}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.showPasswordText}>
+                  {showPassword ? 'Hide Password' : 'Show Password'}
                 </Text>
-                <TextInput
-                  style={[commonStyles.input, duprError ? styles.inputError : null]}
-                  placeholder="e.g., 3.5"
-                  placeholderTextColor={colors.textSecondary}
-                  value={duprRating}
-                  onChangeText={handleDuprChange}
-                  keyboardType="decimal-pad"
-                  maxLength={4}
-                  editable={!loading}
-                />
-                {duprError && (
-                  <Text style={styles.errorText}>{duprError}</Text>
-                )}
-              </>
-            )}
+              </TouchableOpacity>
+            </React.Fragment>
+          )}
 
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              ref={mode === 'signin' ? emailInputRef : undefined}
-              style={commonStyles.input}
-              placeholder="Enter your email"
-              placeholderTextColor={colors.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={commonStyles.input}
-              placeholder="Enter your password"
-              placeholderTextColor={colors.textSecondary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={!loading}
-            />
-
-            {mode === 'signup' && (
-              <>
-                <Text style={styles.label}>Confirm Password</Text>
-                <TextInput
-                  style={commonStyles.input}
-                  placeholder="Confirm your password"
-                  placeholderTextColor={colors.textSecondary}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!loading}
-                />
-
-                <TouchableOpacity
-                  style={styles.consentContainer}
-                  onPress={() => setConsentAccepted(!consentAccepted)}
-                  disabled={loading}
-                >
-                  <View style={[styles.checkbox, consentAccepted && styles.checkboxActive]}>
-                    {consentAccepted && (
-                      <IconSymbol 
-                        ios_icon_name="checkmark" 
-                        android_material_icon_name="check" 
-                        size={16} 
-                        color={colors.card} 
-                      />
-                    )}
-                  </View>
+          {isSignUp && (
+            <View style={styles.consentContainer}>
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setConsentAccepted(!consentAccepted)}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, consentAccepted && styles.checkboxChecked]}>
+                  {consentAccepted && (
+                    <IconSymbol 
+                      ios_icon_name="checkmark" 
+                      android_material_icon_name="check" 
+                      size={16} 
+                      color={colors.card} 
+                    />
+                  )}
+                </View>
+                <View style={styles.consentTextContainer}>
                   <Text style={styles.consentText}>
-                    I accept the{' '}
-                    <Text
-                      style={styles.linkText}
+                    I agree to the{' '}
+                    <Text 
+                      style={styles.consentLink}
                       onPress={(e) => {
                         e.stopPropagation();
                         router.push('/legal/privacy-policy');
@@ -561,8 +721,8 @@ export default function AuthScreen() {
                       Privacy Policy
                     </Text>
                     {' '}and{' '}
-                    <Text
-                      style={styles.linkText}
+                    <Text 
+                      style={styles.consentLink}
                       onPress={(e) => {
                         e.stopPropagation();
                         router.push('/legal/terms-of-service');
@@ -571,51 +731,131 @@ export default function AuthScreen() {
                       Terms of Service
                     </Text>
                   </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            <TouchableOpacity
-              style={[buttonStyles.primary, { marginTop: 24 }]}
-              onPress={mode === 'signin' ? handleSignIn : handleSignUp}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.card} />
-              ) : (
-                <Text style={buttonStyles.text}>
-                  {mode === 'signin' ? 'Sign In' : 'Create Account'}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            {mode === 'signin' && (
-              <TouchableOpacity
-                style={styles.forgotPasswordButton}
-                onPress={toggleForgotPassword}
-                disabled={loading}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </View>
               </TouchableOpacity>
-            )}
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
             </View>
+          )}
 
+          <TouchableOpacity
+            style={[
+              buttonStyles.primary, 
+              { marginTop: 8 }, 
+              ((loading || isVerifying || isSendingCode) || (isSignUp && !consentAccepted) || (isForgotPassword && showCodeInput && verifyButtonDisabled)) && { opacity: 0.6 }
+            ]}
+            onPress={
+              isForgotPassword 
+                ? showCodeInput 
+                  ? handleVerifyCode 
+                  : handleSendCode 
+                : isSignUp 
+                  ? handleSignUp 
+                  : handleSignIn
+            }
+            disabled={
+              loading || 
+              isVerifying || 
+              isSendingCode || 
+              (isSignUp && !consentAccepted) || 
+              (isForgotPassword && showCodeInput && verifyButtonDisabled)
+            }
+            activeOpacity={0.8}
+          >
+            {(loading || isVerifying || isSendingCode) ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={colors.card} size="small" />
+                <Text style={[buttonStyles.text, { marginLeft: 8 }]}>
+                  {isForgotPassword && showCodeInput ? verifyButtonText : isSendingCode ? 'Sending...' : 'Loading...'}
+                </Text>
+              </View>
+            ) : (
+              <Text style={buttonStyles.text}>
+                {isForgotPassword 
+                  ? showCodeInput 
+                    ? verifyButtonText
+                    : 'Send Code' 
+                  : isSignUp 
+                    ? 'Sign Up' 
+                    : 'Sign In'}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          {isForgotPassword && showCodeInput && (
             <TouchableOpacity
-              style={[buttonStyles.secondary, { marginTop: 16 }]}
-              onPress={toggleMode}
-              disabled={loading}
+              style={styles.resendButton}
+              onPress={handleSendCode}
+              disabled={resendDisabled || isSendingCode}
+              activeOpacity={0.7}
             >
-              <Text style={[buttonStyles.text, { color: colors.text }]}>
-                {mode === 'signin' 
-                  ? "Don't have an account? Sign Up" 
-                  : 'Already have an account? Sign In'}
+              <Text style={[styles.resendText, (resendDisabled || isSendingCode) && { opacity: 0.5 }]}>
+                {resendButtonText}
               </Text>
             </TouchableOpacity>
+          )}
+
+          {!isForgotPassword && !isSignUp && (
+            <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={toggleForgotPassword}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.forgotPasswordText}>
+                Forgot Password?
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {!isForgotPassword && (
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={toggleMode}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.toggleText}>
+                {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+                <Text style={styles.toggleLink}>
+                  {isSignUp ? 'Sign In' : 'Sign Up'}
+                </Text>
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {isForgotPassword && (
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={toggleForgotPassword}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.toggleText}>
+                Remember your password?{' '}
+                <Text style={styles.toggleLink}>
+                  Sign In
+                </Text>
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {!isConfigured && (
+          <View style={[commonStyles.card, { backgroundColor: colors.accent, marginTop: 20 }]}>
+            <View style={styles.warningHeader}>
+              <IconSymbol 
+                ios_icon_name="exclamationmark.triangle.fill" 
+                android_material_icon_name="warning" 
+                size={24} 
+                color={colors.card} 
+              />
+              <Text style={[commonStyles.subtitle, { marginLeft: 12, color: colors.card }]}>
+                Supabase Required
+              </Text>
+            </View>
+            <Text style={[commonStyles.textSecondary, { marginTop: 12, color: colors.card }]}>
+              To use authentication and all features, please enable Supabase by pressing the Supabase button 
+              in Natively and connecting to a project.
+            </Text>
           </View>
         )}
 
@@ -637,94 +877,32 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  backButtonText: {
+  backText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.primary,
-    marginLeft: 8,
+    marginLeft: 4,
   },
-  logoContainer: {
+  header: {
     alignItems: 'center',
     marginBottom: 32,
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 96,
+    height: 96,
     marginBottom: 16,
   },
-  appName: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  tagline: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  successBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.highlight,
-    borderWidth: 2,
-    borderColor: colors.success,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  successText: {
-    fontSize: 14,
-    color: colors.success,
-    fontWeight: '600',
-    marginLeft: 12,
-    flex: 1,
-  },
-  formContainer: {
+  form: {
     width: '100%',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
   label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
-    marginTop: 16,
-  },
-  skillLevelContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  skillLevelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: colors.highlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  skillLevelButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  skillLevelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  skillLevelTextActive: {
-    color: colors.card,
+    marginTop: 12,
   },
   inputError: {
     borderColor: colors.accent,
@@ -734,11 +912,85 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.accent,
     marginTop: 4,
+    marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  codeInput: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 8,
+    textAlign: 'center',
+    fontFamily: 'Courier New',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: colors.accent,
+    marginLeft: 8,
+    flex: 1,
+    fontWeight: '500',
+  },
+  experienceLevelContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  experienceLevelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    minWidth: 0,
+  },
+  experienceLevelButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  experienceLevelText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+    flexShrink: 1,
+  },
+  experienceLevelTextActive: {
+    color: colors.card,
+  },
+  showPasswordButton: {
+    marginTop: 8,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  showPasswordText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   consentContainer: {
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: 20,
   },
   checkbox: {
     width: 24,
@@ -746,48 +998,67 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 2,
     borderColor: colors.border,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     marginTop: 2,
   },
-  checkboxActive: {
+  checkboxChecked: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  consentText: {
+  consentTextContainer: {
     flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
   },
-  linkText: {
+  consentText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.text,
+  },
+  consentLink: {
     color: colors.primary,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   forgotPasswordButton: {
+    marginTop: 12,
     alignItems: 'center',
-    marginTop: 16,
   },
   forgotPasswordText: {
     fontSize: 14,
     color: colors.primary,
     fontWeight: '600',
   },
-  divider: {
-    flexDirection: 'row',
+  resendButton: {
+    marginTop: 12,
     alignItems: 'center',
-    marginTop: 24,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
+  resendText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
-  dividerText: {
+  toggleButton: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  toggleText: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginHorizontal: 16,
+  },
+  toggleLink: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

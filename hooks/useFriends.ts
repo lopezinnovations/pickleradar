@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 import { Friend, FriendWithDetails } from '@/types';
 
 interface UserWithStatus {
@@ -42,6 +42,7 @@ export const useFriends = (userId: string | undefined) => {
     try {
       console.log('Fetching all users for userId:', userId);
       
+      // Get all users except the current user
       const { data: users, error: usersError } = await supabase
         .from('users')
         .select('id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
@@ -54,6 +55,7 @@ export const useFriends = (userId: string | undefined) => {
 
       console.log('Fetched users:', users?.length);
 
+      // Get all users who are currently checked in
       const { data: checkIns, error: checkInsError } = await supabase
         .from('check_ins')
         .select('user_id')
@@ -66,6 +68,7 @@ export const useFriends = (userId: string | undefined) => {
 
       const checkedInUserIds = new Set((checkIns || []).map(ci => ci.user_id));
 
+      // Get ALL friend relationships (not just accepted ones)
       const { data: allRelationships, error: relationshipsError } = await supabase
         .from('friends')
         .select('id, user_id, friend_id, status')
@@ -78,6 +81,7 @@ export const useFriends = (userId: string | undefined) => {
 
       console.log('Fetched relationships:', allRelationships?.length);
 
+      // Create a map of user relationships
       const relationshipMap = new Map<string, { status: string; friendshipId: string; isSender: boolean }>();
       (allRelationships || []).forEach(rel => {
         const otherUserId = rel.user_id === userId ? rel.friend_id : rel.user_id;
@@ -90,6 +94,7 @@ export const useFriends = (userId: string | undefined) => {
             isSender 
           });
         } else if (rel.status === 'pending') {
+          // Determine if this is a sent or received request
           const friendshipStatus = isSender ? 'pending_sent' : 'pending_received';
           relationshipMap.set(otherUserId, { 
             status: friendshipStatus, 
@@ -99,6 +104,7 @@ export const useFriends = (userId: string | undefined) => {
         }
       });
 
+      // Get courts played by each user
       const { data: userCheckIns, error: userCheckInsError } = await supabase
         .from('check_ins')
         .select('user_id, court_id, courts(name)');
@@ -108,6 +114,7 @@ export const useFriends = (userId: string | undefined) => {
         throw userCheckInsError;
       }
 
+      // Create a map of user_id to courts played
       const userCourtsMap = new Map<string, Set<string>>();
       (userCheckIns || []).forEach((checkIn: any) => {
         if (checkIn.courts?.name) {
@@ -118,6 +125,7 @@ export const useFriends = (userId: string | undefined) => {
         }
       });
 
+      // Map users with their relationship status
       const usersWithStatus: UserWithStatus[] = (users || []).map(user => {
         const relationship = relationshipMap.get(user.id);
         return {
@@ -147,6 +155,7 @@ export const useFriends = (userId: string | undefined) => {
     try {
       console.log('useFriends: Fetching friends for userId:', userId);
 
+      // Fetch accepted friends where current user is the sender (user_id)
       const { data: sentFriends, error: sentError } = await supabase
         .from('friends')
         .select(`
@@ -163,6 +172,7 @@ export const useFriends = (userId: string | undefined) => {
 
       console.log('useFriends: Sent friends:', sentFriends?.length || 0);
 
+      // Fetch accepted friends where current user is the receiver (friend_id)
       const { data: receivedFriends, error: receivedError } = await supabase
         .from('friends')
         .select(`
@@ -179,6 +189,7 @@ export const useFriends = (userId: string | undefined) => {
 
       console.log('useFriends: Received friends:', receivedFriends?.length || 0);
 
+      // Fetch pending requests where current user is the receiver
       const { data: pending, error: pendingError } = await supabase
         .from('friends')
         .select(`
@@ -195,6 +206,7 @@ export const useFriends = (userId: string | undefined) => {
 
       console.log('useFriends: Pending requests:', pending?.length || 0);
 
+      // Process sent friends (where current user is user_id)
       const sentFriendsWithDetails: FriendWithDetails[] = await Promise.all(
         (sentFriends || []).map(async (friendship: any) => {
           const friendData = friendship.friend;
@@ -232,6 +244,7 @@ export const useFriends = (userId: string | undefined) => {
         })
       );
 
+      // Process received friends (where current user is friend_id)
       const receivedFriendsWithDetails: FriendWithDetails[] = await Promise.all(
         (receivedFriends || []).map(async (friendship: any) => {
           const friendData = friendship.requester;
@@ -251,7 +264,7 @@ export const useFriends = (userId: string | undefined) => {
           return {
             id: friendship.id,
             userId: friendship.user_id,
-            friendId: friendship.user_id,
+            friendId: friendship.user_id, // The friend is the user_id in this case
             status: friendship.status,
             createdAt: friendship.created_at,
             friendEmail: friendData.email,
@@ -269,6 +282,7 @@ export const useFriends = (userId: string | undefined) => {
         })
       );
 
+      // Combine both lists
       const allFriends = [...sentFriendsWithDetails, ...receivedFriendsWithDetails];
       console.log('useFriends: Total friends:', allFriends.length);
 
@@ -294,6 +308,7 @@ export const useFriends = (userId: string | undefined) => {
       setFriends(allFriends);
       setPendingRequests(pendingWithDetails);
       
+      // Also fetch all users
       await fetchAllUsers();
     } catch (error) {
       console.error('Error fetching friends:', error);
@@ -316,11 +331,14 @@ export const useFriends = (userId: string | undefined) => {
     }
 
     try {
+      // Try to find user by phone or email
       let friendUser = null;
       
+      // Check if it looks like a phone number (contains digits and possibly +, -, (, ), spaces)
       const isPhone = /[\d+\-() ]/.test(friendIdentifier) && friendIdentifier.replace(/[\D]/g, '').length >= 10;
       
       if (isPhone) {
+        // Clean phone number
         const cleanPhone = friendIdentifier.replace(/\D/g, '');
         const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
         
@@ -334,6 +352,7 @@ export const useFriends = (userId: string | undefined) => {
           friendUser = data;
         }
       } else {
+        // Try email
         const { data, error } = await supabase
           .from('users')
           .select('id')
@@ -397,6 +416,7 @@ export const useFriends = (userId: string | undefined) => {
         return { success: false, error: 'Cannot add yourself as a friend' };
       }
 
+      // Check if a relationship already exists
       const { data: existing, error: existingError } = await supabase
         .from('friends')
         .select('*')
@@ -431,6 +451,7 @@ export const useFriends = (userId: string | undefined) => {
 
       console.log('Friend request inserted successfully:', insertData);
       
+      // Refresh the data
       await fetchFriends();
       return { success: true, error: null };
     } catch (error: any) {
