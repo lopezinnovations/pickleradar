@@ -37,6 +37,7 @@ export default function RootLayout() {
         <Stack.Screen name="user/[id]" />
         <Stack.Screen name="reset-password" />
         <Stack.Screen name="auth-migration-notice" />
+        <Stack.Screen name="code-assistant" />
         <Stack.Screen name="legal/privacy-policy" />
         <Stack.Screen name="legal/terms-of-service" />
         <Stack.Screen name="legal/disclaimer" />

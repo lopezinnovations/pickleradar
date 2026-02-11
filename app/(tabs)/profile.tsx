@@ -981,6 +981,36 @@ export default function ProfileScreen() {
         </View>
 
         <View style={commonStyles.card}>
+          <Text style={commonStyles.subtitle}>Tools</Text>
+          
+          <TouchableOpacity
+            style={styles.toolButton}
+            onPress={() => router.push('/code-assistant')}
+          >
+            <View style={styles.toolIconContainer}>
+              <IconSymbol 
+                ios_icon_name="chevron.left.forwardslash.chevron.right" 
+                android_material_icon_name="code" 
+                size={24} 
+                color={colors.primary} 
+              />
+            </View>
+            <View style={styles.toolInfo}>
+              <Text style={[commonStyles.text, { fontWeight: '600' }]}>Code Assistant</Text>
+              <Text style={commonStyles.textSecondary}>
+                AI-powered coding help
+              </Text>
+            </View>
+            <IconSymbol 
+              ios_icon_name="chevron.right" 
+              android_material_icon_name="chevron-right" 
+              size={20} 
+              color={colors.textSecondary} 
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={commonStyles.card}>
           <Text style={commonStyles.subtitle}>Privacy & Permissions</Text>
           
           <View style={styles.settingRow}>
@@ -1640,5 +1670,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.highlight,
     marginBottom: 12,
+  },
+  toolButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: colors.highlight,
+    marginTop: 12,
+  },
+  toolIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  toolInfo: {
+    flex: 1,
   },
 });
