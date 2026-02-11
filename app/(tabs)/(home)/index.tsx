@@ -1,5 +1,5 @@
 
-import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Linking, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Constants from 'expo-constants';
@@ -55,7 +55,7 @@ export default function HomeScreen() {
   const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounced search handler
-  const debouncedSearch = useCallback(
+  const debouncedSearch = React.useCallback(
     debounce((query: string) => {
       console.log('HomeScreen: Debounced search query:', query);
       setDebouncedSearchQuery(query);
@@ -69,7 +69,7 @@ export default function HomeScreen() {
 
   // AUTO-REFRESH: Set up periodic refresh while Map tab is active
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       console.log('HomeScreen: Map tab focused, setting up auto-refresh');
       
       // Clear any existing timer

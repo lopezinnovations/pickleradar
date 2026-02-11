@@ -66,36 +66,6 @@ export const useCourts = (userId?: string) => {
   const realtimeManager = useRealtimeManager('useCourts');
   const hasSetupRealtime = useRef(false);
 
-  const fetchCourts = useCallback(async () => {
-    console.log('useCourts: Fetching courts...');
-    logPerformance('QUERY_START', 'useCourts', 'fetchCourts');
-    
-    if (!isSupabaseConfigured()) {
-      console.log('useCourts: Supabase not configured, using mock data');
-      setCourts(MOCK_COURTS);
-      setLoading(false);
-      logPerformance('QUERY_END', 'useCourts', 'fetchCourts', { mock: true });
-      return;
-    }
-
-    // Check cache first (2 minute TTL)
-    const cacheKey = `courts_${userId || 'all'}`;
-    const cached = getCachedData<Court[]>(cacheKey, 120000);
-    if (cached) {
-      console.log('useCourts: Using cached courts');
-      setCourts(cached);
-      setLoading(false);
-      
-      // Refresh in background
-      setTimeout(() => {
-        fetchCourtsFromServer();
-      }, 100);
-      return;
-    }
-
-    await fetchCourtsFromServer();
-  }, [userId]);
-
   const fetchCourtsFromServer = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
 
@@ -214,6 +184,36 @@ export const useCourts = (userId?: string) => {
       console.log('useCourts: Fetch complete');
     }
   }, [userId]);
+
+  const fetchCourts = useCallback(async () => {
+    console.log('useCourts: Fetching courts...');
+    logPerformance('QUERY_START', 'useCourts', 'fetchCourts');
+    
+    if (!isSupabaseConfigured()) {
+      console.log('useCourts: Supabase not configured, using mock data');
+      setCourts(MOCK_COURTS);
+      setLoading(false);
+      logPerformance('QUERY_END', 'useCourts', 'fetchCourts', { mock: true });
+      return;
+    }
+
+    // Check cache first (2 minute TTL)
+    const cacheKey = `courts_${userId || 'all'}`;
+    const cached = getCachedData<Court[]>(cacheKey, 120000);
+    if (cached) {
+      console.log('useCourts: Using cached courts');
+      setCourts(cached);
+      setLoading(false);
+      
+      // Refresh in background
+      setTimeout(() => {
+        fetchCourtsFromServer();
+      }, 100);
+      return;
+    }
+
+    await fetchCourtsFromServer();
+  }, [userId, fetchCourtsFromServer]);
 
   useEffect(() => {
     console.log('useCourts: Initializing...');

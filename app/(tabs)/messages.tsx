@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, TextInput, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
@@ -9,7 +9,6 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { NotificationPermissionModal } from '@/components/NotificationPermissionModal';
 import { 
   requestNotificationPermissions, 
-  checkNotificationPermissionStatus,
   shouldShowNotificationsPrompt,
   setNotificationsPromptDismissedAt,
   registerPushToken
@@ -49,7 +48,7 @@ export default function MessagesScreen() {
   const realtimeManager = useRealtimeManager('MessagesScreen');
 
   // Debounced search handler
-  const debouncedSearch = useCallback(
+  const debouncedSearch = React.useCallback(
     debounce((query: string) => {
       console.log('MessagesScreen: Debounced search query:', query);
       setDebouncedSearchQuery(query);
@@ -62,7 +61,7 @@ export default function MessagesScreen() {
   }, [searchQuery, debouncedSearch]);
 
   // Check if we should show the notification prompt
-  const checkAndShowNotificationPrompt = useCallback(async () => {
+  const checkAndShowNotificationPrompt = React.useCallback(async () => {
     if (!user) return;
 
     console.log('MessagesScreen: Checking if should show notification prompt');
@@ -108,7 +107,7 @@ export default function MessagesScreen() {
 
   // PULL-TO-REFRESH: Refetch on focus and check notification prompt
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       console.log('MessagesScreen: Screen focused');
       checkAndShowNotificationPrompt();
     }, [checkAndShowNotificationPrompt])
@@ -116,7 +115,7 @@ export default function MessagesScreen() {
 
   // REALTIME: Subscribe ONLY while Messages tab is focused
   useFocusEffect(
-    useCallback(() => {
+    React.useCallback(() => {
       if (!user || !isSupabaseConfigured()) {
         return;
       }
