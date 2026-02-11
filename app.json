@@ -2,105 +2,94 @@
 {
   "expo": {
     "name": "PickleRadar",
-    "slug": "PickleRadar",
-    "version": "1.0.6",
-    "orientation": "portrait",
-    "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "privacyPolicy": "https://lopezinnovations.com#privacy-policy",
-    "splash": {
-      "image": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
-      "resizeMode": "contain",
+  "slug": "pickleradar",
+  "version": "1.0.6",
+  "orientation": "portrait",
+  "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
+  "userInterfaceStyle": "automatic",
+  "newArchEnabled": true,
+  "privacyPolicy": "https://lopezinnovations.com#privacy-policy",
+  "splash": {
+    "image": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#1B4D3E"
+  },
+  "ios": {
+    "supportsTablet": true,
+    "bundleIdentifier": "com.lopezinnovations.pickleradar",
+    "infoPlist": {
+      "ITSAppUsesNonExemptEncryption": false,
+      "NSLocationWhenInUseUsageDescription": "PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features.",
+      "NSCameraUsageDescription": "PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background.",
+      "NSPhotoLibraryUsageDescription": "PickleRadar needs access to your photo library to allow you to upload profile photos or court images.",
+      "UIBackgroundModes": ["remote-notification"]
+    },
+    "usesAppleSignIn": true,
+    "entitlements": {
+      "com.apple.developer.applesignin": ["Default"]
+    }
+  },
+  "android": {
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
       "backgroundColor": "#1B4D3E"
     },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.lopezinnovations.pickleradar",
-      "config": {
-        "googleMapsApiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-      },
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features.",
-        "NSCameraUsageDescription": "PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background.",
-        "NSPhotoLibraryUsageDescription": "PickleRadar needs access to your photo library to allow you to upload profile photos or court images.",
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
-      },
-      "usesAppleSignIn": true,
-      "entitlements": {
-        "com.apple.developer.applesignin": [
-          "Default"
-        ]
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
-        "backgroundColor": "#1B4D3E"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.lopezinnovations.pickleradar",
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "CAMERA"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-        }
-      },
-      "versionCode": 7
-    },
-    "web": {
-      "favicon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-font",
-      "expo-router",
-      "expo-web-browser",
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
-          "color": "#1B4D3E",
-          "sounds": [],
-          "mode": "production"
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "PickleRadar needs access to your photo library to allow you to upload profile photos or court images.",
-          "cameraPermission": "PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background."
-        }
-      ],
-      [
-        "react-native-maps",
-        {
-          "iosGoogleMapsApiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-          "androidGoogleMapsApiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-        }
-      ]
+    "edgeToEdgeEnabled": true,
+    "package": "com.lopezinnovations.pickleradar",
+    "permissions": [
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.CAMERA",
+      "android.permission.RECORD_AUDIO"
     ],
-    "experiments": {
-      "typedRoutes": true
-    },
-    "extra": {
-      "router": {},
-      "supabaseUrl": "https://biczbxmaisdxpcbplddr.supabase.co",
-      "supabaseAnonKey": "sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk"
-    },
-    "scheme": "PickleRadar"
-  }
+    "versionCode": 7
+  },
+  "web": {
+    "favicon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
+    "bundler": "metro"
+  },
+  "plugins": [
+    "expo-font",
+    "expo-router",
+    "expo-web-browser",
+    [
+      "expo-location",
+      {
+        "locationAlwaysAndWhenInUsePermission": "PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features."
+      }
+    ],
+    [
+      "expo-notifications",
+      {
+        "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
+        "color": "#1B4D3E",
+        "sounds": [],
+        "mode": "production"
+      }
+    ],
+    [
+      "expo-image-picker",
+      {
+        "photosPermission": "PickleRadar needs access to your photo library to allow you to upload profile photos or court images.",
+        "cameraPermission": "PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background."
+      }
+    ],
+    [
+      "react-native-maps",
+      {
+        "iosGoogleMapsApiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        "androidGoogleMapsApiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      }
+    ]
+  ],
+  "experiments": { "typedRoutes": true },
+  "extra": {
+    "router": {},
+    "supabaseUrl": "https://biczbxmaisdxpcbplddr.supabase.co",
+    "supabaseAnonKey": "sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk",
+    "eas": { "projectId": "b92d8e42-a250-46eb-aff1-1738c97cfb49" }
+  },
+  "scheme": "PickleRadar",
+  "sdkVersion": "54.0.0",
+  "platforms": ["ios", "android", "web"]
 }
