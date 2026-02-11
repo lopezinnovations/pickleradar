@@ -220,6 +220,7 @@ export default function GroupInfoScreen() {
 
       setIsMuted(true);
       setMuteUntil(mutedUntil);
+      setShowMuteModal(false);
       
       const muteMessage = minutes 
         ? `Muted for ${minutes >= 1440 ? '24 hours' : minutes >= 480 ? '8 hours' : '1 hour'}`
@@ -512,7 +513,9 @@ export default function GroupInfoScreen() {
       <MuteOptionsModal
         visible={showMuteModal}
         onClose={() => setShowMuteModal(false)}
-        onSelectMute={handleMuteConversation}
+        onMute={handleMuteConversation}
+        onUnmute={handleUnmute}
+        isMuted={isMuted}
       />
     </View>
   );

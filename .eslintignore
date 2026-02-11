@@ -1,0 +1,17 @@
+
+# Supabase Edge Functions (Deno-based, not Node.js)
+supabase/functions/**/*
+
+# Build outputs
+dist/
+.expo/
+.expo-shared/
+
+# Babel plugins (protected)
+babel-plugins/
+
+# Metro config (protected)
+metro.config.js
+
+# Node modules
+node_modules/

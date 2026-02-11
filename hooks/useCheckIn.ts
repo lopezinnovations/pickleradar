@@ -201,39 +201,41 @@ export const useCheckIn = (userId?: string) => {
 
     setLoading(true);
     try {
-      const { data: existing } = await supabase
+      console.log('useCheckIn: Starting check-in for user', userId, 'at court', courtId);
+
+      // First, delete any existing check-ins for this user at ANY court
+      // This ensures we don't have duplicate check-ins and handles the constraint properly
+      const { data: existingCheckIns, error: fetchError } = await supabase
         .from('check_ins')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('court_id', courtId)
-        .gte('expires_at', new Date().toISOString())
-        .single();
+        .select('id, notification_id')
+        .eq('user_id', userId);
 
-      if (existing) {
-        setLoading(false);
-        return { success: false, error: 'Already checked in at this court' };
-      }
-
-      const { data: otherCheckIns } = await supabase
-        .from('check_ins')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('expires_at', new Date().toISOString());
-
-      if (otherCheckIns && otherCheckIns.length > 0) {
-        for (const checkIn of otherCheckIns) {
-          if (checkIn.notification_id) {
+      if (fetchError) {
+        console.error('useCheckIn: Error fetching existing check-ins:', fetchError);
+      } else if (existingCheckIns && existingCheckIns.length > 0) {
+        console.log('useCheckIn: Found', existingCheckIns.length, 'existing check-ins, cleaning up...');
+        
+        // Cancel all existing notifications
+        for (const checkIn of existingCheckIns) {
+          if (checkIn.notification_id && isPushNotificationSupported()) {
             await cancelCheckOutNotification(checkIn.notification_id);
           }
         }
         
-        await supabase
+        // Delete all existing check-ins for this user
+        const { error: deleteError } = await supabase
           .from('check_ins')
           .delete()
-          .eq('user_id', userId)
-          .gte('expires_at', new Date().toISOString());
+          .eq('user_id', userId);
+
+        if (deleteError) {
+          console.error('useCheckIn: Error deleting existing check-ins:', deleteError);
+        } else {
+          console.log('useCheckIn: Cleaned up existing check-ins');
+        }
       }
 
+      // Get court name for notifications
       const { data: courtData } = await supabase
         .from('courts')
         .select('name')
@@ -242,28 +244,35 @@ export const useCheckIn = (userId?: string) => {
 
       const courtName = courtData?.name || 'Unknown Court';
 
+      // Schedule notification
       let notificationId: string | null = null;
       if (isPushNotificationSupported()) {
         notificationId = await scheduleCheckInNotification(courtName, durationMinutes);
       }
 
+      // Calculate expiration time
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + durationMinutes);
 
-      const { error } = await supabase
+      // Insert new check-in (no conflict possible since we deleted all existing ones)
+      const { error: insertError } = await supabase
         .from('check_ins')
-        .insert([
-          {
-            user_id: userId,
-            court_id: courtId,
-            skill_level: skillLevel,
-            expires_at: expiresAt.toISOString(),
-            duration_minutes: durationMinutes,
-            notification_id: notificationId,
-          },
-        ]);
+        .insert({
+          user_id: userId,
+          court_id: courtId,
+          skill_level: skillLevel,
+          expires_at: expiresAt.toISOString(),
+          duration_minutes: durationMinutes,
+          notification_id: notificationId,
+          created_at: new Date().toISOString(),
+        });
 
-      if (error) throw error;
+      if (insertError) {
+        console.error('useCheckIn: Error inserting check-in:', insertError);
+        throw insertError;
+      }
+
+      console.log('useCheckIn: Check-in successful');
       
       await fetchCheckInHistory(userId);
 

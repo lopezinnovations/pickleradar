@@ -53,7 +53,7 @@ export default function ConversationScreen() {
 
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users')
         .select('id, first_name, last_name, pickleballer_nickname')
         .eq('id', recipientId)
         .single();
@@ -70,7 +70,7 @@ export default function ConversationScreen() {
 
     try {
       const { data, error } = await supabase
-        .from('friendships')
+        .from('friends')
         .select('id')
         .or(`and(user_id.eq.${user.id},friend_id.eq.${recipientId}),and(user_id.eq.${recipientId},friend_id.eq.${user.id})`)
         .eq('status', 'accepted')
@@ -106,7 +106,7 @@ export default function ConversationScreen() {
 
     try {
       const { data, error } = await supabase
-        .from('muted_conversations')
+        .from('conversation_mutes')
         .select('muted_until')
         .eq('user_id', user.id)
         .eq('conversation_type', 'direct')
@@ -282,7 +282,7 @@ export default function ConversationScreen() {
       const mutedUntil = minutes === null ? null : new Date(Date.now() + minutes * 60000).toISOString();
 
       const { error } = await supabase
-        .from('muted_conversations')
+        .from('conversation_mutes')
         .upsert(
           {
             user_id: user.id,
@@ -309,7 +309,7 @@ export default function ConversationScreen() {
 
     try {
       const { error } = await supabase
-        .from('muted_conversations')
+        .from('conversation_mutes')
         .delete()
         .eq('user_id', user.id)
         .eq('conversation_type', 'direct')
