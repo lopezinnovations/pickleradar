@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="%LANG_ISO_CODE%">
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -7,7 +7,8 @@
     <meta http-Equiv="Cache-Control" Content="no-cache" />
     <meta http-Equiv="Pragma" Content="no-cache" />
     <meta http-Equiv="Expires" Content="0" />
-    <title>Natively</title>
+    <link rel="manifest" href="/manifest.json" />
+    <title>%WEB_TITLE%</title>
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
       /* These styles make the body full-height */
@@ -26,7 +27,106 @@
         flex: 1;
       }
     </style>
-  <link rel="preload" href="/_expo/static/css/native-tabs.module-78b0f59737571f455720970791a36bdd.css" as="style"><link rel="stylesheet" href="/_expo/static/css/native-tabs.module-78b0f59737571f455720970791a36bdd.css"></head>
+    <script>
+    window.canInstall = false;
+    window.deferredPrompt = null;
+
+    window.addEventListener('load', async () => {
+
+      // Skip PWA installation and service worker code if we're in development mode (index.ts.bundle exists)
+      // or if we're in Expo development environment
+      if (!document.querySelector('script[src*="index.ts.bundle"]') && !window.location.href.includes('exp.direct')) {
+
+        window.handleInstallClick = async () => {
+          console.debug("handleInstallClick called");
+
+          if (!window.deferredPrompt) return;
+
+          // Show the install prompt
+          window.deferredPrompt.prompt();
+
+          console.debug("window.deferredPrompt.prompt called");
+
+          // Wait for the user to respond to the prompt
+          const { outcome } = await window.deferredPrompt.userChoice;
+
+          // Hide the install button
+          if (outcome === 'accepted') {
+            canInstall = false;
+          }
+        };
+
+        window.handleBeforeInstallPrompt = (e) => {
+          console.debug("handleBeforeInstallPrompt called");
+
+          // Prevent Chrome 67 and earlier from automatically showing the prompt
+          e.preventDefault();
+
+          // Stash the event so it can be triggered later
+          window.deferredPrompt = e;
+
+          // Update UI to notify the user they can install the PWA
+          window.canInstall = true;
+        };
+
+        window.addEventListener('beforeinstallprompt', window.handleBeforeInstallPrompt);
+
+        if ('serviceWorker' in navigator) {
+          // Unregister any existing service worker first
+          const existingRegistration = await navigator.serviceWorker.getRegistration();
+          if (existingRegistration) {
+            console.log('Unregistering existing service worker');
+            await existingRegistration.unregister();
+          }
+
+          const registration = await navigator.serviceWorker.register('./sw.js');
+          console.log('Service Worker registered with scope:', registration.scope);
+
+          // Check for updates every 30 seconds
+          setInterval(async () => {
+            try {
+              await registration.update();
+            } catch (error) {
+              console.error('Error checking for updates:', error);
+            }
+          }, 200);
+
+          // Listen for updates
+          registration.addEventListener('updatefound', () => {
+            console.log('Service Worker update found');
+            if (registration.installing) {
+              registration.installing.addEventListener('statechange', () => {
+                if (registration.waiting) {
+                  // Automatically activate the new service worker
+                  registration.waiting.postMessage('SKIP_WAITING');
+                }
+              });
+            }
+          });
+
+          // // Listen for controller change to refresh the page
+          // navigator.serviceWorker.addEventListener('controllerchange', () => {
+          //   console.log('New service worker activated, refreshing page');
+          //   window.location.reload();
+          // });
+
+          navigator.serviceWorker.addEventListener('activate', function(event) {
+            console.log('Service Worker activated');
+            event.waitUntil(
+              caches.keys().then((cacheNames) => {
+                return Promise.all(
+                  cacheNames.map((cacheName) => {
+                    return caches.delete(cacheName);
+                  })
+                );
+              })
+            );
+          });
+        }
+      }
+    });
+    </script>
+  </head>
 
   <body class="">
     <!-- Use static rendering with Expo Router to support running without JavaScript. -->
@@ -35,6 +135,5 @@
     </noscript>
     <!-- The root element for your Expo app. -->
     <div id="root"></div>
-  <script src="/_expo/static/js/web/index-c48390b0b36ff9ba5fb5a8f6b48f8007.js" defer></script>
-</body>
+  </body>
 </html>
