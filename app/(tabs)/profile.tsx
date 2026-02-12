@@ -604,52 +604,87 @@ export default function ProfileScreen() {
   const intermediateLabel = 'Intermediate';
   const advancedLabel = 'Advanced';
 
-  return (
-    <View style={commonStyles.container}>
-      <View style={styles.headerBar}>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity
-          style={styles.gearButton}
-          onPress={() => setIsEditing(!isEditing)}
-        >
-          <IconSymbol 
-            ios_icon_name={isEditing ? "xmark.circle.fill" : "gearshape.fill"} 
-            android_material_icon_name={isEditing ? "cancel" : "settings"} 
-            size={28} 
-            color={isEditing ? colors.accent : colors.primary} 
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
+return (
+  <View style={commonStyles.container}>
+    <View style={styles.headerBar}>
+      <Text style={styles.headerTitle}>Profile</Text>
+      <TouchableOpacity
+        style={styles.gearButton}
+        onPress={() => setIsEditing(!isEditing)}
       >
+        <IconSymbol 
+          ios_icon_name={isEditing ? "xmark.circle.fill" : "gearshape.fill"} 
+          android_material_icon_name={isEditing ? "cancel" : "settings"} 
+          size={28} 
+          color={isEditing ? colors.accent : colors.primary} 
+        />
+      </TouchableOpacity>
+    </View>
+
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
+    >
+      {/* Wrap all scroll content in one container */}
+      <View style={styles.content}>
+
         {showConsentPrompt && (
-          <View style={[commonStyles.card, { backgroundColor: colors.accent, marginBottom: 16, borderWidth: 2, borderColor: colors.primary }]}>
+          <View
+            style={[
+              commonStyles.card,
+              {
+                backgroundColor: colors.accent,
+                marginBottom: 16,
+                borderWidth: 2,
+                borderColor: colors.primary,
+              },
+            ]}
+          >
             <View style={styles.consentPromptHeader}>
-              <IconSymbol 
-                ios_icon_name="exclamationmark.triangle.fill" 
-                android_material_icon_name="warning" 
-                size={24} 
-                color={colors.card} 
+              <IconSymbol
+                ios_icon_name="exclamationmark.triangle.fill"
+                android_material_icon_name="warning"
+                size={24}
+                color={colors.card}
               />
-              <Text style={[commonStyles.subtitle, { marginLeft: 12, color: colors.card, flex: 1 }]}>
+              <Text
+                style={[
+                  commonStyles.subtitle,
+                  { marginLeft: 12, color: colors.card, flex: 1 },
+                ]}
+              >
                 Action Required
               </Text>
             </View>
-            <Text style={[commonStyles.text, { marginTop: 12, color: colors.card, lineHeight: 22 }]}>
+
+            <Text
+              style={[
+                commonStyles.text,
+                { marginTop: 12, color: colors.card, lineHeight: 22 },
+              ]}
+            >
               Our Privacy Policy and Terms of Service have been updated. Please review and accept to continue using the app.
             </Text>
+
+          </View>
+        )}
+
+        {/* everything else in your ScrollView continues here */}
+
+      </View>
+    </ScrollView>
+  </View>
+);
+
             
             <View style={styles.consentButtonsContainer}>
               <TouchableOpacity
