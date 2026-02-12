@@ -1,11 +1,16 @@
-
 import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Constants from 'expo-constants';
-import { colors, commonStyles } from '@/styles/commonStyles';
+import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Court } from '@/types';
+
+import { useAuth } from '@/hooks/useAuth';
+import { useLocation } from '@/hooks/useLocation';
+import { useCourtsQuery } from '@/hooks/useCourtsQuery';
+
+const RADIUS_MILES = 25;
 
 // CRITICAL: Detect Expo Go BEFORE attempting any imports
 const isExpoGo = Constants.appOwnership === 'expo';
@@ -39,46 +44,56 @@ export default function CourtsMapScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const mapRef = useRef<any>(null);
-  
+
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Hook fallbacks (tab press case)
+  const { user } = useAuth();
+  const { userLocation: hookUserLocation } = useLocation();
+
+  const { courts: hookCourts, loading: courtsLoading } = useCourtsQuery(
+    user?.id,
+    hookUserLocation?.latitude,
+    hookUserLocation?.longitude,
+    RADIUS_MILES
+  );
+
+  // Prefer params if provided (optional), otherwise use hook data
   const courts = useMemo(() => {
     try {
-      const courtsParam = params.courts;
-      if (!courtsParam) {
-        console.log('CourtsMapScreen: No courts parameter provided');
-        return [];
+      const courtsParam = (params as any).courts;
+      if (courtsParam) {
+        const parsed = typeof courtsParam === 'string' ? JSON.parse(courtsParam) : courtsParam;
+        const courtsArray = Array.isArray(parsed) ? parsed : [];
+        console.log('CourtsMapScreen: Loaded courts from params:', courtsArray.length);
+        return courtsArray;
       }
-      
-      const parsed = typeof courtsParam === 'string' ? JSON.parse(courtsParam) : courtsParam;
-      const courtsArray = Array.isArray(parsed) ? parsed : [];
-      console.log('CourtsMapScreen: Loaded courts:', courtsArray.length);
-      return courtsArray;
     } catch (error) {
-      console.error('CourtsMapScreen: Error parsing courts:', error);
+      console.error('CourtsMapScreen: Error parsing courts params:', error);
       setHasError(true);
       setErrorMessage('Failed to load courts data');
       return [];
     }
-  }, [params.courts]);
+
+    console.log('CourtsMapScreen: Using courts from hook:', hookCourts?.length ?? 0);
+    return hookCourts ?? [];
+  }, [params, hookCourts]);
 
   const userLocation = useMemo(() => {
     try {
-      const locationParam = params.userLocation;
-      if (!locationParam) {
-        console.log('CourtsMapScreen: No user location provided');
-        return null;
+      const locationParam = (params as any).userLocation;
+      if (locationParam) {
+        const parsed = typeof locationParam === 'string' ? JSON.parse(locationParam) : locationParam;
+        console.log('CourtsMapScreen: User location from params:', parsed);
+        return parsed;
       }
-      
-      const parsed = typeof locationParam === 'string' ? JSON.parse(locationParam) : locationParam;
-      console.log('CourtsMapScreen: User location:', parsed);
-      return parsed;
     } catch (error) {
-      console.error('CourtsMapScreen: Error parsing user location:', error);
-      return null;
+      console.error('CourtsMapScreen: Error parsing user location params:', error);
     }
-  }, [params.userLocation]);
+
+    return hookUserLocation ?? null;
+  }, [params, hookUserLocation]);
 
   useEffect(() => {
     if (!mapsAvailable || !courts || courts.length === 0) {
@@ -90,11 +105,9 @@ export default function CourtsMapScreen() {
     }
 
     try {
-      const validCourts = courts.filter((court: Court) => 
-        court.latitude && 
-        court.longitude && 
-        !isNaN(court.latitude) && 
-        !isNaN(court.longitude)
+      const validCourts = courts.filter(
+        (court: Court) =>
+          court.latitude && court.longitude && !isNaN(court.latitude) && !isNaN(court.longitude)
       );
 
       if (validCourts.length === 0) {
@@ -129,7 +142,8 @@ export default function CourtsMapScreen() {
 
   const handleCalloutPress = (court: Court) => {
     console.log('CourtsMapScreen: Callout pressed for court:', court.name);
-    router.push(`/court/${court.id}`);
+    // ✅ Correct route (your file is under (tabs)/(home)/court/[id].tsx)
+    router.push(`/(tabs)/(home)/court/${court.id}`);
   };
 
   const handleBackToList = () => {
@@ -150,7 +164,7 @@ export default function CourtsMapScreen() {
   if (hasError) {
     const errorTitle = 'Unable to Load Map';
     const backButtonText = 'Back to List View';
-    
+
     return (
       <View style={styles.fallbackContainer}>
         <Stack.Screen options={{ title: 'Map Error' }} />
@@ -172,13 +186,15 @@ export default function CourtsMapScreen() {
   // EXPO GO OR MAPS NOT AVAILABLE
   if (isExpoGo || !mapsAvailable) {
     const fallbackTitle = 'Map View Not Available';
-    const fallbackMessage1 = 'Map view isn\'t available in Expo Go. It requires native modules not included in the Expo Go app.';
-    const fallbackMessage2 = 'To use the map, please run this app in an Expo Development Build (EAS dev client) or a production build.';
+    const fallbackMessage1 =
+      "Map view isn't available in Expo Go. It requires native modules not included in the Expo Go app.";
+    const fallbackMessage2 =
+      'To use the map, please run this app in an Expo Development Build (EAS dev client) or a production build.';
     const listViewButtonText = 'Use List View';
     const devInfoTitle = 'For developers:';
     const devInfoCommand = 'eas build --profile development --platform all';
     const devInfoCommand2 = 'Then open with: expo start --dev-client';
-    
+
     return (
       <View style={styles.fallbackContainer}>
         <Stack.Screen options={{ title: 'Map View Not Available' }} />
@@ -203,12 +219,22 @@ export default function CourtsMapScreen() {
     );
   }
 
+  // LOADING COURTS (tab press uses hook)
+  if (courtsLoading) {
+    return (
+      <View style={styles.fallbackContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[styles.fallbackText, { marginTop: 12 }]}>Loading map...</Text>
+      </View>
+    );
+  }
+
   // NO COURTS
   if (!courts || courts.length === 0) {
     const noCourtsTitle = 'No Courts to Display';
     const noCourtsMessage = 'No courts match your current filters.';
     const backButtonText = 'Back to List View';
-    
+
     return (
       <View style={styles.fallbackContainer}>
         <Stack.Screen options={{ title: 'No Courts' }} />
@@ -228,26 +254,27 @@ export default function CourtsMapScreen() {
   }
 
   // CALCULATE INITIAL REGION
-  const initialRegion = userLocation && userLocation.latitude && userLocation.longitude
-    ? {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      }
-    : courts[0] && courts[0].latitude && courts[0].longitude
-    ? {
-        latitude: courts[0].latitude,
-        longitude: courts[0].longitude,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      }
-    : {
-        latitude: 37.78825,
-        longitude: -122.4324,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      };
+  const initialRegion =
+    userLocation && userLocation.latitude && userLocation.longitude
+      ? {
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }
+      : courts[0] && courts[0].latitude && courts[0].longitude
+      ? {
+          latitude: courts[0].latitude,
+          longitude: courts[0].longitude,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }
+      : {
+          latitude: 37.78825,
+          longitude: -122.4324,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        };
 
   const listViewButtonText = 'List View';
 
@@ -287,9 +314,7 @@ export default function CourtsMapScreen() {
                   <Text style={styles.calloutTitle}>{court.name}</Text>
                   <Text style={styles.calloutText}>{court.address}</Text>
                   <Text style={styles.calloutText}>Activity: {activityLevelText}</Text>
-                  {court.currentPlayers > 0 && (
-                    <Text style={styles.calloutText}>{playersCountText}</Text>
-                  )}
+                  {court.currentPlayers > 0 && <Text style={styles.calloutText}>{playersCountText}</Text>}
                 </View>
               </Callout>
             </Marker>
