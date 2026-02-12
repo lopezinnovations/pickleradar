@@ -637,56 +637,43 @@ return (
       {/* Wrap all scroll content in one container */}
       <View style={styles.content}>
 
-        {showConsentPrompt && (
-          <View
-            style={[
-              commonStyles.card,
-              {
-                backgroundColor: colors.accent,
-                marginBottom: 16,
-                borderWidth: 2,
-                borderColor: colors.primary,
-              },
-            ]}
-          >
-            <View style={styles.consentPromptHeader}>
-              <IconSymbol
-                ios_icon_name="exclamationmark.triangle.fill"
-                android_material_icon_name="warning"
-                size={24}
-                color={colors.card}
-              />
-              <Text
-                style={[
-                  commonStyles.subtitle,
-                  { marginLeft: 12, color: colors.card, flex: 1 },
-                ]}
-              >
-                Action Required
-              </Text>
-            </View>
+ {showConsentPrompt && (
+  <View
+    style={[
+      commonStyles.card,
+      {
+        backgroundColor: colors.accent,
+        marginBottom: 16,
+        borderWidth: 2,
+        borderColor: colors.primary,
+      },
+    ]}
+  >
+    <View style={styles.consentPromptHeader}>
+      <IconSymbol
+        ios_icon_name="exclamationmark.triangle.fill"
+        android_material_icon_name="warning"
+        size={24}
+        color={colors.card}
+      />
+      <Text
+        style={[
+          commonStyles.subtitle,
+          { marginLeft: 12, color: colors.card, flex: 1 },
+        ]}
+      >
+        Action Required
+      </Text>
+    </View>
 
-            <Text
-              style={[
-                commonStyles.text,
-                { marginTop: 12, color: colors.card, lineHeight: 22 },
-              ]}
-            >
-              Our Privacy Policy and Terms of Service have been updated. Please review and accept to continue using the app.
-            </Text>
-
-          </View>
-        )}
-
-        {/* everything else in your ScrollView continues here */}
-
-      </View>
-    </ScrollView>
-  </View>
-);
-
-            
-            <View style={styles.consentButtonsContainer}>
+    <Text
+      style={[
+        commonStyles.text,
+        { marginTop: 12, color: colors.card, lineHeight: 22 },
+      ]}
+    >
+      Our Privacy Policy and Terms of Service have been updated. Please review and accept to continue using the app.
+    </Text>
               <TouchableOpacity
                 style={[styles.consentButton, { backgroundColor: colors.card, borderWidth: 2, borderColor: colors.card }]}
                 onPress={() => router.push('/legal/privacy-policy')}
