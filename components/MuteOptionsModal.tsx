@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { colors, commonStyles } from '@/styles/commonStyles';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 
 interface MuteOption {
@@ -19,7 +18,9 @@ const MUTE_OPTIONS: MuteOption[] = [
 interface MuteOptionsModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectMute: (minutes: number | null) => void;
+
+  // ✅ Make optional so the modal never crashes if parent forgets to pass it
+  onSelectMute?: (minutes: number | null) => void;
 }
 
 export function MuteOptionsModal({
@@ -28,17 +29,20 @@ export function MuteOptionsModal({
   onSelectMute,
 }: MuteOptionsModalProps) {
   const handleSelectOption = (minutes: number | null) => {
+    // ✅ Prevent "onSelectMute is not a function"
+    if (typeof onSelectMute !== 'function') {
+      console.log('[MuteOptionsModal] onSelectMute not provided');
+      Alert.alert('Not available', 'Mute action is not connected yet on this screen.');
+      onClose();
+      return;
+    }
+
     onSelectMute(minutes);
     onClose();
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
           <View style={styles.header}>
@@ -53,7 +57,7 @@ export function MuteOptionsModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.optionsList}>
+          <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
             {MUTE_OPTIONS.map((option, index) => (
               <TouchableOpacity
                 key={index}
@@ -70,6 +74,8 @@ export function MuteOptionsModal({
               </TouchableOpacity>
             ))}
           </ScrollView>
+
+          <View style={styles.bottomSpacer} />
         </View>
       </View>
     </Modal>
@@ -86,7 +92,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 40,
+    paddingBottom: 12,
     maxHeight: '60%',
   },
   header: {
@@ -120,5 +126,8 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: colors.text,
+  },
+  bottomSpacer: {
+    height: 24,
   },
 });
