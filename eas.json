@@ -30,5 +30,8 @@
         "appleTeamId": "L7PQX2QZ2N"
       }
     }
+  },
+  "cli": {
+    "appVersionSource": "remote"
   }
 }
