@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, Alert, ScrollView, ActivityIndicator, TextInput, Image, Modal, RefreshControl, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -981,36 +980,6 @@ export default function ProfileScreen() {
         </View>
 
         <View style={commonStyles.card}>
-          <Text style={commonStyles.subtitle}>Tools</Text>
-          
-          <TouchableOpacity
-            style={styles.toolButton}
-            onPress={() => router.push('/code-assistant')}
-          >
-            <View style={styles.toolIconContainer}>
-              <IconSymbol 
-                ios_icon_name="chevron.left.forwardslash.chevron.right" 
-                android_material_icon_name="code" 
-                size={24} 
-                color={colors.primary} 
-              />
-            </View>
-            <View style={styles.toolInfo}>
-              <Text style={[commonStyles.text, { fontWeight: '600' }]}>Code Assistant</Text>
-              <Text style={commonStyles.textSecondary}>
-                AI-powered coding help
-              </Text>
-            </View>
-            <IconSymbol 
-              ios_icon_name="chevron.right" 
-              android_material_icon_name="chevron-right" 
-              size={20} 
-              color={colors.textSecondary} 
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={commonStyles.card}>
           <Text style={commonStyles.subtitle}>Privacy & Permissions</Text>
           
           <View style={styles.settingRow}>
@@ -1095,53 +1064,8 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {isDevOrTestFlightBuild && (
-            <React.Fragment>
-              <View style={[styles.settingRow, { borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }]}>
-                <View style={styles.settingInfo}>
-                  <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Token Status</Text>
-                  <Text style={commonStyles.textSecondary}>
-                    {userPushToken ? 'Registered ✓' : 'Not registered (use dev build)'}
-                  </Text>
-                </View>
-                {userPushToken && (
-                  <IconSymbol 
-                    ios_icon_name="checkmark.circle.fill" 
-                    android_material_icon_name="check-circle" 
-                    size={24} 
-                    color={colors.success} 
-                  />
-                )}
-              </View>
 
-              {userPushToken && (
-                <TouchableOpacity
-                  style={[buttonStyles.secondary, { marginTop: 16, backgroundColor: colors.primary }]}
-                  onPress={handleSendTestPush}
-                  disabled={sendingTestPush}
-                >
-                  {sendingTestPush ? (
-                    <ActivityIndicator color={colors.card} />
-                  ) : (
-                    <React.Fragment>
-                      <IconSymbol 
-                        ios_icon_name="bell.fill" 
-                        android_material_icon_name="notifications" 
-                        size={20} 
-                        color={colors.card} 
-                      />
-                      <Text style={[buttonStyles.text, { marginLeft: 8 }]}>
-                        Send Test Push
-                      </Text>
-                    </React.Fragment>
-                  )}
-                </TouchableOpacity>
-              )}
-            </React.Fragment>
-          )}
-        </View>
-
-        <View style={commonStyles.card}>
+          <View style={commonStyles.card}>
           <View style={styles.historyHeader}>
             <Text style={commonStyles.subtitle}>Check-In History</Text>
             <Text style={commonStyles.textSecondary}>
@@ -1670,28 +1594,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.highlight,
     marginBottom: 12,
-  },
-  toolButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: colors.highlight,
-    marginTop: 12,
-  },
-  toolIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  toolInfo: {
-    flex: 1,
   },
 });
