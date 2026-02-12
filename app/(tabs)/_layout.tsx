@@ -3,13 +3,12 @@ import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 
 export default function TabLayout() {
-  // Memoize tabs array with empty dependency array to prevent recreation
   const tabs: TabBarItem[] = useMemo(
     () => [
       {
         name: '(home)',
-        // ✅ Map tab should open the actual map screen
-        route: '/(tabs)/(home)/courts-map',
+        // ✅ Map tab should open LIST VIEW (home index)
+        route: '/(tabs)/(home)/',
         icon: 'map',
         label: 'Map',
         iosIcon: 'map.fill',
@@ -39,7 +38,6 @@ export default function TabLayout() {
     []
   );
 
-  // Memoize screenOptions with empty dependency array
   const screenOptions = useMemo(
     () => ({
       headerShown: false,
