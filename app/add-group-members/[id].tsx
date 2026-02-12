@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
@@ -18,36 +17,44 @@ interface Friend {
 
 export default function AddGroupMembersScreen() {
   const router = useRouter();
-  const { id: groupId } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const groupId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : undefined;
+
   const { user } = useAuth();
+
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchFriendsAndMembers();
-  }, [user, groupId, fetchFriendsAndMembers]);
-
   const fetchFriendsAndMembers = useCallback(async () => {
-    if (!user || !groupId || !isSupabaseConfigured()) {
-      setLoading(false);
+    // If we can't fetch yet, don't flip to "loaded" because it causes an empty flash on web
+    if (!user?.id || !groupId || !isSupabaseConfigured()) {
       return;
     }
+
+    setLoading(true);
 
     try {
       // Fetch user's friends
       const { data: friendsData, error: friendsError } = await supabase
         .from('friends')
-        .select(`
+        .select(
+          `
           id,
-          friend:users!friends_friend_id_fkey(id, first_name, last_name, pickleballer_nickname)
-        `)
+          friend:users!friends_friend_id_fkey(
+            id,
+            first_name,
+            last_name,
+            pickleballer_nickname
+          )
+        `
+        )
         .eq('user_id', user.id)
         .eq('status', 'accepted');
 
       if (friendsError) {
-        console.log('Error fetching friends:', friendsError);
+        console.log('[AddGroupMembers] Error fetching friends:', friendsError);
         throw friendsError;
       }
 
@@ -58,46 +65,60 @@ export default function AddGroupMembersScreen() {
         .eq('group_id', groupId);
 
       if (membersError) {
-        console.log('Error fetching group members:', membersError);
+        console.log('[AddGroupMembers] Error fetching group members:', membersError);
         throw membersError;
       }
 
       const memberIds = new Set((membersData || []).map((m: any) => m.user_id));
 
-      const friendsList: Friend[] = (friendsData || []).map((item: any) => ({
-        id: item.friend.id,
-        firstName: item.friend.first_name,
-        lastName: item.friend.last_name,
-        nickname: item.friend.pickleballer_nickname,
-        selected: false,
-        alreadyMember: memberIds.has(item.friend.id),
-      }));
+      const friendsList: Friend[] = (friendsData || [])
+        .map((item: any) => {
+          const friend = item?.friend;
+          if (!friend?.id) return null;
+
+          return {
+            id: friend.id,
+            firstName: friend.first_name,
+            lastName: friend.last_name,
+            nickname: friend.pickleballer_nickname,
+            selected: false,
+            alreadyMember: memberIds.has(friend.id),
+          } as Friend;
+        })
+        .filter(Boolean) as Friend[];
 
       setFriends(friendsList);
     } catch (error) {
-      console.log('Error in fetchFriendsAndMembers:', error);
+      console.log('[AddGroupMembers] Error in fetchFriendsAndMembers:', error);
       Alert.alert('Error', 'Failed to load friends. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [user, groupId]);
+  }, [user?.id, groupId]);
+
+  useEffect(() => {
+    // If user or groupId are missing, keep loading until they exist
+    if (!user?.id || !groupId) {
+      setLoading(true);
+      return;
+    }
+    fetchFriendsAndMembers();
+  }, [user?.id, groupId, fetchFriendsAndMembers]);
 
   const toggleFriendSelection = (friendId: string) => {
-    console.log('User toggled friend selection:', friendId);
-    setFriends(prev =>
-      prev.map(f => (f.id === friendId && !f.alreadyMember ? { ...f, selected: !f.selected } : f))
+    setFriends((prev) =>
+      prev.map((f) => (f.id === friendId && !f.alreadyMember ? { ...f, selected: !f.selected } : f))
     );
   };
 
   const handleAddMembers = async () => {
-    const selectedFriends = friends.filter(f => f.selected);
-    
+    const selectedFriends = friends.filter((f) => f.selected);
+
     if (selectedFriends.length === 0) {
       Alert.alert('No Members Selected', 'Please select at least one friend to add.');
       return;
     }
 
-    console.log('User adding', selectedFriends.length, 'members to group');
     setAdding(true);
 
     try {
@@ -105,31 +126,26 @@ export default function AddGroupMembersScreen() {
         throw new Error('Invalid group ID');
       }
 
-      const membersToAdd = selectedFriends.map(f => ({
+      const membersToAdd = selectedFriends.map((f) => ({
         group_id: groupId,
         user_id: f.id,
       }));
 
-      const { error } = await supabase
-        .from('group_members')
-        .insert(membersToAdd);
+      const { error } = await supabase.from('group_members').insert(membersToAdd);
 
       if (error) {
-        console.log('Error adding members:', error);
+        console.log('[AddGroupMembers] Error adding members:', error);
         throw error;
       }
 
-      console.log('Members added successfully');
       Alert.alert('Success', 'Members added successfully!', [
         {
           text: 'OK',
-          onPress: () => {
-            router.back();
-          },
+          onPress: () => router.back(),
         },
       ]);
     } catch (error: any) {
-      console.log('Error in handleAddMembers:', error);
+      console.log('[AddGroupMembers] Error in handleAddMembers:', error);
       Alert.alert('Error', `Failed to add members: ${error.message}`);
     } finally {
       setAdding(false);
@@ -137,25 +153,21 @@ export default function AddGroupMembersScreen() {
   };
 
   const formatFriendName = (friend: Friend) => {
-    if (friend.firstName && friend.lastName) {
-      const name = `${friend.firstName} ${friend.lastName.charAt(0)}.`;
-      return name;
-    }
+    if (friend.firstName && friend.lastName) return `${friend.firstName} ${friend.lastName.charAt(0)}.`;
     return friend.nickname || 'Unknown User';
   };
 
-  const filteredFriends = friends.filter(f => {
-    if (!searchQuery.trim()) return true;
+  const filteredFriends = useMemo(() => {
+    if (!searchQuery.trim()) return friends;
     const query = searchQuery.toLowerCase();
-    const name = formatFriendName(f).toLowerCase();
-    return name.includes(query);
-  });
+    return friends.filter((f) => formatFriendName(f).toLowerCase().includes(query));
+  }, [friends, searchQuery]);
 
-  const selectedCount = friends.filter(f => f.selected).length;
+  const selectedCount = useMemo(() => friends.filter((f) => f.selected).length, [friends]);
 
   const renderFriend = ({ item }: { item: Friend }) => {
     const friendName = formatFriendName(item);
-    
+
     return (
       <TouchableOpacity
         style={[
@@ -174,9 +186,11 @@ export default function AddGroupMembersScreen() {
             color={item.selected ? colors.card : colors.primary}
           />
         </View>
-        <Text style={[styles.friendName, item.selected && styles.friendNameSelected]}>
+
+        <Text style={[styles.friendName, item.selected && styles.friendNameSelected]} numberOfLines={1}>
           {friendName}
         </Text>
+
         {item.alreadyMember ? (
           <Text style={styles.alreadyMemberText}>Already a member</Text>
         ) : item.selected ? (
@@ -267,11 +281,7 @@ export default function AddGroupMembersScreen() {
           onPress={handleAddMembers}
           disabled={adding || selectedCount === 0}
         >
-          {adding ? (
-            <ActivityIndicator size="small" color={colors.card} />
-          ) : (
-            <Text style={styles.addButtonText}>Add Members</Text>
-          )}
+          {adding ? <ActivityIndicator size="small" color={colors.card} /> : <Text style={styles.addButtonText}>Add Members</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -367,6 +377,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     fontStyle: 'italic',
+    marginLeft: 8,
   },
   emptyState: {
     flex: 1,
