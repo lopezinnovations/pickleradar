@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import Constants from 'expo-constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { Court } from '@/types';
@@ -12,7 +14,7 @@ import { useCourtsQuery } from '@/hooks/useCourtsQuery';
 
 const RADIUS_MILES = 25;
 
-// CRITICAL: Detect Expo Go BEFORE attempting any imports
+// Detect Expo Go BEFORE attempting any imports
 const isExpoGo = Constants.appOwnership === 'expo';
 
 // Conditional import - only attempt if NOT in Expo Go
@@ -44,14 +46,14 @@ export default function CourtsMapScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const mapRef = useRef<any>(null);
+  const insets = useSafeAreaInsets();
 
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Hook fallbacks (tab press case)
+  // Hook fallbacks (if screen opened without params)
   const { user } = useAuth();
   const { userLocation: hookUserLocation } = useLocation();
-
   const { courts: hookCourts, loading: courtsLoading } = useCourtsQuery(
     user?.id,
     hookUserLocation?.latitude,
@@ -59,10 +61,10 @@ export default function CourtsMapScreen() {
     RADIUS_MILES
   );
 
-  // Prefer params if provided (optional), otherwise use hook data
-  const courts = useMemo(() => {
+  // Prefer params if passed, else use hook data
+  const courts: Court[] = useMemo(() => {
     try {
-      const courtsParam = (params as any).courts;
+      const courtsParam: any = (params as any).courts;
       if (courtsParam) {
         const parsed = typeof courtsParam === 'string' ? JSON.parse(courtsParam) : courtsParam;
         const courtsArray = Array.isArray(parsed) ? parsed : [];
@@ -76,13 +78,12 @@ export default function CourtsMapScreen() {
       return [];
     }
 
-    console.log('CourtsMapScreen: Using courts from hook:', hookCourts?.length ?? 0);
-    return hookCourts ?? [];
+    return (hookCourts ?? []) as Court[];
   }, [params, hookCourts]);
 
   const userLocation = useMemo(() => {
     try {
-      const locationParam = (params as any).userLocation;
+      const locationParam: any = (params as any).userLocation;
       if (locationParam) {
         const parsed = typeof locationParam === 'string' ? JSON.parse(locationParam) : locationParam;
         console.log('CourtsMapScreen: User location from params:', parsed);
@@ -96,31 +97,26 @@ export default function CourtsMapScreen() {
   }, [params, hookUserLocation]);
 
   useEffect(() => {
-    if (!mapsAvailable || !courts || courts.length === 0) {
-      return;
-    }
-
-    if (!mapRef.current || !userLocation) {
-      return;
-    }
+    if (!mapsAvailable || !courts || courts.length === 0) return;
+    if (!mapRef.current || !userLocation) return;
 
     try {
       const validCourts = courts.filter(
         (court: Court) =>
-          court.latitude && court.longitude && !isNaN(court.latitude) && !isNaN(court.longitude)
+          court.latitude &&
+          court.longitude &&
+          !isNaN(court.latitude as any) &&
+          !isNaN(court.longitude as any)
       );
 
-      if (validCourts.length === 0) {
-        console.log('CourtsMapScreen: No valid courts with coordinates');
-        return;
-      }
+      if (validCourts.length === 0) return;
 
       const coordinates = validCourts.map((court: Court) => ({
         latitude: court.latitude,
         longitude: court.longitude,
       }));
 
-      if (userLocation.latitude && userLocation.longitude) {
+      if (userLocation?.latitude && userLocation?.longitude) {
         coordinates.push({
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
@@ -128,7 +124,7 @@ export default function CourtsMapScreen() {
       }
 
       mapRef.current.fitToCoordinates(coordinates, {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        edgePadding: { top: 60, right: 60, bottom: 60, left: 60 },
         animated: true,
       });
     } catch (error) {
@@ -136,19 +132,12 @@ export default function CourtsMapScreen() {
     }
   }, [courts, userLocation]);
 
-  const handleMarkerPress = (court: Court) => {
-    console.log('CourtsMapScreen: Marker pressed for court:', court.name);
-  };
-
   const handleCalloutPress = (court: Court) => {
-    console.log('CourtsMapScreen: Callout pressed for court:', court.name);
-    // ✅ Correct route (your file is under (tabs)/(home)/court/[id].tsx)
     router.push(`/(tabs)/(home)/court/${court.id}`);
   };
 
   const handleBackToList = () => {
-    console.log('CourtsMapScreen: Back to list pressed');
-    router.back();
+    router.replace('/(tabs)/(home)/'); // ✅ Always return to list view
   };
 
   const getMarkerColor = (activityLevel: 'low' | 'medium' | 'high') => {
@@ -157,27 +146,19 @@ export default function CourtsMapScreen() {
       medium: '#FF9800',
       high: '#F44336',
     };
-    return colorMap[activityLevel] || colorMap.low;
+    return (colorMap as any)[activityLevel] || colorMap.low;
   };
 
   // ERROR STATE
   if (hasError) {
-    const errorTitle = 'Unable to Load Map';
-    const backButtonText = 'Back to List View';
-
     return (
       <View style={styles.fallbackContainer}>
         <Stack.Screen options={{ title: 'Map Error' }} />
-        <IconSymbol
-          ios_icon_name="exclamationmark.triangle"
-          android_material_icon_name="error"
-          size={64}
-          color={colors.accent}
-        />
-        <Text style={styles.fallbackTitle}>{errorTitle}</Text>
+        <IconSymbol ios_icon_name="exclamationmark.triangle" android_material_icon_name="error" size={64} color={colors.accent} />
+        <Text style={styles.fallbackTitle}>Unable to Load Map</Text>
         <Text style={styles.fallbackText}>{errorMessage}</Text>
         <TouchableOpacity style={styles.fallbackButton} onPress={handleBackToList}>
-          <Text style={styles.fallbackButtonText}>{backButtonText}</Text>
+          <Text style={styles.fallbackButtonText}>Back to List View</Text>
         </TouchableOpacity>
       </View>
     );
@@ -185,41 +166,25 @@ export default function CourtsMapScreen() {
 
   // EXPO GO OR MAPS NOT AVAILABLE
   if (isExpoGo || !mapsAvailable) {
-    const fallbackTitle = 'Map View Not Available';
-    const fallbackMessage1 =
-      "Map view isn't available in Expo Go. It requires native modules not included in the Expo Go app.";
-    const fallbackMessage2 =
-      'To use the map, please run this app in an Expo Development Build (EAS dev client) or a production build.';
-    const listViewButtonText = 'Use List View';
-    const devInfoTitle = 'For developers:';
-    const devInfoCommand = 'eas build --profile development --platform all';
-    const devInfoCommand2 = 'Then open with: expo start --dev-client';
-
     return (
       <View style={styles.fallbackContainer}>
         <Stack.Screen options={{ title: 'Map View Not Available' }} />
-        <IconSymbol
-          ios_icon_name="map"
-          android_material_icon_name="map"
-          size={64}
-          color={colors.textSecondary}
-        />
-        <Text style={styles.fallbackTitle}>{fallbackTitle}</Text>
-        <Text style={styles.fallbackText}>{fallbackMessage1}</Text>
-        <Text style={styles.fallbackText}>{fallbackMessage2}</Text>
+        <IconSymbol ios_icon_name="map" android_material_icon_name="map" size={64} color={colors.textSecondary} />
+        <Text style={styles.fallbackTitle}>Map View Not Available</Text>
+        <Text style={styles.fallbackText}>
+          Map view isn&apos;t available in Expo Go. It requires native modules not included in the Expo Go app.
+        </Text>
+        <Text style={styles.fallbackText}>
+          To use the map, please run this app in an Expo Development Build (EAS dev client) or a production build.
+        </Text>
         <TouchableOpacity style={styles.fallbackButton} onPress={handleBackToList}>
-          <Text style={styles.fallbackButtonText}>{listViewButtonText}</Text>
+          <Text style={styles.fallbackButtonText}>Use List View</Text>
         </TouchableOpacity>
-        <View style={styles.devInfo}>
-          <Text style={styles.devInfoText}>{devInfoTitle}</Text>
-          <Text style={styles.devInfoCommand}>{devInfoCommand}</Text>
-          <Text style={styles.devInfoCommand}>{devInfoCommand2}</Text>
-        </View>
       </View>
     );
   }
 
-  // LOADING COURTS (tab press uses hook)
+  // LOADING COURTS
   if (courtsLoading) {
     return (
       <View style={styles.fallbackContainer}>
@@ -231,23 +196,14 @@ export default function CourtsMapScreen() {
 
   // NO COURTS
   if (!courts || courts.length === 0) {
-    const noCourtsTitle = 'No Courts to Display';
-    const noCourtsMessage = 'No courts match your current filters.';
-    const backButtonText = 'Back to List View';
-
     return (
       <View style={styles.fallbackContainer}>
         <Stack.Screen options={{ title: 'No Courts' }} />
-        <IconSymbol
-          ios_icon_name="map"
-          android_material_icon_name="map"
-          size={64}
-          color={colors.textSecondary}
-        />
-        <Text style={styles.fallbackTitle}>{noCourtsTitle}</Text>
-        <Text style={styles.fallbackText}>{noCourtsMessage}</Text>
+        <IconSymbol ios_icon_name="map" android_material_icon_name="map" size={64} color={colors.textSecondary} />
+        <Text style={styles.fallbackTitle}>No Courts to Display</Text>
+        <Text style={styles.fallbackText}>No courts match your current filters.</Text>
         <TouchableOpacity style={styles.fallbackButton} onPress={handleBackToList}>
-          <Text style={styles.fallbackButtonText}>{backButtonText}</Text>
+          <Text style={styles.fallbackButtonText}>Back to List View</Text>
         </TouchableOpacity>
       </View>
     );
@@ -255,66 +211,68 @@ export default function CourtsMapScreen() {
 
   // CALCULATE INITIAL REGION
   const initialRegion =
-    userLocation && userLocation.latitude && userLocation.longitude
+    userLocation?.latitude && userLocation?.longitude
       ? {
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
+          latitudeDelta: 0.12,
+          longitudeDelta: 0.08,
         }
-      : courts[0] && courts[0].latitude && courts[0].longitude
+      : courts[0]?.latitude && courts[0]?.longitude
       ? {
           latitude: courts[0].latitude,
           longitude: courts[0].longitude,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
+          latitudeDelta: 0.12,
+          longitudeDelta: 0.08,
         }
       : {
           latitude: 37.78825,
           longitude: -122.4324,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
+          latitudeDelta: 0.12,
+          longitudeDelta: 0.08,
         };
 
-  const listViewButtonText = 'List View';
+  // ✅ iOS fix: do NOT force Google provider unless Android
+  const providerProp = Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined;
 
-  // RENDER MAP
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: 'Courts Map' }} />
+
       <MapView
         ref={mapRef}
-        provider={PROVIDER_GOOGLE}
+        provider={providerProp}
         style={styles.map}
         initialRegion={initialRegion}
         showsUserLocation={true}
         showsMyLocationButton={true}
       >
         {courts.map((court: Court) => {
-          if (!court.latitude || !court.longitude || isNaN(court.latitude) || isNaN(court.longitude)) {
+          if (!court.latitude || !court.longitude || isNaN(court.latitude as any) || isNaN(court.longitude as any)) {
             return null;
           }
 
-          const activityLevelText = court.activityLevel.charAt(0).toUpperCase() + court.activityLevel.slice(1);
-          const playersText = court.currentPlayers === 1 ? 'player' : 'players';
-          const playersCountText = `${court.currentPlayers} ${playersText} checked in`;
+          const activityLevelText = court.activityLevel
+            ? court.activityLevel.charAt(0).toUpperCase() + court.activityLevel.slice(1)
+            : 'Low';
 
           return (
             <Marker
               key={court.id}
-              coordinate={{
-                latitude: court.latitude,
-                longitude: court.longitude,
-              }}
+              coordinate={{ latitude: court.latitude, longitude: court.longitude }}
               pinColor={getMarkerColor(court.activityLevel)}
-              onPress={() => handleMarkerPress(court)}
             >
               <Callout onPress={() => handleCalloutPress(court)}>
                 <View style={styles.calloutContainer}>
                   <Text style={styles.calloutTitle}>{court.name}</Text>
-                  <Text style={styles.calloutText}>{court.address}</Text>
+                  {!!court.address && <Text style={styles.calloutText}>{court.address}</Text>}
                   <Text style={styles.calloutText}>Activity: {activityLevelText}</Text>
-                  {court.currentPlayers > 0 && <Text style={styles.calloutText}>{playersCountText}</Text>}
+                  {typeof court.currentPlayers === 'number' && court.currentPlayers > 0 && (
+                    <Text style={styles.calloutText}>
+                      {court.currentPlayers} {court.currentPlayers === 1 ? 'player' : 'players'} checked in
+                    </Text>
+                  )}
+                  <Text style={[styles.calloutText, { marginTop: 6, fontWeight: '600' }]}>Tap for details</Text>
                 </View>
               </Callout>
             </Marker>
@@ -322,26 +280,23 @@ export default function CourtsMapScreen() {
         })}
       </MapView>
 
-      <TouchableOpacity style={styles.backButton} onPress={handleBackToList}>
-        <IconSymbol
-          ios_icon_name="list.bullet"
-          android_material_icon_name="list"
-          size={20}
-          color={colors.card}
-        />
-        <Text style={styles.backButtonText}>{listViewButtonText}</Text>
+      {/* ✅ Button sits ABOVE floating tab bar */}
+      <TouchableOpacity
+        style={[styles.listButton, { bottom: insets.bottom + 92 }]}
+        onPress={handleBackToList}
+        activeOpacity={0.85}
+      >
+        <IconSymbol ios_icon_name="list.bullet" android_material_icon_name="list" size={20} color={colors.card} />
+        <Text style={styles.listButtonText}>List View</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  map: { flex: 1 },
+
   fallbackContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -376,27 +331,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  devInfo: {
-    marginTop: 40,
-    padding: 16,
-    backgroundColor: colors.highlight,
-    borderRadius: 12,
-    width: '100%',
-  },
-  devInfoText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  devInfoCommand: {
-    fontSize: 11,
-    color: colors.text,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    marginBottom: 4,
-  },
-  backButton: {
+
+  listButton: {
     position: 'absolute',
-    bottom: 24,
     left: 20,
     right: 20,
     backgroundColor: colors.primary,
@@ -408,29 +345,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
+    gap: 8,
   },
-  backButtonText: {
+  listButtonText: {
     color: colors.card,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
   },
-  calloutContainer: {
-    padding: 10,
-    minWidth: 200,
-  },
-  calloutTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: colors.text,
-  },
-  calloutText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
+
+  calloutContainer: { padding: 10, minWidth: 220 },
+  calloutTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4, color: colors.text },
+  calloutText: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
 });
