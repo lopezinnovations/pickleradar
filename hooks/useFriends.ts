@@ -1,7 +1,6 @@
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
-import { Friend, FriendWithDetails } from '@/types';
+import type { FriendWithDetails } from '@/types';
 
 interface UserWithStatus {
   id: string;
@@ -18,273 +17,241 @@ interface UserWithStatus {
   friendshipId?: string;
 }
 
-export const useFriends = (userId: string | undefined) => {
+type RemainingTime = { hours: number; minutes: number; totalMinutes: number };
+
+const getRemainingTime = (expiresAt: string): RemainingTime => {
+  const now = new Date();
+  const expiry = new Date(expiresAt);
+  const diffMs = expiry.getTime() - now.getTime();
+  const totalMinutes = Math.max(0, Math.floor(diffMs / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return { hours, minutes, totalMinutes };
+};
+
+export const useFriends = (userId: string | null | undefined) => {
   const [friends, setFriends] = useState<FriendWithDetails[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendWithDetails[]>([]);
   const [allUsers, setAllUsers] = useState<UserWithStatus[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const getRemainingTime = (expiresAt: string): { hours: number; minutes: number; totalMinutes: number } => {
-    const now = new Date();
-    const expiry = new Date(expiresAt);
-    const diffMs = expiry.getTime() - now.getTime();
-    const totalMinutes = Math.max(0, Math.floor(diffMs / 60000));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return { hours, minutes, totalMinutes };
-  };
+  // Prevent overlapping fetches (focus + refresh + effect)
+  const inFlight = useRef(false);
 
   const fetchAllUsers = useCallback(async () => {
     if (!userId || !isSupabaseConfigured()) {
+      setAllUsers([]);
       return;
     }
 
     try {
-      console.log('Fetching all users for userId:', userId);
-      
-      // Get all users except the current user
+      // Users (excluding me)
       const { data: users, error: usersError } = await supabase
         .from('users')
         .select('id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
         .neq('id', userId);
 
-      if (usersError) {
-        console.error('Error fetching users:', usersError);
-        throw usersError;
-      }
+      if (usersError) throw usersError;
 
-      console.log('Fetched users:', users?.length);
-
-      // Get all users who are currently checked in
+      // Active check-ins (who is currently checked in)
       const { data: checkIns, error: checkInsError } = await supabase
         .from('check_ins')
         .select('user_id')
         .gte('expires_at', new Date().toISOString());
 
-      if (checkInsError) {
-        console.error('Error fetching check-ins:', checkInsError);
-        throw checkInsError;
-      }
+      if (checkInsError) throw checkInsError;
 
-      const checkedInUserIds = new Set((checkIns || []).map(ci => ci.user_id));
+      const checkedInUserIds = new Set((checkIns || []).map((ci) => ci.user_id));
 
-      // Get ALL friend relationships (not just accepted ones)
+      // Relationships involving me (all statuses)
       const { data: allRelationships, error: relationshipsError } = await supabase
         .from('friends')
         .select('id, user_id, friend_id, status')
         .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
 
-      if (relationshipsError) {
-        console.error('Error fetching relationships:', relationshipsError);
-        throw relationshipsError;
-      }
+      if (relationshipsError) throw relationshipsError;
 
-      console.log('Fetched relationships:', allRelationships?.length);
-
-      // Create a map of user relationships
-      const relationshipMap = new Map<string, { status: string; friendshipId: string; isSender: boolean }>();
-      (allRelationships || []).forEach(rel => {
+      const relationshipMap = new Map<string, { status: UserWithStatus['friendshipStatus']; friendshipId: string }>();
+      (allRelationships || []).forEach((rel) => {
         const otherUserId = rel.user_id === userId ? rel.friend_id : rel.user_id;
         const isSender = rel.user_id === userId;
-        
+
         if (rel.status === 'accepted') {
-          relationshipMap.set(otherUserId, { 
-            status: 'accepted', 
-            friendshipId: rel.id,
-            isSender 
-          });
+          relationshipMap.set(otherUserId, { status: 'accepted', friendshipId: rel.id });
         } else if (rel.status === 'pending') {
-          // Determine if this is a sent or received request
-          const friendshipStatus = isSender ? 'pending_sent' : 'pending_received';
-          relationshipMap.set(otherUserId, { 
-            status: friendshipStatus, 
-            friendshipId: rel.id,
-            isSender 
-          });
+          relationshipMap.set(otherUserId, { status: isSender ? 'pending_sent' : 'pending_received', friendshipId: rel.id });
         }
       });
 
-      // Get courts played by each user
+      // Courts played map (optional / can be heavy; keep if you want it)
       const { data: userCheckIns, error: userCheckInsError } = await supabase
         .from('check_ins')
-        .select('user_id, court_id, courts(name)');
+        .select('user_id, courts(name)');
 
-      if (userCheckInsError) {
-        console.error('Error fetching user check-ins:', userCheckInsError);
-        throw userCheckInsError;
-      }
+      if (userCheckInsError) throw userCheckInsError;
 
-      // Create a map of user_id to courts played
       const userCourtsMap = new Map<string, Set<string>>();
-      (userCheckIns || []).forEach((checkIn: any) => {
-        if (checkIn.courts?.name) {
-          if (!userCourtsMap.has(checkIn.user_id)) {
-            userCourtsMap.set(checkIn.user_id, new Set());
-          }
-          userCourtsMap.get(checkIn.user_id)?.add(checkIn.courts.name);
+      (userCheckIns || []).forEach((ci: any) => {
+        if (ci.courts?.name) {
+          if (!userCourtsMap.has(ci.user_id)) userCourtsMap.set(ci.user_id, new Set());
+          userCourtsMap.get(ci.user_id)!.add(ci.courts.name);
         }
       });
 
-      // Map users with their relationship status
-      const usersWithStatus: UserWithStatus[] = (users || []).map(user => {
-        const relationship = relationshipMap.get(user.id);
+      const usersWithStatus: UserWithStatus[] = (users || []).map((u) => {
+        const rel = relationshipMap.get(u.id);
         return {
-          ...user,
-          isAtCourt: checkedInUserIds.has(user.id),
-          courtsPlayed: userCourtsMap.has(user.id) 
-            ? Array.from(userCourtsMap.get(user.id)!) 
-            : [],
-          friendshipStatus: relationship?.status as any || 'none',
-          friendshipId: relationship?.friendshipId,
+          ...u,
+          isAtCourt: checkedInUserIds.has(u.id),
+          courtsPlayed: userCourtsMap.has(u.id) ? Array.from(userCourtsMap.get(u.id)!) : [],
+          friendshipStatus: rel?.status || 'none',
+          friendshipId: rel?.friendshipId,
         };
       });
 
-      console.log('Users with status:', usersWithStatus.length);
       setAllUsers(usersWithStatus);
-    } catch (error) {
-      console.error('Error in fetchAllUsers:', error);
+    } catch (err) {
+      console.error('Error in fetchAllUsers:', err);
     }
   }, [userId]);
 
   const fetchFriends = useCallback(async () => {
     if (!userId || !isSupabaseConfigured()) {
+      setFriends([]);
+      setPendingRequests([]);
+      setAllUsers([]);
       setLoading(false);
       return;
     }
 
-    try {
-      console.log('useFriends: Fetching friends for userId:', userId);
+    if (inFlight.current) return;
+    inFlight.current = true;
 
-      // Fetch accepted friends where current user is the sender (user_id)
+    setLoading(true);
+
+    try {
+      // 1) Fetch accepted friends (sent)
       const { data: sentFriends, error: sentError } = await supabase
         .from('friends')
-        .select(`
-          *,
+        .select(
+          `
+          id, user_id, friend_id, status, created_at,
           friend:users!friends_friend_id_fkey(id, email, phone, first_name, last_name, pickleballer_nickname, skill_level, experience_level, dupr_rating)
-        `)
+        `
+        )
         .eq('user_id', userId)
         .eq('status', 'accepted');
 
-      if (sentError) {
-        console.error('useFriends: Error fetching sent friends:', sentError);
-        throw sentError;
-      }
+      if (sentError) throw sentError;
 
-      console.log('useFriends: Sent friends:', sentFriends?.length || 0);
-
-      // Fetch accepted friends where current user is the receiver (friend_id)
+      // 2) Fetch accepted friends (received)
       const { data: receivedFriends, error: receivedError } = await supabase
         .from('friends')
-        .select(`
-          *,
+        .select(
+          `
+          id, user_id, friend_id, status, created_at,
           requester:users!friends_user_id_fkey(id, email, phone, first_name, last_name, pickleballer_nickname, skill_level, experience_level, dupr_rating)
-        `)
+        `
+        )
         .eq('friend_id', userId)
         .eq('status', 'accepted');
 
-      if (receivedError) {
-        console.error('useFriends: Error fetching received friends:', receivedError);
-        throw receivedError;
-      }
+      if (receivedError) throw receivedError;
 
-      console.log('useFriends: Received friends:', receivedFriends?.length || 0);
-
-      // Fetch pending requests where current user is the receiver
+      // 3) Fetch pending (received)
       const { data: pending, error: pendingError } = await supabase
         .from('friends')
-        .select(`
-          *,
+        .select(
+          `
+          id, user_id, friend_id, status, created_at,
           requester:users!friends_user_id_fkey(id, email, phone, first_name, last_name, pickleballer_nickname, skill_level, experience_level, dupr_rating)
-        `)
+        `
+        )
         .eq('friend_id', userId)
         .eq('status', 'pending');
 
-      if (pendingError) {
-        console.error('useFriends: Error fetching pending requests:', pendingError);
-        throw pendingError;
+      if (pendingError) throw pendingError;
+
+      // Collect ALL friend user IDs (so we can fetch check-ins in one go)
+      const friendIds: string[] = [];
+      (sentFriends || []).forEach((f: any) => f.friend?.id && friendIds.push(f.friend.id));
+      (receivedFriends || []).forEach((f: any) => f.requester?.id && friendIds.push(f.requester.id));
+
+      // 4) Fetch active check-ins for all friends in one query
+      const checkInMap = new Map<
+        string,
+        { court_id?: string; expires_at?: string; courtName?: string; remainingTime?: RemainingTime }
+      >();
+
+      if (friendIds.length > 0) {
+        const { data: activeCheckIns, error: checkInError } = await supabase
+          .from('check_ins')
+          .select('user_id, court_id, expires_at, courts(name)')
+          .in('user_id', friendIds)
+          .gte('expires_at', new Date().toISOString());
+
+        if (checkInError) throw checkInError;
+
+        (activeCheckIns || []).forEach((ci: any) => {
+          const remainingTime = ci.expires_at ? getRemainingTime(ci.expires_at) : undefined;
+          checkInMap.set(ci.user_id, {
+            court_id: ci.court_id,
+            expires_at: ci.expires_at,
+            courtName: ci.courts?.name,
+            remainingTime,
+          });
+        });
       }
 
-      console.log('useFriends: Pending requests:', pending?.length || 0);
+      // 5) Build friend objects (no per-friend queries)
+      const sentFriendsWithDetails: FriendWithDetails[] = (sentFriends || []).map((friendship: any) => {
+        const friendData = friendship.friend;
+        const ci = friendData?.id ? checkInMap.get(friendData.id) : undefined;
 
-      // Process sent friends (where current user is user_id)
-      const sentFriendsWithDetails: FriendWithDetails[] = await Promise.all(
-        (sentFriends || []).map(async (friendship: any) => {
-          const friendData = friendship.friend;
-          
-          const { data: checkIn } = await supabase
-            .from('check_ins')
-            .select('court_id, expires_at, courts(name)')
-            .eq('user_id', friendData.id)
-            .gte('expires_at', new Date().toISOString())
-            .single();
+        return {
+          id: friendship.id,
+          userId: friendship.user_id,
+          friendId: friendship.friend_id,
+          status: friendship.status,
+          createdAt: friendship.created_at,
+          friendEmail: friendData?.email,
+          friendPhone: friendData?.phone,
+          friendFirstName: friendData?.first_name,
+          friendLastName: friendData?.last_name,
+          friendNickname: friendData?.pickleballer_nickname,
+          friendSkillLevel: friendData?.skill_level,
+          friendExperienceLevel: friendData?.experience_level,
+          friendDuprRating: friendData?.dupr_rating,
+          currentCourtId: ci?.court_id,
+          currentCourtName: ci?.courtName,
+          remainingTime: ci?.remainingTime,
+        };
+      });
 
-          let remainingTime = undefined;
-          if (checkIn?.expires_at) {
-            remainingTime = getRemainingTime(checkIn.expires_at);
-          }
+      const receivedFriendsWithDetails: FriendWithDetails[] = (receivedFriends || []).map((friendship: any) => {
+        const friendData = friendship.requester;
+        const ci = friendData?.id ? checkInMap.get(friendData.id) : undefined;
 
-          return {
-            id: friendship.id,
-            userId: friendship.user_id,
-            friendId: friendship.friend_id,
-            status: friendship.status,
-            createdAt: friendship.created_at,
-            friendEmail: friendData.email,
-            friendPhone: friendData.phone,
-            friendFirstName: friendData.first_name,
-            friendLastName: friendData.last_name,
-            friendNickname: friendData.pickleballer_nickname,
-            friendSkillLevel: friendData.skill_level,
-            friendExperienceLevel: friendData.experience_level,
-            friendDuprRating: friendData.dupr_rating,
-            currentCourtId: checkIn?.court_id,
-            currentCourtName: checkIn?.courts?.name,
-            remainingTime,
-          };
-        })
-      );
-
-      // Process received friends (where current user is friend_id)
-      const receivedFriendsWithDetails: FriendWithDetails[] = await Promise.all(
-        (receivedFriends || []).map(async (friendship: any) => {
-          const friendData = friendship.requester;
-          
-          const { data: checkIn } = await supabase
-            .from('check_ins')
-            .select('court_id, expires_at, courts(name)')
-            .eq('user_id', friendData.id)
-            .gte('expires_at', new Date().toISOString())
-            .single();
-
-          let remainingTime = undefined;
-          if (checkIn?.expires_at) {
-            remainingTime = getRemainingTime(checkIn.expires_at);
-          }
-
-          return {
-            id: friendship.id,
-            userId: friendship.user_id,
-            friendId: friendship.user_id, // The friend is the user_id in this case
-            status: friendship.status,
-            createdAt: friendship.created_at,
-            friendEmail: friendData.email,
-            friendPhone: friendData.phone,
-            friendFirstName: friendData.first_name,
-            friendLastName: friendData.last_name,
-            friendNickname: friendData.pickleballer_nickname,
-            friendSkillLevel: friendData.skill_level,
-            friendExperienceLevel: friendData.experience_level,
-            friendDuprRating: friendData.dupr_rating,
-            currentCourtId: checkIn?.court_id,
-            currentCourtName: checkIn?.courts?.name,
-            remainingTime,
-          };
-        })
-      );
-
-      // Combine both lists
-      const allFriends = [...sentFriendsWithDetails, ...receivedFriendsWithDetails];
-      console.log('useFriends: Total friends:', allFriends.length);
+        return {
+          id: friendship.id,
+          userId: friendship.user_id,
+          // friend is the requester (user_id) in this case
+          friendId: friendship.user_id,
+          status: friendship.status,
+          createdAt: friendship.created_at,
+          friendEmail: friendData?.email,
+          friendPhone: friendData?.phone,
+          friendFirstName: friendData?.first_name,
+          friendLastName: friendData?.last_name,
+          friendNickname: friendData?.pickleballer_nickname,
+          friendSkillLevel: friendData?.skill_level,
+          friendExperienceLevel: friendData?.experience_level,
+          friendDuprRating: friendData?.dupr_rating,
+          currentCourtId: ci?.court_id,
+          currentCourtName: ci?.courtName,
+          remainingTime: ci?.remainingTime,
+        };
+      });
 
       const pendingWithDetails: FriendWithDetails[] = (pending || []).map((friendship: any) => {
         const requesterData = friendship.requester;
@@ -294,104 +261,68 @@ export const useFriends = (userId: string | undefined) => {
           friendId: friendship.friend_id,
           status: friendship.status,
           createdAt: friendship.created_at,
-          friendEmail: requesterData.email,
-          friendPhone: requesterData.phone,
-          friendFirstName: requesterData.first_name,
-          friendLastName: requesterData.last_name,
-          friendNickname: requesterData.pickleballer_nickname,
-          friendSkillLevel: requesterData.skill_level,
-          friendExperienceLevel: requesterData.experience_level,
-          friendDuprRating: requesterData.dupr_rating,
+          friendEmail: requesterData?.email,
+          friendPhone: requesterData?.phone,
+          friendFirstName: requesterData?.first_name,
+          friendLastName: requesterData?.last_name,
+          friendNickname: requesterData?.pickleballer_nickname,
+          friendSkillLevel: requesterData?.skill_level,
+          friendExperienceLevel: requesterData?.experience_level,
+          friendDuprRating: requesterData?.dupr_rating,
         };
       });
 
-      setFriends(allFriends);
+      setFriends([...sentFriendsWithDetails, ...receivedFriendsWithDetails]);
       setPendingRequests(pendingWithDetails);
-      
-      // Also fetch all users
-      await fetchAllUsers();
-    } catch (error) {
-      console.error('Error fetching friends:', error);
+    } catch (err) {
+      console.error('Error fetching friends:', err);
     } finally {
       setLoading(false);
+      inFlight.current = false;
     }
-  }, [userId, fetchAllUsers]);
+  }, [userId]);
 
   useEffect(() => {
-    if (userId && isSupabaseConfigured()) {
-      fetchFriends();
-    } else {
+    if (!userId || !isSupabaseConfigured()) {
+      setFriends([]);
+      setPendingRequests([]);
+      setAllUsers([]);
       setLoading(false);
+      return;
     }
+    fetchFriends();
   }, [userId, fetchFriends]);
 
   const sendFriendRequest = async (friendIdentifier: string) => {
-    if (!userId || !isSupabaseConfigured()) {
-      return { success: false, error: 'Not configured' };
-    }
+    if (!userId || !isSupabaseConfigured()) return { success: false, error: 'Not configured' };
 
     try {
-      // Try to find user by phone or email
-      let friendUser = null;
-      
-      // Check if it looks like a phone number (contains digits and possibly +, -, (, ), spaces)
+      let friendUser: { id: string } | null = null;
+
       const isPhone = /[\d+\-() ]/.test(friendIdentifier) && friendIdentifier.replace(/[\D]/g, '').length >= 10;
-      
+
       if (isPhone) {
-        // Clean phone number
         const cleanPhone = friendIdentifier.replace(/\D/g, '');
         const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
-        
-        const { data, error } = await supabase
-          .from('users')
-          .select('id')
-          .eq('phone', formattedPhone)
-          .single();
-        
-        if (!error && data) {
-          friendUser = data;
-        }
+        const { data } = await supabase.from('users').select('id').eq('phone', formattedPhone).single();
+        if (data) friendUser = data;
       } else {
-        // Try email
-        const { data, error } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', friendIdentifier)
-          .single();
-        
-        if (!error && data) {
-          friendUser = data;
-        }
+        const { data } = await supabase.from('users').select('id').eq('email', friendIdentifier).single();
+        if (data) friendUser = data;
       }
 
-      if (!friendUser) {
-        return { success: false, error: 'User not found' };
-      }
-
-      if (friendUser.id === userId) {
-        return { success: false, error: 'Cannot add yourself as a friend' };
-      }
+      if (!friendUser) return { success: false, error: 'User not found' };
+      if (friendUser.id === userId) return { success: false, error: 'Cannot add yourself as a friend' };
 
       const { data: existing } = await supabase
         .from('friends')
         .select('*')
         .or(`and(user_id.eq.${userId},friend_id.eq.${friendUser.id}),and(user_id.eq.${friendUser.id},friend_id.eq.${userId})`)
-        .single();
+        .maybeSingle();
 
-      if (existing) {
-        return { success: false, error: 'Friend request already exists' };
-      }
+      if (existing) return { success: false, error: 'Friend request already exists' };
 
-      const { error } = await supabase
-        .from('friends')
-        .insert([
-          {
-            user_id: userId,
-            friend_id: friendUser.id,
-            status: 'pending',
-          },
-        ]);
-
+      const { error } = await supabase.from('friends').insert([{ user_id: userId, friend_id: friendUser.id, status: 'pending' }]);
       if (error) throw error;
 
       await fetchFriends();
@@ -403,55 +334,22 @@ export const useFriends = (userId: string | undefined) => {
   };
 
   const sendFriendRequestById = async (friendId: string) => {
-    if (!userId || !isSupabaseConfigured()) {
-      console.error('sendFriendRequestById: Not configured or no userId');
-      return { success: false, error: 'Not configured' };
-    }
+    if (!userId || !isSupabaseConfigured()) return { success: false, error: 'Not configured' };
 
     try {
-      console.log('Sending friend request from', userId, 'to', friendId);
-      
-      if (friendId === userId) {
-        console.error('Cannot add yourself as a friend');
-        return { success: false, error: 'Cannot add yourself as a friend' };
-      }
+      if (friendId === userId) return { success: false, error: 'Cannot add yourself as a friend' };
 
-      // Check if a relationship already exists
       const { data: existing, error: existingError } = await supabase
         .from('friends')
         .select('*')
         .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`);
 
-      if (existingError) {
-        console.error('Error checking existing relationship:', existingError);
-        throw existingError;
-      }
+      if (existingError) throw existingError;
+      if (existing && existing.length > 0) return { success: false, error: 'Friend request already exists' };
 
-      if (existing && existing.length > 0) {
-        console.log('Relationship already exists:', existing);
-        return { success: false, error: 'Friend request already exists' };
-      }
+      const { error: insertError } = await supabase.from('friends').insert([{ user_id: userId, friend_id: friendId, status: 'pending' }]);
+      if (insertError) throw insertError;
 
-      console.log('Inserting new friend request');
-      const { data: insertData, error: insertError } = await supabase
-        .from('friends')
-        .insert([
-          {
-            user_id: userId,
-            friend_id: friendId,
-            status: 'pending',
-          },
-        ])
-        .select();
-
-      if (insertError) {
-        console.error('Error inserting friend request:', insertError);
-        throw insertError;
-      }
-
-      console.log('Friend request inserted successfully:', insertData);
-      
-      // Refresh the data
       await fetchFriends();
       return { success: true, error: null };
     } catch (error: any) {
@@ -461,16 +359,10 @@ export const useFriends = (userId: string | undefined) => {
   };
 
   const acceptFriendRequest = async (friendshipId: string) => {
-    if (!isSupabaseConfigured()) return;
-
+    if (!userId || !isSupabaseConfigured()) return;
     try {
-      const { error } = await supabase
-        .from('friends')
-        .update({ status: 'accepted' })
-        .eq('id', friendshipId);
-
+      const { error } = await supabase.from('friends').update({ status: 'accepted' }).eq('id', friendshipId);
       if (error) throw error;
-
       await fetchFriends();
     } catch (error) {
       console.error('Error accepting friend request:', error);
@@ -478,16 +370,10 @@ export const useFriends = (userId: string | undefined) => {
   };
 
   const rejectFriendRequest = async (friendshipId: string) => {
-    if (!isSupabaseConfigured()) return;
-
+    if (!userId || !isSupabaseConfigured()) return;
     try {
-      const { error } = await supabase
-        .from('friends')
-        .delete()
-        .eq('id', friendshipId);
-
+      const { error } = await supabase.from('friends').delete().eq('id', friendshipId);
       if (error) throw error;
-
       await fetchFriends();
     } catch (error) {
       console.error('Error rejecting friend request:', error);
@@ -495,16 +381,10 @@ export const useFriends = (userId: string | undefined) => {
   };
 
   const removeFriend = async (friendshipId: string) => {
-    if (!isSupabaseConfigured()) return;
-
+    if (!userId || !isSupabaseConfigured()) return;
     try {
-      const { error } = await supabase
-        .from('friends')
-        .delete()
-        .eq('id', friendshipId);
-
+      const { error } = await supabase.from('friends').delete().eq('id', friendshipId);
       if (error) throw error;
-
       await fetchFriends();
     } catch (error) {
       console.error('Error removing friend:', error);
@@ -522,5 +402,7 @@ export const useFriends = (userId: string | undefined) => {
     rejectFriendRequest,
     removeFriend,
     refetch: fetchFriends,
+    // call this from the screen ONLY when activeTab === 'search'
+    fetchAllUsers,
   };
 };

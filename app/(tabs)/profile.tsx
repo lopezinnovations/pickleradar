@@ -413,6 +413,8 @@ export default function ProfileScreen() {
       if (deleteError) throw deleteError;
 
       try {
+        // NOTE: This typically won't work client-side unless you have admin privileges / service role.
+        // Keeping as non-critical, similar to your original code.
         // @ts-ignore
         const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
         if (authError) console.log('[Profile] Auth delete error (non-critical):', authError);
@@ -447,6 +449,29 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const cancelEdits = () => {
+    setFirstName(user.firstName || '');
+    setLastName(user.lastName || '');
+    setPickleballerNickname(user.pickleballerNickname || '');
+    setSkillLevel((user.experienceLevel as any) || (user.skillLevel as any) || 'Beginner');
+    setDuprRating(user.duprRating ? user.duprRating.toString() : '');
+    setDuprError('');
+    setPrivacyOptIn(!!user.privacyOptIn);
+    setLocationEnabled(!!user.locationEnabled);
+    setFriendVisibility(user.friendVisibility !== false);
+    setIsEditing(false);
+  };
+
+  const handleOpenLegal = () => {
+    setShowLegalModal(true);
   };
 
   const handleSendTestPush = async () => {
@@ -492,12 +517,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Unknown';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
   if (authLoading) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -511,10 +530,17 @@ export default function ProfileScreen() {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
         <View style={styles.emptyStateIcon}>
-          <IconSymbol ios_icon_name="person.crop.circle" android_material_icon_name="account-circle" size={64} color={colors.textSecondary} />
+          <IconSymbol
+            ios_icon_name="person.crop.circle"
+            android_material_icon_name="account-circle"
+            size={64}
+            color={colors.textSecondary}
+          />
         </View>
         <Text style={[commonStyles.title, { marginTop: 16, textAlign: 'center' }]}>Not Logged In</Text>
-        <Text style={[commonStyles.textSecondary, { marginTop: 8, textAlign: 'center' }]}>Sign in to access your profile and settings</Text>
+        <Text style={[commonStyles.textSecondary, { marginTop: 8, textAlign: 'center' }]}>
+          Sign in to access your profile and settings
+        </Text>
         <TouchableOpacity style={[buttonStyles.primary, { marginTop: 24 }]} onPress={() => router.push('/auth')}>
           <Text style={buttonStyles.text}>Sign In</Text>
         </TouchableOpacity>
@@ -540,11 +566,10 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         <View style={styles.content}>
+          {/* Consent Prompt */}
           {showConsentPrompt && (
             <View
               style={[
@@ -605,6 +630,7 @@ export default function ProfileScreen() {
             </View>
           )}
 
+          {/* Header / Avatar */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.avatarContainer} onPress={handlePickImage} disabled={uploadingImage || !isEditing}>
               {uploadingImage ? (
@@ -655,6 +681,107 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* Profile Details */}
+          <View style={commonStyles.card}>
+            <Text style={commonStyles.subtitle}>Profile Details</Text>
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={commonStyles.text}>First Name</Text>
+              <TextInput
+                style={[commonStyles.input, { marginTop: 8 }]}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="First name"
+                editable={isEditing}
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={commonStyles.text}>Last Name</Text>
+              <TextInput
+                style={[commonStyles.input, { marginTop: 8 }]}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Last name"
+                editable={isEditing}
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={commonStyles.text}>Pickleballer Nickname</Text>
+              <TextInput
+                style={[commonStyles.input, { marginTop: 8 }]}
+                value={pickleballerNickname}
+                onChangeText={setPickleballerNickname}
+                placeholder='e.g. "Dink Master"'
+                editable={isEditing}
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={commonStyles.text}>Skill Level</Text>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                {(['Beginner', 'Intermediate', 'Advanced'] as const).map((lvl) => {
+                  const selected = skillLevel === lvl;
+                  return (
+                    <TouchableOpacity
+                      key={lvl}
+                      onPress={() => isEditing && setSkillLevel(lvl)}
+                      disabled={!isEditing}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 12,
+                        borderWidth: 2,
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary : colors.card,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: isEditing ? 1 : 0.7,
+                      }}
+                    >
+                      <Text style={{ color: selected ? colors.card : colors.text, fontWeight: '600' }}>{lvl}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={commonStyles.text}>DUPR Rating (optional)</Text>
+              <TextInput
+                style={[
+                  commonStyles.input,
+                  { marginTop: 8, borderColor: duprError ? colors.accent : colors.border, borderWidth: 1 },
+                ]}
+                value={duprRating}
+                onChangeText={handleDuprChange}
+                placeholder="1.0 - 7.0"
+                keyboardType="decimal-pad"
+                editable={isEditing}
+                placeholderTextColor={colors.textSecondary}
+              />
+              {!!duprError && <Text style={[commonStyles.textSecondary, { color: colors.accent, marginTop: 6 }]}>{duprError}</Text>}
+            </View>
+
+            {isEditing && (
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 18 }}>
+                <TouchableOpacity style={[buttonStyles.primary, { flex: 1 }]} onPress={handleSaveProfile}>
+                  <Text style={buttonStyles.text}>Save</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[buttonStyles.secondary, { flex: 1 }]} onPress={cancelEdits}>
+                  <Text style={buttonStyles.text}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Privacy & Permissions */}
           <View style={commonStyles.card}>
             <Text style={commonStyles.subtitle}>Privacy & Permissions</Text>
 
@@ -672,7 +799,6 @@ export default function ProfileScreen() {
               />
             </View>
 
-            {/* ✅ Push Notifications as a switch */}
             <View style={[styles.settingRow, { borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }]}>
               <View style={styles.settingInfo}>
                 <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Notifications</Text>
@@ -687,13 +813,11 @@ export default function ProfileScreen() {
                 thumbColor={colors.card}
                 disabled={enablingNotifications}
                 onValueChange={async (nextValue) => {
-                  // Turning ON -> request permissions + register token
                   if (nextValue) {
                     await handleEnableNotifications();
                     return;
                   }
 
-                  // Turning OFF -> can't disable from app; send them to Settings and revert to truth
                   Alert.alert(
                     'Turn Off Notifications',
                     Platform.OS === 'ios'
@@ -721,13 +845,144 @@ export default function ProfileScreen() {
                 disabled={!isEditing}
               />
             </View>
+
+            <View style={styles.settingRow}>
+              <View style={styles.settingInfo}>
+                <Text style={commonStyles.text}>Privacy Opt-in</Text>
+                <Text style={commonStyles.textSecondary}>Allow basic profile info to be visible to friends</Text>
+              </View>
+              <Switch
+                value={privacyOptIn}
+                onValueChange={setPrivacyOptIn}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.card}
+                disabled={!isEditing}
+              />
+            </View>
           </View>
 
-          {/* Keep the rest of your cards/actions/footer/modals as you already have them */}
+          {/* Current Check-in */}
+          <View style={commonStyles.card}>
+            <Text style={commonStyles.subtitle}>Current Session</Text>
+
+            {historyLoading ? (
+              <View style={{ paddingVertical: 14 }}>
+                <ActivityIndicator color={colors.primary} />
+              </View>
+            ) : currentCheckIn ? (
+              <>
+                <Text style={[commonStyles.text, { marginTop: 8 }]}>
+                  You are checked in at <Text style={{ fontWeight: '700' }}>{currentCheckIn.courts?.name || 'a court'}</Text>
+                </Text>
+
+                <Text style={[commonStyles.textSecondary, { marginTop: 6 }]}>
+                  Expires: {formatDate(currentCheckIn.expires_at)}{' '}
+                  {remainingTime ? `(${remainingTime.hours}h ${remainingTime.minutes}m remaining)` : ''}
+                </Text>
+
+                <TouchableOpacity
+                  style={[buttonStyles.danger, { marginTop: 14 }]}
+                  onPress={handleManualCheckOut}
+                  disabled={checkingOut}
+                >
+                  {checkingOut ? <ActivityIndicator color={colors.card} /> : <Text style={buttonStyles.text}>Check Out</Text>}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>You are not currently checked in.</Text>
+            )}
+          </View>
+
+          {/* Admin Tools */}
+          {isAdmin && (
+            <View style={commonStyles.card}>
+              <Text style={commonStyles.subtitle}>Admin Tools</Text>
+
+              <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
+                Push Token: {userPushToken ? 'Present ✅' : 'Not set ❌'}
+              </Text>
+
+              <TouchableOpacity
+                style={[buttonStyles.secondary, { marginTop: 14 }]}
+                onPress={handleSendTestPush}
+                disabled={sendingTestPush}
+              >
+                {sendingTestPush ? <ActivityIndicator color={colors.primary} /> : <Text style={buttonStyles.text}>Send Test Push</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Account */}
+          <View style={commonStyles.card}>
+            <Text style={commonStyles.subtitle}>Account</Text>
+
+            <View style={{ marginTop: 12 }}>
+              <Text style={commonStyles.textSecondary}>Email</Text>
+              <Text style={commonStyles.text}>{user.email || '—'}</Text>
+            </View>
+
+            <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 16 }]} onPress={handleOpenLegal}>
+              <Text style={buttonStyles.text}>Legal</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 12 }]} onPress={handleSignOut}>
+              <Text style={buttonStyles.text}>Sign Out</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[buttonStyles.danger, { marginTop: 12 }]}
+              onPress={handleDeleteAccount}
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? <ActivityIndicator color={colors.card} /> : <Text style={buttonStyles.text}>Delete Account</Text>}
+            </TouchableOpacity>
+          </View>
+
+          <LegalFooter />
         </View>
       </ScrollView>
 
-      {/* Keep your modals below exactly as before (legal + image picker) */}
+      {/* Image Picker Modal */}
+      <Modal visible={showImagePickerModal} transparent animationType="fade" onRequestClose={() => setShowImagePickerModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>Update Profile Picture</Text>
+
+            <TouchableOpacity style={[buttonStyles.primary, { marginBottom: 10 }]} onPress={handleTakePhoto}>
+              <Text style={buttonStyles.text}>Take Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[buttonStyles.primary, { marginBottom: 10 }]} onPress={handleChooseFromLibrary}>
+              <Text style={buttonStyles.text}>Choose from Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={buttonStyles.secondary} onPress={() => setShowImagePickerModal(false)}>
+              <Text style={buttonStyles.text}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Legal Modal (simple placeholder) */}
+      <Modal visible={showLegalModal} transparent animationType="slide" onRequestClose={() => setShowLegalModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: '80%' }]}>
+            <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>Legal</Text>
+
+            <TouchableOpacity style={[buttonStyles.secondary, { marginBottom: 10 }]} onPress={() => router.push('/legal/privacy-policy')}>
+              <Text style={buttonStyles.text}>Privacy Policy</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[buttonStyles.secondary, { marginBottom: 10 }]} onPress={() => router.push('/legal/terms-of-service')}>
+              <Text style={buttonStyles.text}>Terms of Service</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={buttonStyles.primary} onPress={() => setShowLegalModal(false)}>
+              <Text style={buttonStyles.text}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -864,5 +1119,26 @@ const styles = StyleSheet.create({
   settingInfo: {
     flex: 1,
     marginRight: 12,
+  },
+  emptyStateIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });

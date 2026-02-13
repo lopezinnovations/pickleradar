@@ -18,157 +18,190 @@ interface UserWithStatus {
   friendshipId?: string;
 }
 
-async function fetchFriends(userId: string) {
-  console.log('useFriendsQuery: Fetching friends for user:', userId);
+type FriendsResult = {
+  friends: FriendWithDetails[];
+  pendingRequests: FriendWithDetails[];
+  allUsers: UserWithStatus[];
+};
 
+async function fetchFriendsCore(userId: string): Promise<Omit<FriendsResult, 'allUsers'>> {
   if (!isSupabaseConfigured()) {
-    console.log('useFriendsQuery: Supabase not configured');
-    return { friends: [], pendingRequests: [], allUsers: [] as UserWithStatus[] };
+    return { friends: [], pendingRequests: [] };
   }
 
-  try {
-    // Fetch all friendships involving this user
-    const { data: friendships, error: friendshipsError } = await supabase
-      .from('friends')
-      .select('id, user_id, friend_id, status, created_at')
-      .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-      .limit(300);
+  // 1) friendships (accepted + pending both directions)
+  const { data: friendships, error: friendshipsError } = await supabase
+    .from('friends')
+    .select('id, user_id, friend_id, status, created_at')
+    .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+    .limit(300);
 
-    if (friendshipsError) throw friendshipsError;
+  if (friendshipsError) throw friendshipsError;
 
-    const rows = friendships || [];
+  const rows = friendships || [];
 
-    // Build a map: otherUserId -> friendshipRow (the row involving ME + THEM)
-    const friendshipByOtherId = new Map<string, any>();
-    for (const f of rows) {
-      const otherId = f.user_id === userId ? f.friend_id : f.user_id;
-      friendshipByOtherId.set(otherId, f);
-    }
+  // otherUserId -> friendship row
+  const friendshipByOtherId = new Map<string, any>();
+  for (const f of rows) {
+    const otherId = f.user_id === userId ? f.friend_id : f.user_id;
+    friendshipByOtherId.set(otherId, f);
+  }
 
-    // Collect unique other user ids for details fetch
-    const otherUserIds = Array.from(friendshipByOtherId.keys());
+  const otherUserIds = Array.from(friendshipByOtherId.keys());
 
-    // Fetch user details for friends/requests
-    const userMap = new Map<string, any>();
-    if (otherUserIds.length > 0) {
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
-        .in('id', otherUserIds);
-
-      if (usersError) throw usersError;
-
-      (users || []).forEach((u: any) => userMap.set(u.id, u));
-    }
-
-    const friends: FriendWithDetails[] = [];
-    const pendingRequests: FriendWithDetails[] = [];
-
-    for (const [otherId, friendship] of friendshipByOtherId.entries()) {
-      const otherUser = userMap.get(otherId);
-      if (!otherUser) continue;
-
-      const friendDetails: FriendWithDetails = {
-        id: friendship.id,
-        userId: otherId,
-        firstName: otherUser.first_name,
-        lastName: otherUser.last_name,
-        pickleballerNickname: otherUser.pickleballer_nickname,
-        experienceLevel: otherUser.experience_level,
-        duprRating: otherUser.dupr_rating,
-        status: friendship.status,
-        createdAt: friendship.created_at,
-        isAtCourt: false,
-      };
-
-      if (friendship.status === 'accepted') {
-        friends.push(friendDetails);
-      } else if (friendship.status === 'pending' && friendship.friend_id === userId) {
-        // pending request TO me (I can accept/decline)
-        pendingRequests.push(friendDetails);
-      }
-    }
-
-    // Fetch all users for search
-    const { data: allUsersData, error: allUsersError } = await supabase
+  // 2) user details for those other users
+  const userMap = new Map<string, any>();
+  if (otherUserIds.length > 0) {
+    const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
-      .neq('id', userId)
-      .limit(200);
+      .in('id', otherUserIds);
 
-    if (allUsersError) throw allUsersError;
+    if (usersError) throw usersError;
 
-    const allUsers: UserWithStatus[] = (allUsersData || []).map((u: any) => {
-      const f = friendshipByOtherId.get(u.id);
-
-      let friendshipStatus: 'none' | 'pending_sent' | 'pending_received' | 'accepted' = 'none';
-      let friendshipId: string | undefined;
-
-      if (f) {
-        friendshipId = f.id;
-
-        if (f.status === 'accepted') {
-          friendshipStatus = 'accepted';
-        } else if (f.status === 'pending') {
-          // If I am user_id, I sent it. Otherwise I received it.
-          friendshipStatus = f.user_id === userId ? 'pending_sent' : 'pending_received';
-        }
-      }
-
-      return {
-        id: u.id,
-        first_name: u.first_name,
-        last_name: u.last_name,
-        pickleballer_nickname: u.pickleballer_nickname,
-        experience_level: u.experience_level,
-        dupr_rating: u.dupr_rating,
-        isAtCourt: false,
-        friendshipStatus,
-        friendshipId,
-      };
-    });
-
-    console.log(
-      'useFriendsQuery: Loaded',
-      friends.length,
-      'friends,',
-      pendingRequests.length,
-      'pending requests,',
-      allUsers.length,
-      'total users'
-    );
-
-    return { friends, pendingRequests, allUsers };
-  } catch (error) {
-    console.error('useFriendsQuery: Error fetching friends:', error);
-    return { friends: [], pendingRequests: [], allUsers: [] as UserWithStatus[] };
+    (users || []).forEach((u: any) => userMap.set(u.id, u));
   }
+
+  // 3) active check-ins for those users (single query)
+  const atCourtSet = new Set<string>();
+  if (otherUserIds.length > 0) {
+    const { data: activeCheckIns, error: checkInError } = await supabase
+      .from('check_ins')
+      .select('user_id')
+      .in('user_id', otherUserIds)
+      .gte('expires_at', new Date().toISOString());
+
+    if (checkInError) throw checkInError;
+
+    (activeCheckIns || []).forEach((ci: any) => atCourtSet.add(ci.user_id));
+  }
+
+  const friends: FriendWithDetails[] = [];
+  const pendingRequests: FriendWithDetails[] = [];
+
+  for (const [otherId, friendship] of friendshipByOtherId.entries()) {
+    const otherUser = userMap.get(otherId);
+    if (!otherUser) continue;
+
+    // Build in the field names your UI expects (your type is inconsistent across files)
+    const friendDetails: any = {
+      id: friendship.id,
+      userId: otherId, // the "other user"
+      firstName: otherUser.first_name,
+      lastName: otherUser.last_name,
+      pickleballerNickname: otherUser.pickleballer_nickname,
+      experienceLevel: otherUser.experience_level,
+      duprRating: otherUser.dupr_rating,
+      status: friendship.status,
+      createdAt: friendship.created_at,
+      isAtCourt: atCourtSet.has(otherId),
+    };
+
+    if (friendship.status === 'accepted') {
+      friends.push(friendDetails as FriendWithDetails);
+    } else if (friendship.status === 'pending' && friendship.friend_id === userId) {
+      pendingRequests.push(friendDetails as FriendWithDetails);
+    }
+  }
+
+  return { friends, pendingRequests };
 }
 
-export function useFriendsQuery(userId?: string) {
+async function fetchAllUsersForSearch(userId: string): Promise<UserWithStatus[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  // Keep this limited so it stays fast; you can paginate later if you want
+  const { data: allUsersData, error: allUsersError } = await supabase
+    .from('users')
+    .select('id, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
+    .neq('id', userId)
+    .limit(200);
+
+  if (allUsersError) throw allUsersError;
+
+  // Also fetch relationships so we can show status in search results
+  const { data: friendships, error: friendshipsError } = await supabase
+    .from('friends')
+    .select('id, user_id, friend_id, status')
+    .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+    .limit(300);
+
+  if (friendshipsError) throw friendshipsError;
+
+  const rows = friendships || [];
+  const friendshipByOtherId = new Map<string, any>();
+  for (const f of rows) {
+    const otherId = f.user_id === userId ? f.friend_id : f.user_id;
+    friendshipByOtherId.set(otherId, f);
+  }
+
+  return (allUsersData || []).map((u: any) => {
+    const f = friendshipByOtherId.get(u.id);
+
+    let friendshipStatus: 'none' | 'pending_sent' | 'pending_received' | 'accepted' = 'none';
+    let friendshipId: string | undefined;
+
+    if (f) {
+      friendshipId = f.id;
+      if (f.status === 'accepted') friendshipStatus = 'accepted';
+      else if (f.status === 'pending') friendshipStatus = f.user_id === userId ? 'pending_sent' : 'pending_received';
+    }
+
+    return {
+      id: u.id,
+      first_name: u.first_name,
+      last_name: u.last_name,
+      pickleballer_nickname: u.pickleballer_nickname,
+      experience_level: u.experience_level,
+      dupr_rating: u.dupr_rating,
+      isAtCourt: false,
+      friendshipStatus,
+      friendshipId,
+    };
+  });
+}
+
+/**
+ * loadAllUsers = false by default (fast)
+ * set true ONLY when user is on Search tab
+ */
+export function useFriendsQuery(userId?: string, loadAllUsers: boolean = false) {
   const queryClient = useQueryClient();
 
-  const query = useQuery({
-    queryKey: ['friends', userId],
-    queryFn: () => fetchFriends(userId!),
+  // Friends + pending (fast)
+  const friendsQuery = useQuery({
+    queryKey: ['friends-core', userId],
+    queryFn: () => fetchFriendsCore(userId!),
     enabled: !!userId && isSupabaseConfigured(),
-    staleTime: 30000,
-    gcTime: 600000,
+    staleTime: 30_000,
+    gcTime: 600_000,
+    refetchOnFocus: false,
+  });
+
+  // Search users (only when needed)
+  const allUsersQuery = useQuery({
+    queryKey: ['friends-search-users', userId],
+    queryFn: () => fetchAllUsersForSearch(userId!),
+    enabled: !!userId && loadAllUsers && isSupabaseConfigured(),
+    staleTime: 60_000,
+    gcTime: 600_000,
     refetchOnFocus: false,
   });
 
   const refetch = useCallback(() => {
-    console.log('useFriendsQuery: Manual refetch triggered');
-    return queryClient.invalidateQueries({ queryKey: ['friends', userId] });
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['friends-core', userId] }),
+      queryClient.invalidateQueries({ queryKey: ['friends-search-users', userId] }),
+    ]);
   }, [queryClient, userId]);
 
   return {
-    friends: query.data?.friends || [],
-    pendingRequests: query.data?.pendingRequests || [],
-    allUsers: query.data?.allUsers || [],
-    loading: query.isLoading,
-    error: query.error,
+    friends: friendsQuery.data?.friends || [],
+    pendingRequests: friendsQuery.data?.pendingRequests || [],
+    allUsers: allUsersQuery.data || [],
+    loading: friendsQuery.isLoading, // keep behavior: skeleton tied to friends load
+    error: friendsQuery.error || allUsersQuery.error,
     refetch,
-    isRefetching: query.isRefetching,
+    isRefetching: friendsQuery.isRefetching || allUsersQuery.isRefetching,
   };
 }
