@@ -1,0 +1,135 @@
+
+
+git add .
+git commit -m "Short description of change"
+git push
+eas update --channel production --platform ios
+
+git pull origin main
+git push origin main
+
+
+++++++++++++++++++++++
+
+eas build --platform ios --profile production --clear-cache
+eas submit -p ios --latest
+
+npx expo start --web
+
+git add .
+git commit -m "update"
+git push
+
+
++++++++++++++++++++++++++++++++++++++++
+
+
+
+Situation					Command
+Natively exported new code			git pull → npm install → eas build
+You want a new TestFlight build			eas build → eas submit
+Build fails unexpectedly			eas build --clear-cache
+Expo dev server glitching			npx expo start -c
+You updated dependencies			npm install → eas build --clear-cache
+You updated Expo SDK				npm install → eas build --clear-cache
+You want to preview locally			npx expo start
+You want to verify repo state			git status
+
+
+
+
+⭐ Your Core Commands (and exactly when to use them)
+✅ 1. Natively exported new code
+Use this when you make changes in Natively and push them to GitHub.
+
+Code
+git pull
+npm install
+eas build --platform ios --profile production
+Why:
+
+git pull gets the new exported files
+
+npm install updates dependencies if Natively changed anything
+
+eas build creates the new iOS binary
+
+✅ 2. You want a new TestFlight build
+Use this when nothing changed except you want a new build.
+
+Code
+eas build --platform ios --profile production
+eas submit --platform ios --profile production
+Why:
+
+First command builds
+
+Second command uploads to Apple
+
+✅ 3. Build fails unexpectedly
+Use this when the error doesn’t make sense or seems random.
+
+Code
+eas build --platform ios --profile production --clear-cache
+Why:
+
+Clears EAS’s build cache
+
+Forces a clean rebuild
+
+Fixes 90% of weird build issues
+
+✅ 4. Expo dev server glitching
+Use this when the local preview is acting weird.
+
+Code
+npx expo start -c
+Why:
+
+Clears Metro bundler cache
+
+Fixes stale assets, red screens, weird reload behavior
+
+✅ 5. You updated dependencies
+Use this when you changed package.json or installed new packages.
+
+Code
+npm install
+eas build --platform ios --profile production --clear-cache
+Why:
+
+New dependencies require reinstall
+
+Native changes require a clean build
+
+✅ 6. You updated Expo SDK
+Use this when you upgraded Expo (e.g., SDK 50 → 51).
+
+Code
+npm install
+eas build --platform ios --profile production --clear-cache
+Why:
+
+Expo SDK upgrades always require a clean rebuild
+
+✅ 7. You want to preview locally
+Use this when you want to test the app on your device or simulator.
+
+Code
+npx expo start
+Why:
+
+Starts the local dev server
+
+Lets you test before building
+
+✅ 8. You want to verify repo state
+Use this when you want to check what changed.
+
+Code
+git status
+Why:
+
+Shows modified files
+
+Helps you understand what’s staged or unstaged

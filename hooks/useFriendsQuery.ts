@@ -1,8 +1,7 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
-import { Friend, FriendWithDetails } from '@/types';
+import { FriendWithDetails } from '@/types';
 
 interface UserWithStatus {
   id: string;
@@ -21,57 +20,62 @@ interface UserWithStatus {
 
 async function fetchFriends(userId: string) {
   console.log('useFriendsQuery: Fetching friends for user:', userId);
-  
+
   if (!isSupabaseConfigured()) {
     console.log('useFriendsQuery: Supabase not configured');
-    return { friends: [], pendingRequests: [], allUsers: [] };
+    return { friends: [], pendingRequests: [], allUsers: [] as UserWithStatus[] };
   }
 
   try {
-    // OPTIMIZED: Fetch friends WITHOUT embedded joins
+    // Fetch all friendships involving this user
     const { data: friendships, error: friendshipsError } = await supabase
       .from('friends')
       .select('id, user_id, friend_id, status, created_at')
       .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-      .limit(100); // ADDED: Pagination limit
+      .limit(300);
 
     if (friendshipsError) throw friendshipsError;
 
-    // Get unique user IDs
-    const userIds = new Set<string>();
-    (friendships || []).forEach(f => {
-      if (f.user_id !== userId) userIds.add(f.user_id);
-      if (f.friend_id !== userId) userIds.add(f.friend_id);
-    });
+    const rows = friendships || [];
 
-    // OPTIMIZED: Fetch user details separately
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
-      .in('id', Array.from(userIds));
+    // Build a map: otherUserId -> friendshipRow (the row involving ME + THEM)
+    const friendshipByOtherId = new Map<string, any>();
+    for (const f of rows) {
+      const otherId = f.user_id === userId ? f.friend_id : f.user_id;
+      friendshipByOtherId.set(otherId, f);
+    }
 
-    if (usersError) throw usersError;
+    // Collect unique other user ids for details fetch
+    const otherUserIds = Array.from(friendshipByOtherId.keys());
 
-    const userMap = new Map(users?.map(u => [u.id, u]) || []);
+    // Fetch user details for friends/requests
+    const userMap = new Map<string, any>();
+    if (otherUserIds.length > 0) {
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
+        .in('id', otherUserIds);
 
-    // Process friendships
+      if (usersError) throw usersError;
+
+      (users || []).forEach((u: any) => userMap.set(u.id, u));
+    }
+
     const friends: FriendWithDetails[] = [];
     const pendingRequests: FriendWithDetails[] = [];
 
-    for (const friendship of friendships || []) {
-      const friendId = friendship.user_id === userId ? friendship.friend_id : friendship.user_id;
-      const friendData = userMap.get(friendId);
-
-      if (!friendData) continue;
+    for (const [otherId, friendship] of friendshipByOtherId.entries()) {
+      const otherUser = userMap.get(otherId);
+      if (!otherUser) continue;
 
       const friendDetails: FriendWithDetails = {
         id: friendship.id,
-        userId: friendId,
-        firstName: friendData.first_name,
-        lastName: friendData.last_name,
-        pickleballerNickname: friendData.pickleballer_nickname,
-        experienceLevel: friendData.experience_level,
-        duprRating: friendData.dupr_rating,
+        userId: otherId,
+        firstName: otherUser.first_name,
+        lastName: otherUser.last_name,
+        pickleballerNickname: otherUser.pickleballer_nickname,
+        experienceLevel: otherUser.experience_level,
+        duprRating: otherUser.dupr_rating,
         status: friendship.status,
         createdAt: friendship.created_at,
         isAtCourt: false,
@@ -80,52 +84,64 @@ async function fetchFriends(userId: string) {
       if (friendship.status === 'accepted') {
         friends.push(friendDetails);
       } else if (friendship.status === 'pending' && friendship.friend_id === userId) {
+        // pending request TO me (I can accept/decline)
         pendingRequests.push(friendDetails);
       }
     }
 
-    // OPTIMIZED: Fetch all users for search (limit to 200)
+    // Fetch all users for search
     const { data: allUsersData, error: allUsersError } = await supabase
       .from('users')
       .select('id, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
       .neq('id', userId)
-      .limit(200); // ADDED: Pagination limit
+      .limit(200);
 
     if (allUsersError) throw allUsersError;
 
-    const allUsers: UserWithStatus[] = (allUsersData || []).map(user => {
-      const friendship = (friendships || []).find(
-        f => (f.user_id === user.id || f.friend_id === user.id)
-      );
+    const allUsers: UserWithStatus[] = (allUsersData || []).map((u: any) => {
+      const f = friendshipByOtherId.get(u.id);
 
       let friendshipStatus: 'none' | 'pending_sent' | 'pending_received' | 'accepted' = 'none';
-      if (friendship) {
-        if (friendship.status === 'accepted') {
+      let friendshipId: string | undefined;
+
+      if (f) {
+        friendshipId = f.id;
+
+        if (f.status === 'accepted') {
           friendshipStatus = 'accepted';
-        } else if (friendship.status === 'pending') {
-          friendshipStatus = friendship.user_id === userId ? 'pending_sent' : 'pending_received';
+        } else if (f.status === 'pending') {
+          // If I am user_id, I sent it. Otherwise I received it.
+          friendshipStatus = f.user_id === userId ? 'pending_sent' : 'pending_received';
         }
       }
 
       return {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        pickleballer_nickname: user.pickleballer_nickname,
-        experience_level: user.experience_level,
-        dupr_rating: user.dupr_rating,
+        id: u.id,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        pickleballer_nickname: u.pickleballer_nickname,
+        experience_level: u.experience_level,
+        dupr_rating: u.dupr_rating,
         isAtCourt: false,
         friendshipStatus,
-        friendshipId: friendship?.id,
+        friendshipId,
       };
     });
 
-    console.log('useFriendsQuery: Loaded', friends.length, 'friends,', pendingRequests.length, 'pending requests,', allUsers.length, 'total users');
+    console.log(
+      'useFriendsQuery: Loaded',
+      friends.length,
+      'friends,',
+      pendingRequests.length,
+      'pending requests,',
+      allUsers.length,
+      'total users'
+    );
 
     return { friends, pendingRequests, allUsers };
   } catch (error) {
     console.error('useFriendsQuery: Error fetching friends:', error);
-    return { friends: [], pendingRequests: [], allUsers: [] };
+    return { friends: [], pendingRequests: [], allUsers: [] as UserWithStatus[] };
   }
 }
 
@@ -136,8 +152,8 @@ export function useFriendsQuery(userId?: string) {
     queryKey: ['friends', userId],
     queryFn: () => fetchFriends(userId!),
     enabled: !!userId && isSupabaseConfigured(),
-    staleTime: 30000, // 30 seconds
-    gcTime: 600000, // 10 minutes
+    staleTime: 30000,
+    gcTime: 600000,
     refetchOnFocus: false,
   });
 
