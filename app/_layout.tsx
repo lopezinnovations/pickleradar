@@ -1,7 +1,7 @@
-
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 // Create QueryClient OUTSIDE component to prevent recreation on every render
 const queryClient = new QueryClient({
@@ -24,7 +24,8 @@ const screenOptions = {
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={screenOptions}>
+      <AuthProvider>
+        <Stack screenOptions={screenOptions}>
         <Stack.Screen name="index" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="auth" />
@@ -43,6 +44,7 @@ export default function RootLayout() {
         <Stack.Screen name="legal/disclaimer" />
         <Stack.Screen name="+not-found" />
       </Stack>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
