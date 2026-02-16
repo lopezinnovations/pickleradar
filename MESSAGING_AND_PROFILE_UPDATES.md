@@ -175,7 +175,7 @@ Created indexes for optimal query performance:
 - `app/user/[id].tsx` - Implemented privacy-based profile visibility
 - `hooks/useAuth.ts` - Added updatePassword function, improved reset flow
 - `types/index.ts` - Added Message interface
-- `app/integrations/supabase/types.ts` - Added messages table types
+- `supabase/types.ts` - Added messages table types
 
 ### Database Migrations
 - `create_messages_table` - Creates messages table with RLS policies

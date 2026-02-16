@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { Court } from '@/types';
 import { logPerformance, getCachedData, setCachedData } from '@/utils/performanceLogger';
 import { useRealtimeManager } from '@/utils/realtimeManager';

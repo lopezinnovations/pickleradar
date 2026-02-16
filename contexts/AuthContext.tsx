@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { User } from '@/types';
 import { registerPushToken } from '@/utils/notifications';
 
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (event === 'SIGNED_OUT') {
           setUser(null);

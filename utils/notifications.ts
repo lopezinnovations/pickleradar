@@ -2,18 +2,25 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// expo-notifications does not support web - setNotificationHandler can crash (e.g. localStorage)
+// A notifications.web.ts stub is used for web builds; this guard is a fallback
+if (Platform.OS !== 'web') {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (e) {
+    console.warn('[Notifications] setNotificationHandler failed:', e);
+  }
+}
 
 // Constants for notification prompt persistence
 const NOTIFICATION_PROMPT_DISMISSED_KEY = 'notificationsPromptDismissedAt';

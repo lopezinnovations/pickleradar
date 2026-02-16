@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { Redirect } from 'expo-router';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { colors } from '@/styles/commonStyles';
 
 export default function LandingScreen() {

@@ -113,7 +113,7 @@ Manages friend relationships and requests.
 ## App Integration
 
 ### Client Configuration
-Location: `app/integrations/supabase/client.ts`
+Location: `supabase/client.ts`
 
 The Supabase client is configured with:
 - AsyncStorage for session persistence
@@ -214,7 +214,7 @@ All tables have RLS enabled with appropriate policies:
 
 ### Type Safety
 - TypeScript types are auto-generated from the database schema
-- Types are located in `app/integrations/supabase/types.ts`
+- Types are located in `supabase/types.ts`
 - Regenerate types after schema changes using Supabase CLI
 
 ## Support

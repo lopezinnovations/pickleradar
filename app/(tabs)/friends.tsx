@@ -9,7 +9,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { FriendCardSkeleton } from '@/components/SkillLevelBars';
 import { debounce } from '@/utils/performanceLogger';
 import { LegalFooter } from '@/components/LegalFooter';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 
 export default function FriendsScreen() {
   const router = useRouter();

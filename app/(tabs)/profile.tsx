@@ -21,7 +21,7 @@ import { useCheckIn } from '@/hooks/useCheckIn';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
-import { supabase } from '@/app/integrations/supabase/client';
+import { supabase } from '@/supabase/client';
 import Constants from 'expo-constants';
 import {
   sendTestPushNotification,

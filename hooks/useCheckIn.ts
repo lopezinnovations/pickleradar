@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { scheduleCheckInNotification, cancelCheckOutNotification, sendManualCheckOutNotification, isPushNotificationSupported } from '@/utils/notifications';
 import { Alert } from 'react-native';
 

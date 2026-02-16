@@ -257,7 +257,7 @@ You need to manually update the email templates in Supabase Dashboard.
 - ✅ `hooks/useAuth.ts` - Already properly configured
 - ✅ `app/auth.tsx` - Already properly configured
 - ✅ `app/_layout.tsx` - Already properly configured
-- ✅ `app/integrations/supabase/types.ts` - Database schema correct
+- ✅ `supabase/types.ts` - Database schema correct
 
 ---
 

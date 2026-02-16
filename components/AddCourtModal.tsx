@@ -15,7 +15,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase } from '@/app/integrations/supabase/client';
+import { supabase } from '@/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { geocodeZipCode } from '@/utils/locationUtils';
 

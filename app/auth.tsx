@@ -6,7 +6,7 @@ import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
-import { supabase } from '@/app/integrations/supabase/client';
+import { supabase } from '@/supabase/client';
 
 export default function AuthScreen() {
   const router = useRouter();
