@@ -45,7 +45,6 @@ export const useFriends = (userId: string | null | undefined) => {
     }
 
     try {
-      // Users (excluding me)
       const { data: users, error: usersError } = await supabase
         .from('users')
         .select('id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')

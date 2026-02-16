@@ -97,7 +97,7 @@ async function fetchConversations(userId: string): Promise<Conversation[]> {
         const displayName =
           partner?.first_name && partner?.last_name
             ? `${partner.first_name} ${partner.last_name.charAt(0)}.`
-            : partner?.pickleballer_nickname || 'Unknown User';
+            : partner?.pickleballer_nickname || (partner ? 'User' : 'Unknown User');
 
         const muteKey = `direct:${partnerId}`;
 

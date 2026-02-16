@@ -56,6 +56,24 @@ export const buttonStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  danger: {
+    backgroundColor: colors.error,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dangerOutline: {
+    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.error,
+  },
 });
 
 export const commonStyles = StyleSheet.create({

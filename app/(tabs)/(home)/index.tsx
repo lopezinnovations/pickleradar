@@ -359,9 +359,10 @@ export default function HomeScreen() {
       <AddCourtModal
         visible={showAddCourtModal}
         onClose={() => setShowAddCourtModal(false)}
-        onCourtAdded={() => {
+        onSuccess={() => {
           setShowAddCourtModal(false);
           refetch();
+          router.replace('/(tabs)/(home)/');
         }}
       />
     </View>

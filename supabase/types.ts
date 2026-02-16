@@ -464,6 +464,7 @@ export type Database = {
           accepted_version: string | null
           messages_visit_count: number
           notification_prompt_shown: boolean
+          is_deleted: boolean | null
         }
         Insert: {
           created_at?: string
@@ -491,6 +492,7 @@ export type Database = {
           accepted_version?: string | null
           messages_visit_count?: number
           notification_prompt_shown?: boolean
+          is_deleted?: boolean | null
         }
         Update: {
           created_at?: string
@@ -518,6 +520,7 @@ export type Database = {
           accepted_version?: string | null
           messages_visit_count?: number
           notification_prompt_shown?: boolean
+          is_deleted?: boolean | null
         }
         Relationships: []
       }

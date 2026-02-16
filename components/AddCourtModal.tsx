@@ -10,10 +10,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Image,
+  Platform,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
-import { colors, commonStyles } from '@/styles/commonStyles';
+import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { supabase } from '@/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,13 +24,14 @@ interface AddCourtModalProps {
   onSuccess: () => void;
 }
 
+const GEOCODE_TIMEOUT_MS = 10000;
+
 export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProps) {
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [zipCode, setZipCode] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const resetForm = () => {
@@ -39,127 +39,99 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
     setAddress('');
     setCity('');
     setZipCode('');
-    setPhotoUri(null);
-  };
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
-
-  const uploadPhoto = async (uri: string): Promise<string | null> => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const fileExt = uri.split('.').pop() || 'jpg';
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `court-photos/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('courts')
-        .upload(filePath, blob);
-
-      if (uploadError) {
-        console.error('Error uploading photo:', uploadError);
-        return null;
-      }
-
-      const { data } = supabase.storage
-        .from('courts')
-        .getPublicUrl(filePath);
-
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error in uploadPhoto:', error);
-      return null;
-    }
   };
 
   const handleSubmit = async () => {
     if (!user) {
+      if (__DEV__) console.log('[AddCourt] submit pressed – not logged in');
       Alert.alert('Error', 'You must be logged in to submit a court');
       return;
     }
 
-    if (!name.trim() || !address.trim()) {
+    const trimmedName = name.trim();
+    const trimmedAddress = address.trim();
+    if (!trimmedName || !trimmedAddress) {
+      if (__DEV__) console.log('[AddCourt] submit pressed – validation failed (name/address required)');
       Alert.alert('Error', 'Please fill in court name and address');
       return;
     }
 
+    if (__DEV__) console.log('[AddCourt] submit pressed – validation passed');
     setSubmitting(true);
 
     try {
-      // Geocode the address if ZIP code is provided
-      let latitude: number | undefined;
-      let longitude: number | undefined;
+      let latitude: number | null = null;
+      let longitude: number | null = null;
 
-      if (zipCode.trim()) {
-        const geocodeResult = await geocodeZipCode(zipCode.trim());
-        if (geocodeResult.success) {
-          latitude = geocodeResult.latitude;
-          longitude = geocodeResult.longitude;
+      if (zipCode.trim() && Platform.OS !== 'web') {
+        try {
+          const geocodePromise = geocodeZipCode(zipCode.trim());
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Geocode timeout')), GEOCODE_TIMEOUT_MS)
+          );
+          const geocodeResult = await Promise.race([geocodePromise, timeoutPromise]);
+          if (geocodeResult.success && geocodeResult.latitude != null && geocodeResult.longitude != null) {
+            const lat = Number(geocodeResult.latitude);
+            const lng = Number(geocodeResult.longitude);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+              latitude = lat;
+              longitude = lng;
+            }
+          }
+        } catch (geocodeErr) {
+          if (__DEV__) console.warn('[AddCourt] Geocode failed, continuing without coordinates:', geocodeErr);
         }
+      } else if (zipCode.trim() && Platform.OS === 'web') {
+        if (__DEV__) console.log('[AddCourt] Skipping geocode on web (may be unavailable)');
       }
 
-      // Upload photo if provided
-      let photoUrl: string | null = null;
-      if (photoUri) {
-        photoUrl = await uploadPhoto(photoUri);
-      }
+      if (__DEV__) console.log('[AddCourt] Inserting court...');
+      const insertPayload = {
+        user_id: user.id,
+        name: trimmedName,
+        address: trimmedAddress,
+        city: city.trim() || null,
+        zip_code: zipCode.trim() || null,
+        latitude,
+        longitude,
+      };
 
-      // Insert into database
       const { error: insertError } = await supabase
         .from('user_submitted_courts')
-        .insert({
-          user_id: user.id,
-          name: name.trim(),
-          address: address.trim(),
-          city: city.trim() || null,
-          zip_code: zipCode.trim() || null,
-          latitude,
-          longitude,
-          photo_url: photoUrl,
-        });
+        .insert(insertPayload);
 
       if (insertError) {
-        console.error('Error submitting court:', insertError);
-        Alert.alert('Error', 'Failed to submit court. Please try again.');
-        setSubmitting(false);
+        if (__DEV__) console.error('[AddCourt] Insert error:', insertError?.message ?? insertError);
+        Alert.alert('Error', insertError?.message ?? 'Failed to submit court. Please try again.');
         return;
       }
 
-      // Notify developer via Edge Function
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        await fetch('https://biczbxmaisdxpcbplddr.supabase.co/functions/v1/notify-new-court', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
-            courtData: {
-              name: name.trim(),
-              address: address.trim(),
-              city: city.trim(),
-              zip_code: zipCode.trim(),
-              user_email: user.email,
-              photo_url: photoUrl,
+      if (__DEV__) console.log('[AddCourt] Insert success');
+
+      // Fire-and-forget notify – do not block or hang the UI
+      Promise.resolve().then(async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          await fetch('https://biczbxmaisdxpcbplddr.supabase.co/functions/v1/notify-new-court', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session?.access_token}`,
             },
-          }),
-        });
-      } catch (notifyError) {
-        console.error('Error notifying developer:', notifyError);
-        // Don't fail the submission if notification fails
-      }
+            body: JSON.stringify({
+              courtData: {
+                name: trimmedName,
+                address: trimmedAddress,
+                city: city.trim(),
+                zip_code: zipCode.trim(),
+                user_email: user.email ?? undefined,
+              },
+            }),
+          });
+        } catch (notifyError) {
+          if (__DEV__) console.warn('[AddCourt] Notify failed (non-critical):', notifyError);
+        }
+      });
 
       Alert.alert(
         'Success!',
@@ -176,10 +148,12 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
         ]
       );
     } catch (error) {
-      console.error('Error in handleSubmit:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      const errMsg = error instanceof Error ? error.message : 'An unexpected error occurred';
+      if (__DEV__) console.error('[AddCourt] handleSubmit error:', error);
+      Alert.alert('Error', `${errMsg}. Please try again.`);
     } finally {
       setSubmitting(false);
+      if (__DEV__) console.log('[AddCourt] Submit flow complete (loading cleared)');
     }
   };
 
@@ -261,38 +235,6 @@ export function AddCourtModal({ visible, onClose, onSuccess }: AddCourtModalProp
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Court Photo (Optional)</Text>
-            <TouchableOpacity
-              style={styles.photoButton}
-              onPress={pickImage}
-              disabled={submitting}
-            >
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <IconSymbol
-                    ios_icon_name="camera.fill"
-                    android_material_icon_name="photo_camera"
-                    size={32}
-                    color={colors.textSecondary}
-                  />
-                  <Text style={styles.photoPlaceholderText}>Tap to add photo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            {photoUri && (
-              <TouchableOpacity
-                style={styles.removePhotoButton}
-                onPress={() => setPhotoUri(null)}
-                disabled={submitting}
-              >
-                <Text style={styles.removePhotoText}>Remove Photo</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
           <Text style={styles.disclaimer}>
             * Required fields. Your submission will be reviewed before being added to the map.
           </Text>
@@ -368,39 +310,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: colors.text,
-  },
-  photoButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  photoPreview: {
-    width: '100%',
-    height: 200,
-    resizeMode: 'cover',
-  },
-  photoPlaceholder: {
-    width: '100%',
-    height: 200,
-    backgroundColor: colors.highlight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  photoPlaceholderText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  removePhotoButton: {
-    marginTop: 8,
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  removePhotoText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.error,
   },
   disclaimer: {
     fontSize: 12,

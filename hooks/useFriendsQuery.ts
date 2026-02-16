@@ -49,7 +49,7 @@ async function fetchFriendsCore(userId: string): Promise<Omit<FriendsResult, 'al
 
   const otherUserIds = Array.from(friendshipByOtherId.keys());
 
-  // 2) user details for those other users
+  // 2) user details for those other users (public.users)
   const userMap = new Map<string, any>();
   if (otherUserIds.length > 0) {
     const { data: users, error: usersError } = await supabase
@@ -81,26 +81,29 @@ async function fetchFriendsCore(userId: string): Promise<Omit<FriendsResult, 'al
 
   for (const [otherId, friendship] of friendshipByOtherId.entries()) {
     const otherUser = userMap.get(otherId);
-    if (!otherUser) continue;
+    // Handle missing profile: still include friend with id/name fallback so count and list stay in sync
+    const firstName = otherUser?.first_name ?? null;
+    const lastName = otherUser?.last_name ?? null;
+    const pickleballerNickname = otherUser?.pickleballer_nickname ?? null;
 
-    // Build in the field names your UI expects (your type is inconsistent across files)
-    const friendDetails: any = {
+    const friendDetails: FriendWithDetails = {
       id: friendship.id,
-      userId: otherId, // the "other user"
-      firstName: otherUser.first_name,
-      lastName: otherUser.last_name,
-      pickleballerNickname: otherUser.pickleballer_nickname,
-      experienceLevel: otherUser.experience_level,
-      duprRating: otherUser.dupr_rating,
+      userId: userId,
+      friendId: otherId,
       status: friendship.status,
       createdAt: friendship.created_at,
+      friendFirstName: firstName ?? undefined,
+      friendLastName: lastName ?? undefined,
+      friendNickname: pickleballerNickname ?? undefined,
+      friendExperienceLevel: otherUser?.experience_level as FriendWithDetails['friendExperienceLevel'],
+      friendDuprRating: otherUser?.dupr_rating,
       isAtCourt: atCourtSet.has(otherId),
-    };
+    } as FriendWithDetails;
 
     if (friendship.status === 'accepted') {
-      friends.push(friendDetails as FriendWithDetails);
+      friends.push(friendDetails);
     } else if (friendship.status === 'pending' && friendship.friend_id === userId) {
-      pendingRequests.push(friendDetails as FriendWithDetails);
+      pendingRequests.push(friendDetails);
     }
   }
 
@@ -110,12 +113,11 @@ async function fetchFriendsCore(userId: string): Promise<Omit<FriendsResult, 'al
 async function fetchAllUsersForSearch(userId: string): Promise<UserWithStatus[]> {
   if (!isSupabaseConfigured()) return [];
 
-  // Keep this limited so it stays fast; you can paginate later if you want
   const { data: allUsersData, error: allUsersError } = await supabase
     .from('users')
     .select('id, first_name, last_name, pickleballer_nickname, experience_level, dupr_rating')
     .neq('id', userId)
-    .limit(200);
+    .limit(250);
 
   if (allUsersError) throw allUsersError;
 

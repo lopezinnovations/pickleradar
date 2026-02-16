@@ -15,6 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { useCheckIn } from '@/hooks/useCheckIn';
@@ -76,7 +77,6 @@ export default function ProfileScreen() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [showLegalModal, setShowLegalModal] = useState(false);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [userPushToken, setUserPushToken] = useState<string | null>(null);
@@ -85,6 +85,10 @@ export default function ProfileScreen() {
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [enablingNotifications, setEnablingNotifications] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  const insets = useSafeAreaInsets();
 
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
@@ -393,15 +397,16 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action is permanent and cannot be undone. All your data, including check-ins, messages, and friend connections will be permanently deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete Permanently', style: 'destructive', onPress: confirmDeleteAccount },
-      ]
-    );
+  const handleDeleteAccountPress = () => {
+    setDeleteConfirmText('');
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmText !== 'DELETE') return;
+    setShowDeleteModal(false);
+    setDeleteConfirmText('');
+    await confirmDeleteAccount();
   };
 
   const confirmDeleteAccount = async () => {
@@ -409,20 +414,23 @@ export default function ProfileScreen() {
     setDeletingAccount(true);
 
     try {
-      const { error: deleteError } = await supabase.from('users').delete().eq('id', user.id);
-      if (deleteError) throw deleteError;
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          email: null,
+          first_name: null,
+          last_name: null,
+          phone: null,
+          pickleballer_nickname: null,
+          profile_picture_url: null,
+        })
+        .eq('id', user.id);
 
-      try {
-        // NOTE: This typically won't work client-side unless you have admin privileges / service role.
-        // Keeping as non-critical, similar to your original code.
-        // @ts-ignore
-        const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
-        if (authError) console.log('[Profile] Auth delete error (non-critical):', authError);
-      } catch {}
+      if (updateError) throw updateError;
 
       await signOut();
-      Alert.alert('Account Deleted', 'Your account has been permanently deleted.', [
-        { text: 'OK', onPress: () => router.replace('/welcome') },
+      Alert.alert('Account Deleted', 'Your account has been deactivated. You can sign up again with the same email anytime.', [
+        { text: 'OK', onPress: () => router.replace('/auth') },
       ]);
     } catch {
       Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
@@ -470,9 +478,6 @@ export default function ProfileScreen() {
     setIsEditing(false);
   };
 
-  const handleOpenLegal = () => {
-    setShowLegalModal(true);
-  };
 
   const handleSendTestPush = async () => {
     if (!userPushToken) {
@@ -564,7 +569,7 @@ export default function ProfileScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(120, insets.bottom + 80) }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
@@ -921,20 +926,35 @@ export default function ProfileScreen() {
               <Text style={commonStyles.text}>{user.email || '—'}</Text>
             </View>
 
-            <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 16 }]} onPress={handleOpenLegal}>
-              <Text style={buttonStyles.text}>Legal</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 12 }]} onPress={handleSignOut}>
-              <Text style={buttonStyles.text}>Sign Out</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity
-              style={[buttonStyles.danger, { marginTop: 12 }]}
-              onPress={handleDeleteAccount}
+              style={[buttonStyles.secondary, { marginTop: 16 }]}
+              onPress={() => router.push({ pathname: '/reset-password', params: { email: user.email || '' } })}
+            >
+              <Text style={buttonStyles.textSecondary}>Reset Password</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Sign Out */}
+          <TouchableOpacity style={[buttonStyles.primary, styles.signOutButton]} onPress={handleSignOut}>
+            <Text style={buttonStyles.text}>Sign Out</Text>
+          </TouchableOpacity>
+
+          {/* Danger Zone */}
+          <View style={[commonStyles.card, styles.dangerZone]}>
+            <Text style={[commonStyles.subtitle, { color: colors.error }]}>Danger Zone</Text>
+            <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
+              Permanently delete your account. This action cannot be undone.
+            </Text>
+            <TouchableOpacity
+              style={[buttonStyles.danger, { marginTop: 16 }]}
+              onPress={handleDeleteAccountPress}
               disabled={deletingAccount}
             >
-              {deletingAccount ? <ActivityIndicator color={colors.card} /> : <Text style={buttonStyles.text}>Delete Account</Text>}
+              {deletingAccount ? (
+                <ActivityIndicator color={colors.card} />
+              ) : (
+                <Text style={buttonStyles.text}>Delete Account</Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -963,23 +983,38 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
-      {/* Legal Modal (simple placeholder) */}
-      <Modal visible={showLegalModal} transparent animationType="slide" onRequestClose={() => setShowLegalModal(false)}>
+      {/* Delete Account confirmation modal with type-to-confirm */}
+      <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: '80%' }]}>
-            <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>Legal</Text>
-
-            <TouchableOpacity style={[buttonStyles.secondary, { marginBottom: 10 }]} onPress={() => router.push('/legal/privacy-policy')}>
-              <Text style={buttonStyles.text}>Privacy Policy</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[buttonStyles.secondary, { marginBottom: 10 }]} onPress={() => router.push('/legal/terms-of-service')}>
-              <Text style={buttonStyles.text}>Terms of Service</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={buttonStyles.primary} onPress={() => setShowLegalModal(false)}>
-              <Text style={buttonStyles.text}>Close</Text>
-            </TouchableOpacity>
+          <View style={[styles.modalCard, { maxWidth: 360 }]}>
+            <Text style={[commonStyles.subtitle, { color: colors.error, marginBottom: 8 }]}>Delete Account</Text>
+            <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
+              Your profile will be removed from search, friends will be disconnected, and you will be signed out. Type DELETE to confirm.
+            </Text>
+            <TextInput
+              style={[commonStyles.input, { marginBottom: 16 }]}
+              placeholder="Type DELETE"
+              placeholderTextColor={colors.textSecondary}
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={[buttonStyles.secondary, { flex: 1 }]}
+                onPress={() => setShowDeleteModal(false)}
+              >
+                <Text style={buttonStyles.textSecondary}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[buttonStyles.danger, { flex: 1, opacity: deleteConfirmText === 'DELETE' ? 1 : 0.5 }]}
+                onPress={handleDeleteConfirm}
+                disabled={deleteConfirmText !== 'DELETE'}
+              >
+                <Text style={buttonStyles.text}>Delete Account</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1018,7 +1053,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 24,
     paddingHorizontal: 20,
-    paddingBottom: 120,
+  },
+  signOutButton: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  dangerZone: {
+    borderColor: colors.error,
+    borderWidth: 1,
+    marginTop: 16,
+    marginBottom: 24,
   },
   content: {
     width: '100%',
