@@ -83,12 +83,11 @@ export default function HomeScreen() {
     }, [refetch])
   );
 
-  // Ask for location if we don't have it yet
+  // Ask for location only when user is signed in (avoids alert on auth screen after sign out)
   useEffect(() => {
-    if (!hasLocation && !requestingPermission) {
-      requestLocation();
-    }
-  }, [hasLocation, requestingPermission, requestLocation]);
+    if (!user || hasLocation || requestingPermission) return;
+    requestLocation();
+  }, [user, hasLocation, requestingPermission, requestLocation]);
 
   const getSkillLevelLabel = (averageSkillLevel: number): 'Beginner' | 'Intermediate' | 'Advanced' => {
     if (averageSkillLevel < 1.5) return 'Beginner';

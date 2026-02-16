@@ -8,23 +8,20 @@ export const useLocation = () => {
   const { user, updateUserProfile } = useAuth();
   const [requestingPermission, setRequestingPermission] = useState(false);
 
-  // FIXED: Only request location when user explicitly taps a button
+  // Only request location when user is authenticated. Never show alerts when !user (e.g. after sign out).
   const requestLocation = useCallback(async () => {
-    console.log('useLocation: User explicitly requested location permission');
     if (!user) {
-      console.log('useLocation: No user found, cannot request location');
-      Alert.alert('Error', 'You must be logged in to enable location services.');
+      console.log('useLocation: No user, skipping location request (no alert)');
       return;
     }
 
+    console.log('useLocation: User explicitly requested location permission');
     setRequestingPermission(true);
-    
+
     try {
-      console.log('useLocation: Calling requestLocationPermission');
       const result = await requestLocationPermission();
-      
+
       if (result.granted && result.latitude && result.longitude) {
-        console.log('useLocation: Permission granted, updating user profile with location');
         await updateUserProfile({
           latitude: result.latitude,
           longitude: result.longitude,
@@ -33,7 +30,6 @@ export const useLocation = () => {
         });
         Alert.alert('Success', 'Location saved! You can now see nearby courts.');
       } else {
-        console.log('useLocation: Permission denied or location unavailable');
         await updateUserProfile({ locationPermissionRequested: true });
         Alert.alert(
           'Location Access Denied',
@@ -42,12 +38,14 @@ export const useLocation = () => {
       }
     } catch (error) {
       console.error('useLocation: Error requesting location:', error);
-      Alert.alert(
-        'Location Error',
-        'Unable to access location. You can still search by ZIP code.'
-      );
+      if (user) {
+        Alert.alert(
+          'Location Error',
+          'Unable to access location. You can still search by ZIP code.'
+        );
+      }
       try {
-        await updateUserProfile({ locationPermissionRequested: true });
+        if (user) await updateUserProfile({ locationPermissionRequested: true });
       } catch (updateError) {
         console.error('useLocation: Error updating permission status:', updateError);
       }

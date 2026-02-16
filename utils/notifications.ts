@@ -1,4 +1,3 @@
-
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
@@ -26,6 +25,28 @@ if (Platform.OS !== 'web') {
 const NOTIFICATION_PROMPT_DISMISSED_KEY = 'notificationsPromptDismissedAt';
 const MIN_DAYS_BETWEEN_PROMPTS = 14; // 14 days
 
+// ---------- Helpers ----------
+const withTimeout = async <T,>(p: Promise<T>, ms = 8000): Promise<T> => {
+  return (await Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Timed out')), ms)),
+  ])) as T;
+};
+
+/**
+ * Check permission WITHOUT prompting.
+ * Use this during check-in/out so we never hang waiting for an OS prompt.
+ */
+const hasGrantedNotificationsNoPrompt = async (): Promise<boolean> => {
+  try {
+    const { status } = await withTimeout(Notifications.getPermissionsAsync(), 5000);
+    return status === 'granted';
+  } catch (error) {
+    console.log('[Notifications] Error checking permission (no-prompt):', error);
+    return false;
+  }
+};
+
 /**
  * Check if we're running in Expo Go (not a dev build or production build)
  * Push notifications don't work in Expo Go on Android SDK 53+
@@ -47,7 +68,7 @@ export const isPushNotificationSupported = (): boolean => {
   // Check if running in Expo Go on Android
   const isAndroid = Platform.OS === 'android';
   const inExpoGo = isExpoGo();
-  
+
   if (isAndroid && inExpoGo) {
     console.log('[Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+');
     console.log('[Push] Please use a Development Build or TestFlight/Production build to test push notifications');
@@ -96,37 +117,30 @@ export const clearNotificationsPromptDismissedAt = async (): Promise<void> => {
 
 /**
  * Check if we should show the notification prompt
- * Returns true if:
- * - User has never dismissed the prompt, OR
- * - User dismissed the prompt more than 14 days ago
- * - AND notifications are not already granted
  */
 export const shouldShowNotificationsPrompt = async (): Promise<boolean> => {
   try {
-    // Check if notifications are already granted
-    const { status } = await Notifications.getPermissionsAsync();
+    const { status } = await withTimeout(Notifications.getPermissionsAsync(), 5000);
     if (status === 'granted') {
       console.log('[Notifications] Already granted, no need to show prompt');
       return false;
     }
 
-    // Check when the user last dismissed the prompt
     const dismissedAt = await getNotificationsPromptDismissedAt();
-    
+
     if (!dismissedAt) {
       console.log('[Notifications] Never dismissed, should show prompt');
-      return true; // Never dismissed, show prompt
+      return true;
     }
 
-    // Check if 14 days have passed since dismissal
     const fourteenDaysInMs = MIN_DAYS_BETWEEN_PROMPTS * 24 * 60 * 60 * 1000;
     const fourteenDaysAgo = Date.now() - fourteenDaysInMs;
     const shouldShow = dismissedAt < fourteenDaysAgo;
-    
+
     console.log('[Notifications] Dismissed at:', new Date(dismissedAt).toISOString());
     console.log('[Notifications] Should show prompt:', shouldShow);
-    
-    return shouldShow; // Show if dismissed more than 14 days ago
+
+    return shouldShow;
   } catch (error) {
     console.log('[Notifications] Error checking if should show prompt:', error);
     return false;
@@ -135,39 +149,35 @@ export const shouldShowNotificationsPrompt = async (): Promise<boolean> => {
 
 export const requestNotificationPermissions = async (): Promise<boolean> => {
   try {
-    // Check if push notifications are supported
-    if (!isPushNotificationSupported()) {
-      return false;
-    }
+    if (!isPushNotificationSupported()) return false;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus } = await withTimeout(Notifications.getPermissionsAsync(), 5000);
     let finalStatus = existingStatus;
-    
+
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      const { status } = await withTimeout(Notifications.requestPermissionsAsync(), 15000);
       finalStatus = status;
     }
-    
+
     if (finalStatus !== 'granted') {
       console.log('[Push] Notification permissions not granted');
       return false;
     }
-    
-    // For Android, create notification channel
+
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
+      await withTimeout(
+        Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        }),
+        8000
+      );
     }
-    
+
     console.log('[Push] Notification permissions granted');
-    
-    // Clear the dismissed timestamp since user explicitly enabled
     await clearNotificationsPromptDismissedAt();
-    
     return true;
   } catch (error) {
     console.log('[Push] Error requesting notification permissions:', error);
@@ -182,23 +192,19 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
       return null;
     }
 
-    // Check if push notifications are supported
     if (!isPushNotificationSupported()) {
       console.log('[Push] Push notifications not supported in this environment');
       return null;
     }
 
-    // Request permissions first
+    // This is a user-initiated setup path: OK to prompt
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
       console.log('[Push] No notification permission, skipping push token registration');
       return null;
     }
 
-    // Get project ID from constants
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId || 
-                     Constants.easConfig?.projectId;
-
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
     if (!projectId) {
       console.error('[Push] Expo project ID not found in app.json. Please add it under expo.extra.eas.projectId');
       return null;
@@ -206,20 +212,15 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
 
     console.log('[Push] Getting Expo push token with project ID:', projectId);
 
-    // Get the Expo push token
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: projectId,
-    });
-    
+    const tokenData = await withTimeout(
+      Notifications.getExpoPushTokenAsync({ projectId }),
+      15000
+    );
+
     const pushToken = tokenData.data;
     console.log('[Push] Got push token:', pushToken);
 
-    // Save the push token to the user's profile
-    const { error } = await supabase
-      .from('users')
-      .update({ push_token: pushToken })
-      .eq('id', userId);
-
+    const { error } = await supabase.from('users').update({ push_token: pushToken }).eq('id', userId);
     if (error) {
       console.error('[Push] Error saving push token:', error);
       return null;
@@ -233,10 +234,6 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
   }
 };
 
-/**
- * Send a test push notification to a specific Expo push token
- * Admin-only function for testing push notifications
- */
 export const sendTestPushNotification = async (
   expoPushToken: string,
   title: string = 'Test Push Notification',
@@ -253,96 +250,96 @@ export const sendTestPushNotification = async (
       data: { type: 'test', timestamp: new Date().toISOString() },
     };
 
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
+    const response = await withTimeout(
+      fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message),
+      }),
+      15000
+    );
 
     const result = await response.json();
     console.log('[Push] Test push notification response:', result);
 
-    if (result.data && result.data[0] && result.data[0].status === 'ok') {
-      return { success: true };
-    } else {
-      return { 
-        success: false, 
-        error: result.data?.[0]?.message || 'Failed to send test push notification' 
-      };
-    }
+    if (result?.data?.[0]?.status === 'ok') return { success: true };
+
+    return { success: false, error: result?.data?.[0]?.message || 'Failed to send test push notification' };
   } catch (error: any) {
     console.error('[Push] Error sending test push notification:', error);
-    return { 
-      success: false, 
-      error: error.message || 'Failed to send test push notification' 
-    };
+    return { success: false, error: error?.message || 'Failed to send test push notification' };
   }
 };
 
+/**
+ * NOTE:
+ * - This is triggered during a check-in user action.
+ * - It MUST NOT prompt permissions (no OS prompt).
+ * - It will only schedule notifications if permission is already granted.
+ */
 export const scheduleCheckInNotification = async (courtName: string, durationMinutes: number) => {
   try {
-    // Check if push notifications are supported
     if (!isPushNotificationSupported()) {
-      console.log('[Notifications] Push not supported in this environment, skipping check-in notification');
+      console.log('[Notifications] Push not supported, skipping check-in notification');
       return null;
     }
 
-    const hasPermission = await requestNotificationPermissions();
-    if (!hasPermission) {
-      console.log('[Notifications] No notification permission, skipping notification');
+    const granted = await hasGrantedNotificationsNoPrompt();
+    if (!granted) {
+      console.log('[Notifications] Permission not granted, skipping check-in notifications');
       return null;
     }
 
-    // Immediate notification for successful check-in
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Checked In! 🎾',
-        body: `You're checked in at ${courtName} for ${durationMinutes} minutes`,
-        data: { courtName, type: 'check_in' },
-      },
-      trigger: null, // Immediate
-    });
+    await withTimeout(
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Checked In! 🎾',
+          body: `You're checked in at ${courtName} for ${durationMinutes} minutes`,
+          data: { courtName, type: 'check_in' },
+        },
+        trigger: null,
+      }),
+      8000
+    );
 
-    // Schedule notification for check-out time
     const checkOutTime = new Date(Date.now() + durationMinutes * 60 * 1000);
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Auto Check-Out ⏰',
-        body: `You've been automatically checked out from ${courtName}`,
-        data: { courtName, type: 'auto_checkout' },
-      },
-      trigger: {
-        date: checkOutTime,
-      },
-    });
+    const notificationId = await withTimeout(
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Auto Check-Out ⏰',
+          body: `You've been automatically checked out from ${courtName}`,
+          data: { courtName, type: 'auto_checkout' },
+        },
+        trigger: { date: checkOutTime },
+      }),
+      8000
+    );
 
-    // Also send a notification about scheduled check-out time
     const hours = Math.floor(durationMinutes / 60);
     const minutes = durationMinutes % 60;
     let durationText = '';
     if (hours > 0) {
       durationText = `${hours} hour${hours > 1 ? 's' : ''}`;
-      if (minutes > 0) {
-        durationText += ` and ${minutes} minutes`;
-      }
+      if (minutes > 0) durationText += ` and ${minutes} minutes`;
     } else {
       durationText = `${minutes} minutes`;
     }
 
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Check-Out Scheduled 📅',
-        body: `You'll be automatically checked out in ${durationText}`,
-        data: { courtName, type: 'checkout_scheduled' },
-      },
-      trigger: {
-        seconds: 2, // Show 2 seconds after check-in
-      },
-    });
+    await withTimeout(
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Check-Out Scheduled 📅',
+          body: `You'll be automatically checked out in ${durationText}`,
+          data: { courtName, type: 'checkout_scheduled' },
+        },
+        trigger: { seconds: 2 },
+      }),
+      8000
+    );
 
     console.log('[Notifications] Check-in notifications scheduled successfully');
     return notificationId;
@@ -354,41 +351,48 @@ export const scheduleCheckInNotification = async (courtName: string, durationMin
 
 export const cancelCheckOutNotification = async (notificationId: string) => {
   try {
-    // Check if push notifications are supported
     if (!isPushNotificationSupported()) {
       console.log('[Notifications] Push not supported, skipping cancel notification');
       return;
     }
 
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
+    await withTimeout(Notifications.cancelScheduledNotificationAsync(notificationId), 8000);
     console.log('[Notifications] Cancelled scheduled check-out notification');
   } catch (error) {
     console.log('[Notifications] Error cancelling notification (non-blocking):', error);
   }
 };
 
+/**
+ * NOTE:
+ * - This is triggered during a check-out user action.
+ * - It MUST NOT prompt permissions (no OS prompt).
+ * - It will only schedule a local notification if permission is already granted.
+ */
 export const sendManualCheckOutNotification = async (courtName: string) => {
   try {
-    // Check if push notifications are supported
     if (!isPushNotificationSupported()) {
       console.log('[Notifications] Push not supported, skipping check-out notification');
       return;
     }
 
-    const hasPermission = await requestNotificationPermissions();
-    if (!hasPermission) {
-      console.log('[Notifications] No notification permission, skipping notification');
+    const granted = await hasGrantedNotificationsNoPrompt();
+    if (!granted) {
+      console.log('[Notifications] Permission not granted, skipping manual checkout notification');
       return;
     }
 
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Checked Out ✅',
-        body: `You've checked out from ${courtName}`,
-        data: { courtName, type: 'manual_checkout' },
-      },
-      trigger: null, // Immediate
-    });
+    await withTimeout(
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Checked Out ✅',
+          body: `You've checked out from ${courtName}`,
+          data: { courtName, type: 'manual_checkout' },
+        },
+        trigger: null,
+      }),
+      8000
+    );
 
     console.log('[Notifications] Manual check-out notification sent');
   } catch (error) {
@@ -398,26 +402,29 @@ export const sendManualCheckOutNotification = async (courtName: string) => {
 
 export const sendFriendCheckInNotification = async (friendEmail: string, courtName: string) => {
   try {
-    // Check if push notifications are supported
     if (!isPushNotificationSupported()) {
       console.log('[Notifications] Push not supported, skipping friend check-in notification');
       return;
     }
 
-    const hasPermission = await requestNotificationPermissions();
-    if (!hasPermission) {
-      console.log('[Notifications] No notification permission, skipping notification');
+    // This is not critical-path; avoid prompting
+    const granted = await hasGrantedNotificationsNoPrompt();
+    if (!granted) {
+      console.log('[Notifications] Permission not granted, skipping friend check-in notification');
       return;
     }
 
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'Friend Checked In! 👋',
-        body: `${friendEmail} is now playing at ${courtName}`,
-        data: { friendEmail, courtName, type: 'friend_checkin' },
-      },
-      trigger: null, // Immediate
-    });
+    await withTimeout(
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Friend Checked In! 👋',
+          body: `${friendEmail} is now playing at ${courtName}`,
+          data: { friendEmail, courtName, type: 'friend_checkin' },
+        },
+        trigger: null,
+      }),
+      8000
+    );
 
     console.log('[Notifications] Friend check-in notification sent');
   } catch (error) {
@@ -427,26 +434,29 @@ export const sendFriendCheckInNotification = async (friendEmail: string, courtNa
 
 export const sendFriendRequestNotification = async (requesterIdentifier: string) => {
   try {
-    // Check if push notifications are supported
     if (!isPushNotificationSupported()) {
       console.log('[Notifications] Push not supported, skipping friend request notification');
       return;
     }
 
-    const hasPermission = await requestNotificationPermissions();
-    if (!hasPermission) {
-      console.log('[Notifications] No notification permission, skipping notification');
+    // Not critical-path; avoid prompting
+    const granted = await hasGrantedNotificationsNoPrompt();
+    if (!granted) {
+      console.log('[Notifications] Permission not granted, skipping friend request notification');
       return;
     }
 
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'New Friend Request! 👋',
-        body: `${requesterIdentifier} wants to connect with you on PickleRadar`,
-        data: { requesterIdentifier, type: 'friend_request' },
-      },
-      trigger: null, // Immediate
-    });
+    await withTimeout(
+      Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'New Friend Request! 👋',
+          body: `${requesterIdentifier} wants to connect with you on PickleRadar`,
+          data: { requesterIdentifier, type: 'friend_request' },
+        },
+        trigger: null,
+      }),
+      8000
+    );
 
     console.log('[Notifications] Friend request notification sent');
   } catch (error) {
@@ -456,7 +466,7 @@ export const sendFriendRequestNotification = async (requesterIdentifier: string)
 
 export const checkNotificationPermissionStatus = async (): Promise<'granted' | 'denied' | 'undetermined'> => {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
+    const { status } = await withTimeout(Notifications.getPermissionsAsync(), 5000);
     return status;
   } catch (error) {
     console.log('Error checking notification permission status:', error);

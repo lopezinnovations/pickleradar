@@ -5,7 +5,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
 
 interface Message {
@@ -185,7 +186,10 @@ export default function ConversationScreen() {
         (payload) => {
           const newMsg = payload.new as Message;
           setMessages((prev) => {
-            const filtered = prev.filter((m) => !m.isOptimistic || m.optimisticId !== newMsg.id);
+            // Replace our optimistic with real: remove optimistics from us when we get the real insert
+            const filtered = newMsg.sender_id === user.id
+              ? prev.filter((m) => !m.isOptimistic || m.sender_id !== user.id)
+              : prev.filter((m) => !m.isOptimistic || m.optimisticId !== newMsg.id);
             return [...filtered, newMsg];
           });
 
@@ -299,6 +303,18 @@ export default function ConversationScreen() {
 
       setIsMuted(true);
       setShowMuteModal(false);
+
+      const muteMessage =
+        minutes === null
+          ? 'Muted until you turn it back on'
+          : minutes === 60
+            ? 'Muted for 1 hour'
+            : minutes === 480
+              ? 'Muted for 8 hours'
+              : minutes === 1440
+                ? 'Muted for 24 hours'
+                : `Muted for ${Math.round(minutes / 60)} hours`;
+      Alert.alert('Muted', muteMessage);
     } catch (error) {
       console.error('Error muting conversation:', error);
     }
@@ -318,6 +334,7 @@ export default function ConversationScreen() {
       if (error) throw error;
 
       setIsMuted(false);
+      Alert.alert('Unmuted', 'You will receive notifications for this conversation again.');
     } catch (error) {
       console.error('Error unmuting conversation:', error);
     }
@@ -392,9 +409,11 @@ export default function ConversationScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -404,12 +423,13 @@ export default function ConversationScreen() {
       : 'User');
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <IconSymbol ios_icon_name="chevron.left" android_material_icon_name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -457,14 +477,15 @@ export default function ConversationScreen() {
         </TouchableOpacity>
       </View>
 
-      <MuteOptionsModal
-        visible={showMuteModal}
-        onClose={() => setShowMuteModal(false)}
-        onMute={handleMuteConversation}
-        onUnmute={handleUnmute}
-        isMuted={isMuted}
-      />
-    </KeyboardAvoidingView>
+        <MuteOptionsModal
+          visible={showMuteModal}
+          onClose={() => setShowMuteModal(false)}
+          onMute={handleMuteConversation}
+          onUnmute={handleUnmute}
+          isMuted={isMuted}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -472,6 +493,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  keyboardView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -485,7 +509,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: Platform.OS === 'android' ? 48 : 12,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,

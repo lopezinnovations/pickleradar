@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
+import { NotificationNavigationHandler } from '@/components/NotificationNavigationHandler';
 
 export default function TabLayout() {
   const tabs: TabBarItem[] = useMemo(
@@ -48,6 +49,7 @@ export default function TabLayout() {
 
   return (
     <>
+      <NotificationNavigationHandler />
       <Stack screenOptions={screenOptions}>
         <Stack.Screen name="(home)" />
         <Stack.Screen name="friends" />

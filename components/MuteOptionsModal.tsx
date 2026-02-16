@@ -19,25 +19,40 @@ interface MuteOptionsModalProps {
   visible: boolean;
   onClose: () => void;
 
-  // ✅ Make optional so the modal never crashes if parent forgets to pass it
-  onSelectMute?: (minutes: number | null) => void;
+  // ✅ Actual API used by ConversationScreen
+  isMuted?: boolean;
+  onMute?: (minutes: number | null) => void;
+  onUnmute?: () => void;
 }
 
 export function MuteOptionsModal({
   visible,
   onClose,
-  onSelectMute,
+  isMuted = false,
+  onMute,
+  onUnmute,
 }: MuteOptionsModalProps) {
-  const handleSelectOption = (minutes: number | null) => {
-    // ✅ Prevent "onSelectMute is not a function"
-    if (typeof onSelectMute !== 'function') {
-      console.log('[MuteOptionsModal] onSelectMute not provided');
+  const handleSelectMute = (minutes: number | null) => {
+    if (typeof onMute !== 'function') {
+      console.log('[MuteOptionsModal] onMute not provided');
       Alert.alert('Not available', 'Mute action is not connected yet on this screen.');
       onClose();
       return;
     }
 
-    onSelectMute(minutes);
+    onMute(minutes);
+    onClose();
+  };
+
+  const handleUnmutePress = () => {
+    if (typeof onUnmute !== 'function') {
+      console.log('[MuteOptionsModal] onUnmute not provided');
+      Alert.alert('Not available', 'Unmute action is not connected yet on this screen.');
+      onClose();
+      return;
+    }
+
+    onUnmute();
     onClose();
   };
 
@@ -58,11 +73,23 @@ export function MuteOptionsModal({
           </View>
 
           <ScrollView style={styles.optionsList} showsVerticalScrollIndicator={false}>
+            {isMuted && (
+              <TouchableOpacity style={[styles.optionItem, styles.unmuteItem]} onPress={handleUnmutePress}>
+                <Text style={[styles.optionText, styles.unmuteText]}>Turn mute off</Text>
+                <IconSymbol
+                  ios_icon_name="bell"
+                  android_material_icon_name="notifications"
+                  size={20}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            )}
+
             {MUTE_OPTIONS.map((option, index) => (
               <TouchableOpacity
                 key={index}
                 style={styles.optionItem}
-                onPress={() => handleSelectOption(option.value)}
+                onPress={() => handleSelectMute(option.value)}
               >
                 <Text style={styles.optionText}>{option.label}</Text>
                 <IconSymbol
@@ -126,6 +153,18 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: 16,
     color: colors.text,
+  },
+  unmuteItem: {
+    backgroundColor: colors.highlight,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 4,
+    borderBottomWidth: 0,
+  },
+  unmuteText: {
+    color: colors.primary,
+    fontWeight: '600',
   },
   bottomSpacer: {
     height: 24,

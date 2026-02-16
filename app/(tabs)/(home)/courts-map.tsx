@@ -14,17 +14,17 @@ import { useCourtsQuery } from '@/hooks/useCourtsQuery';
 
 const RADIUS_MILES = 25;
 
-// Detect Expo Go BEFORE attempting any imports
+// Detect Expo Go and web BEFORE attempting any imports (react-native-maps breaks web bundling)
 const isExpoGo = Constants.appOwnership === 'expo';
+const isWeb = Platform.OS === 'web';
 
-// Conditional import - only attempt if NOT in Expo Go
 let MapView: any = null;
 let Marker: any = null;
 let Callout: any = null;
 let PROVIDER_GOOGLE: any = null;
 let mapsAvailable = false;
 
-if (!isExpoGo) {
+if (!isExpoGo && !isWeb) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const maps = require('react-native-maps');
@@ -33,13 +33,10 @@ if (!isExpoGo) {
     Callout = maps.Callout;
     PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE;
     mapsAvailable = true;
-    console.log('CourtsMapScreen: react-native-maps loaded successfully');
   } catch (e) {
     console.warn('CourtsMapScreen: Failed to load react-native-maps:', e);
     mapsAvailable = false;
   }
-} else {
-  console.log('CourtsMapScreen: Running in Expo Go, maps not available');
 }
 
 export default function CourtsMapScreen() {
@@ -61,40 +58,45 @@ export default function CourtsMapScreen() {
     RADIUS_MILES
   );
 
-  // Prefer params if passed, else use hook data
-  const courts: Court[] = useMemo(() => {
+  // ---- PURE param parsing (NO setState inside useMemo) ----
+  const parsedCourtsResult = useMemo(() => {
     try {
       const courtsParam: any = (params as any).courts;
-      if (courtsParam) {
-        const parsed = typeof courtsParam === 'string' ? JSON.parse(courtsParam) : courtsParam;
-        const courtsArray = Array.isArray(parsed) ? parsed : [];
-        console.log('CourtsMapScreen: Loaded courts from params:', courtsArray.length);
-        return courtsArray;
-      }
-    } catch (error) {
-      console.error('CourtsMapScreen: Error parsing courts params:', error);
-      setHasError(true);
-      setErrorMessage('Failed to load courts data');
-      return [];
+      if (!courtsParam) return { courts: null as Court[] | null, parseError: '' };
+
+      const parsed = typeof courtsParam === 'string' ? JSON.parse(courtsParam) : courtsParam;
+      const courtsArray = Array.isArray(parsed) ? parsed : [];
+      return { courts: courtsArray as Court[], parseError: '' };
+    } catch (e) {
+      console.error('CourtsMapScreen: Error parsing courts params:', e);
+      return { courts: [] as Court[], parseError: 'Failed to load courts data' };
     }
+  }, [params]);
 
-    return (hookCourts ?? []) as Court[];
-  }, [params, hookCourts]);
-
-  const userLocation = useMemo(() => {
+  const parsedLocationResult = useMemo(() => {
     try {
       const locationParam: any = (params as any).userLocation;
-      if (locationParam) {
-        const parsed = typeof locationParam === 'string' ? JSON.parse(locationParam) : locationParam;
-        console.log('CourtsMapScreen: User location from params:', parsed);
-        return parsed;
-      }
-    } catch (error) {
-      console.error('CourtsMapScreen: Error parsing user location params:', error);
-    }
+      if (!locationParam) return { location: null as any, parseError: '' };
 
-    return hookUserLocation ?? null;
-  }, [params, hookUserLocation]);
+      const parsed = typeof locationParam === 'string' ? JSON.parse(locationParam) : locationParam;
+      return { location: parsed, parseError: '' };
+    } catch (e) {
+      console.error('CourtsMapScreen: Error parsing user location params:', e);
+      return { location: null as any, parseError: '' };
+    }
+  }, [params]);
+
+  useEffect(() => {
+    if (parsedCourtsResult.parseError) {
+      setHasError(true);
+      setErrorMessage(parsedCourtsResult.parseError);
+    }
+  }, [parsedCourtsResult.parseError]);
+
+  // Prefer params if passed, else use hook data
+  const courts: Court[] = (parsedCourtsResult.courts ?? (hookCourts ?? [])) as Court[];
+
+  const userLocation = parsedLocationResult.location ?? hookUserLocation ?? null;
 
   useEffect(() => {
     if (!mapsAvailable || !courts || courts.length === 0) return;
@@ -137,7 +139,7 @@ export default function CourtsMapScreen() {
   };
 
   const handleBackToList = () => {
-    router.replace('/(tabs)/(home)/'); // ✅ Always return to list view
+    router.replace('/(tabs)/(home)/');
   };
 
   const getMarkerColor = (activityLevel: 'low' | 'medium' | 'high') => {
@@ -149,7 +151,22 @@ export default function CourtsMapScreen() {
     return (colorMap as any)[activityLevel] || colorMap.low;
   };
 
-  // ERROR STATE
+  // WEB fallback
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.fallbackContainer}>
+        <Stack.Screen options={{ title: 'Map Unavailable' }} />
+        <IconSymbol ios_icon_name="map" android_material_icon_name="map" size={64} color={colors.textSecondary} />
+        <Text style={styles.fallbackTitle}>Map view isn&apos;t available on web</Text>
+        <Text style={styles.fallbackText}>Use the app on iOS or Android to see courts on the map.</Text>
+        <TouchableOpacity style={styles.fallbackButton} onPress={handleBackToList}>
+          <Text style={styles.fallbackButtonText}>Back to list</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Error state
   if (hasError) {
     return (
       <View style={styles.fallbackContainer}>
@@ -164,7 +181,7 @@ export default function CourtsMapScreen() {
     );
   }
 
-  // EXPO GO OR MAPS NOT AVAILABLE
+  // Expo Go / maps unavailable fallback
   if (isExpoGo || !mapsAvailable) {
     return (
       <View style={styles.fallbackContainer}>
@@ -184,7 +201,7 @@ export default function CourtsMapScreen() {
     );
   }
 
-  // LOADING COURTS
+  // Loading
   if (courtsLoading) {
     return (
       <View style={styles.fallbackContainer}>
@@ -194,7 +211,7 @@ export default function CourtsMapScreen() {
     );
   }
 
-  // NO COURTS
+  // No courts
   if (!courts || courts.length === 0) {
     return (
       <View style={styles.fallbackContainer}>
@@ -209,7 +226,7 @@ export default function CourtsMapScreen() {
     );
   }
 
-  // CALCULATE INITIAL REGION
+  // Initial region
   const initialRegion =
     userLocation?.latitude && userLocation?.longitude
       ? {
@@ -232,7 +249,7 @@ export default function CourtsMapScreen() {
           longitudeDelta: 0.08,
         };
 
-  // ✅ iOS fix: do NOT force Google provider unless Android
+  // Android only: Google provider
   const providerProp = Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined;
 
   return (
@@ -280,7 +297,6 @@ export default function CourtsMapScreen() {
         })}
       </MapView>
 
-      {/* ✅ Button sits ABOVE floating tab bar */}
       <TouchableOpacity
         style={[styles.listButton, { bottom: insets.bottom + 92 }]}
         onPress={handleBackToList}

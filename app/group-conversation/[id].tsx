@@ -1,11 +1,13 @@
 
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { IconSymbol } from '@/components/IconSymbol';
+import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 
 interface GroupMessage {
   id: string;
@@ -39,7 +41,41 @@ export default function GroupConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [groupInfo, setGroupInfo] = useState<GroupInfo | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showMuteModal, setShowMuteModal] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  const checkMuteStatus = useCallback(async () => {
+    if (!user?.id || !groupId || !isSupabaseConfigured()) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('conversation_mutes')
+        .select('muted_until')
+        .eq('user_id', user.id)
+        .eq('conversation_type', 'group')
+        .eq('conversation_id', groupId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        const mutedUntil = data.muted_until ? new Date(data.muted_until) : null;
+        const now = new Date();
+        setIsMuted(mutedUntil === null || mutedUntil > now);
+      } else {
+        setIsMuted(false);
+      }
+    } catch (error) {
+      console.error('Error checking group mute status:', error);
+    }
+  }, [user?.id, groupId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkMuteStatus();
+    }, [checkMuteStatus])
+  );
 
   const fetchGroupInfo = useCallback(async () => {
     if (!groupId || !isSupabaseConfigured()) return;
@@ -96,8 +132,9 @@ export default function GroupConversationScreen() {
     if (groupId) {
       fetchGroupInfo();
       fetchMessages();
+      checkMuteStatus();
     }
-  }, [groupId, fetchGroupInfo, fetchMessages]);
+  }, [groupId, fetchGroupInfo, fetchMessages, checkMuteStatus]);
 
   useEffect(() => {
     if (!groupId || !isSupabaseConfigured()) return;
@@ -127,7 +164,10 @@ export default function GroupConversationScreen() {
           };
 
           setMessages((prev) => {
-            const filtered = prev.filter((m) => !m.isOptimistic || m.optimisticId !== newMsg.id);
+            const isFromMe = newMsg.sender_id === user?.id;
+            const filtered = isFromMe
+              ? prev.filter((m) => !m.isOptimistic || m.sender_id !== user?.id)
+              : prev.filter((m) => !m.isOptimistic || m.optimisticId !== newMsg.id);
             return [...filtered, messageWithSender];
           });
         }
@@ -138,6 +178,68 @@ export default function GroupConversationScreen() {
       supabase.removeChannel(channel);
     };
   }, [groupId]);
+
+  const handleMuteGroup = async (minutes: number | null) => {
+    if (!user?.id || !groupId || !isSupabaseConfigured()) return;
+
+    try {
+      const mutedUntil = minutes === null ? null : new Date(Date.now() + minutes * 60000).toISOString();
+
+      const { error } = await supabase
+        .from('conversation_mutes')
+        .upsert(
+          {
+            user_id: user.id,
+            conversation_type: 'group',
+            conversation_id: groupId,
+            muted_until: mutedUntil,
+          },
+          {
+            onConflict: 'user_id,conversation_type,conversation_id',
+          }
+        );
+
+      if (error) throw error;
+
+      setIsMuted(true);
+      setShowMuteModal(false);
+
+      const muteMessage =
+        minutes === null
+          ? 'Muted until you turn it back on'
+          : minutes === 60
+            ? 'Muted for 1 hour'
+            : minutes === 480
+              ? 'Muted for 8 hours'
+              : minutes === 1440
+                ? 'Muted for 24 hours'
+                : `Muted for ${Math.round(minutes / 60)} hours`;
+      Alert.alert('Muted', muteMessage);
+    } catch (error) {
+      console.error('Error muting group:', error);
+    }
+  };
+
+  const handleUnmuteGroup = async () => {
+    if (!user?.id || !groupId || !isSupabaseConfigured()) return;
+
+    try {
+      const { error } = await supabase
+        .from('conversation_mutes')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('conversation_type', 'group')
+        .eq('conversation_id', groupId);
+
+      if (error) throw error;
+
+      setIsMuted(false);
+      setShowMuteModal(false);
+      Alert.alert('Unmuted', 'You will receive notifications for this conversation again.');
+    } catch (error) {
+      console.error('Error unmuting group:', error);
+    }
+  };
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !user?.id || !groupId || sending || !isSupabaseConfigured()) return;
@@ -270,9 +372,11 @@ export default function GroupConversationScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
@@ -280,12 +384,13 @@ export default function GroupConversationScreen() {
   const memberCountText = groupInfo?.memberCount ? `${groupInfo.memberCount} members` : '';
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
-    >
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <IconSymbol ios_icon_name="chevron.left" android_material_icon_name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
@@ -298,10 +403,28 @@ export default function GroupConversationScreen() {
             {memberCountText && <Text style={styles.headerSubtitle}>{memberCountText}</Text>}
           </View>
         </View>
-        <TouchableOpacity onPress={() => router.push(`/group-info/${groupId}`)} style={styles.infoButton}>
-          <IconSymbol ios_icon_name="info.circle" android_material_icon_name="info" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => setShowMuteModal(true)} style={styles.headerIconButton}>
+            <IconSymbol
+              ios_icon_name={isMuted ? 'bell.slash.fill' : 'ellipsis'}
+              android_material_icon_name={isMuted ? 'notifications-off' : 'more-vert'}
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push(`/group-info/${groupId}`)} style={styles.headerIconButton}>
+            <IconSymbol ios_icon_name="info.circle" android_material_icon_name="info" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <MuteOptionsModal
+        visible={showMuteModal}
+        onClose={() => setShowMuteModal(false)}
+        onMute={handleMuteGroup}
+        onUnmute={handleUnmuteGroup}
+        isMuted={isMuted}
+      />
 
       <FlatList
         ref={flatListRef}
@@ -330,7 +453,8 @@ export default function GroupConversationScreen() {
           <IconSymbol ios_icon_name="arrow.up.circle.fill" android_material_icon_name="send" size={32} color={colors.primary} />
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -338,6 +462,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  keyboardView: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -351,7 +478,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: Platform.OS === 'android' ? 48 : 12,
     backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -383,6 +509,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconButton: {
+    padding: 8,
   },
   infoButton: {
     padding: 8,
