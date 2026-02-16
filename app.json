@@ -45,8 +45,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
-        "backgroundColor": "#1B4D3E"
+    "foregroundImage": "./assets/images/adaptive-icon.png",
+    "backgroundColor": "#1B4D3E"
       },
       "package": "com.lopezinnovations.pickleradar",
       "permissions": [
@@ -80,7 +80,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/1df577f2-3672-4bc4-a347-721aa5fb58e0.png",
+          "icon": "./assets/images/icon-android-square.png",
           "mode": "production",
           "color": "#1B4D3E",
           "sounds": []
