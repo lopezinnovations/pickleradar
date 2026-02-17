@@ -135,7 +135,7 @@ export default function CourtsMapScreen() {
   }, [courts, userLocation]);
 
   const handleCalloutPress = (court: Court) => {
-    router.push(`/(tabs)/(home)/court/${court.id}`);
+    router.push(`/court/${court.id}`);
   };
 
   const handleBackToList = () => {

@@ -150,7 +150,7 @@ export default function HomeScreen() {
   };
 
   const handleOpenCourt = (courtId: string) => {
-    router.push(`/(tabs)/(home)/court/${courtId}`);
+    router.push(`/court/${courtId}`);
   };
 
   const handleOpenMap = () => {

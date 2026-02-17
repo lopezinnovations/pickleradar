@@ -1,485 +1,388 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+} from 'react-native';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
-import { useCourts } from '@/hooks/useCourts';
-import { useCheckIn } from '@/hooks/useCheckIn';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocation } from '@/hooks/useLocation';
+import { useCheckIn } from '@/hooks/useCheckIn';
 import { useFriends } from '@/hooks/useFriends';
+import { useFavorites } from '@/hooks/useFavorites';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars } from '@/components/SkillLevelBars';
-import { BrandingFooter } from '@/components/BrandingFooter';
+import { Court } from '@/types';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
+import { calculateDistance } from '@/utils/locationUtils';
 
-const DURATION_OPTIONS = [30, 60, 90, 120, 150, 180];
+const skillLevelToNumber = (skillLevel: string): number => {
+  switch (skillLevel) {
+    case 'Beginner':
+      return 1;
+    case 'Intermediate':
+      return 2;
+    case 'Advanced':
+      return 3;
+    default:
+      return 2;
+  }
+};
+
+const DURATION_OPTIONS = [60, 90, 120];
+const SKILL_LEVELS = ['Beginner', 'Intermediate', 'Advanced'] as const;
+type SkillLevel = (typeof SKILL_LEVELS)[number];
+
+async function fetchCourtById(courtId: string, userId?: string): Promise<Court | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data: courtRow, error: courtError } = await supabase
+      .from('courts')
+      .select('id, name, address, city, zip_code, latitude, longitude, description, open_time, close_time, google_place_id')
+      .eq('id', courtId)
+      .maybeSingle();
+
+    if (courtError || !courtRow) return null;
+
+    const { data: checkIns } = await supabase
+      .from('check_ins')
+      .select('skill_level, user_id, users(dupr_rating)')
+      .eq('court_id', courtId)
+      .gte('expires_at', new Date().toISOString());
+
+    const currentPlayers = checkIns?.length || 0;
+    let friendsPlayingCount = 0;
+    if (userId) {
+      const { data: friendsData } = await supabase
+        .from('friends')
+        .select('friend_id')
+        .eq('user_id', userId)
+        .eq('status', 'accepted');
+      const friendIds = new Set((friendsData || []).map((f) => f.friend_id));
+      friendsPlayingCount = (checkIns || []).filter((c: any) => friendIds.has(c.user_id)).length;
+    }
+
+    let averageSkillLevel = 0;
+    if (currentPlayers > 0 && checkIns) {
+      const skillSum = (checkIns as any[]).reduce(
+        (sum, c) => sum + skillLevelToNumber(c.skill_level),
+        0
+      );
+      averageSkillLevel = skillSum / currentPlayers;
+    }
+
+    let averageDupr: number | undefined;
+    if (checkIns && checkIns.length > 0) {
+      const ratings = (checkIns as any[])
+        .map((c) => c.users?.dupr_rating)
+        .filter((r): r is number => r != null);
+      if (ratings.length > 0) {
+        averageDupr = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+      }
+    }
+
+    let activityLevel: 'low' | 'medium' | 'high' = 'low';
+    if (currentPlayers >= 6) activityLevel = 'high';
+    else if (currentPlayers >= 3) activityLevel = 'medium';
+
+    let isFavorite = false;
+    if (userId) {
+      const { data: fav } = await supabase
+        .from('court_favorites')
+        .select('court_id')
+        .eq('user_id', userId)
+        .eq('court_id', courtId)
+        .maybeSingle();
+      isFavorite = !!fav;
+    }
+
+    return {
+      id: courtRow.id,
+      name: courtRow.name,
+      address: courtRow.address,
+      city: courtRow.city,
+      zipCode: courtRow.zip_code,
+      latitude: courtRow.latitude,
+      longitude: courtRow.longitude,
+      activityLevel,
+      currentPlayers,
+      averageSkillLevel,
+      friendsPlayingCount,
+      description: courtRow.description,
+      openTime: courtRow.open_time,
+      closeTime: courtRow.close_time,
+      googlePlaceId: courtRow.google_place_id,
+      averageDupr,
+      isFavorite,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export default function CourtDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id: courtId } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const { courts, refetch: refetchCourts } = useCourts(user?.id);
-  const { checkIn, checkOut, getUserCheckIn, getRemainingTime, loading } = useCheckIn();
-  const { friends, refetch: refetchFriends } = useFriends(user?.id);
-  
-  const [selectedSkillLevel, setSelectedSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
+  const { userLocation } = useLocation();
+  const { toggleFavorite, isFavorite } = useFavorites(user?.id);
+  const {
+    checkIn,
+    checkOut,
+    getUserCheckIn,
+    getRemainingTime,
+    loading: checkInLoading,
+    refetch: refetchCheckInHistory,
+  } = useCheckIn(user?.id);
+  const { friends } = useFriends(user?.id);
+
+  const [court, setCourt] = useState<Court | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<SkillLevel>('Intermediate');
   const [selectedDuration, setSelectedDuration] = useState(90);
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [currentCheckIn, setCurrentCheckIn] = useState<any>(null);
-  const [isLoadingCourt, setIsLoadingCourt] = useState(true);
-  const [remainingTime, setRemainingTime] = useState<{ hours: number; minutes: number } | null>(null);
-  
-  const hasCheckedInitialCheckIn = useRef(false);
+  const [currentCheckIn, setCurrentCheckIn] = useState<{
+    courtId: string;
+    courtName: string;
+    skillLevel: string;
+    expiresAt: string;
+  } | null>(null);
 
-  const court = courts.find(c => c.id === id);
-  const friendsAtCourt = friends.filter(friend => friend.currentCourtId === id);
+  const loadCourt = useCallback(async () => {
+    if (!courtId) return null;
+    const c = await fetchCourtById(courtId, user?.id);
+    setCourt(c);
+    return c;
+  }, [courtId, user?.id]);
 
-  const formatUserName = (firstName?: string, lastName?: string, nickname?: string) => {
-    if (firstName && lastName) {
-      const displayName = `${firstName} ${lastName.charAt(0)}.`;
-      if (nickname) {
-        return `${displayName} (${nickname})`;
-      }
-      return displayName;
-    }
-    if (nickname) {
-      return nickname;
-    }
-    return 'Friend';
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      console.log('[CHECKIN] Screen focused, refreshing court data');
-      refetchCourts();
-    }, [refetchCourts])
-  );
-
-  useEffect(() => {
-    if (courts.length > 0) {
-      setIsLoadingCourt(false);
-    }
-  }, [courts.length]);
-
-  const checkCurrentCheckIn = useCallback(async () => {
-    if (!user || !court) return;
-    const checkInData = await getUserCheckIn(user.id);
-    if (checkInData && checkInData.court_id === court.id) {
-      setIsCheckedIn(true);
-      setCurrentCheckIn(checkInData);
-      const time = getRemainingTime(checkInData.expires_at);
-      setRemainingTime({ hours: time.hours, minutes: time.minutes });
+  const loadCurrentCheckIn = useCallback(async () => {
+    if (!user) return;
+    const data = await getUserCheckIn(user.id);
+    if (data) {
+      setCurrentCheckIn({
+        courtId: data.court_id,
+        courtName: (data.courts as any)?.name || 'Unknown',
+        skillLevel: data.skill_level,
+        expiresAt: data.expires_at,
+      });
     } else {
-      setIsCheckedIn(false);
       setCurrentCheckIn(null);
-      setRemainingTime(null);
     }
-  }, [user, court, getUserCheckIn, getRemainingTime]);
+  }, [user, getUserCheckIn]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadCourt(), loadCurrentCheckIn(), refetchCheckInHistory()]);
+    setRefreshing(false);
+  }, [loadCourt, loadCurrentCheckIn, refetchCheckInHistory]);
 
   useEffect(() => {
-    if (user && court && !hasCheckedInitialCheckIn.current) {
-      hasCheckedInitialCheckIn.current = true;
-      checkCurrentCheckIn();
-    }
-  }, [user, court, checkCurrentCheckIn]);
+    setLoading(true);
+    loadCourt().finally(() => setLoading(false));
+  }, [loadCourt]);
 
   useEffect(() => {
-    if (currentCheckIn?.expires_at) {
-      const updateTime = () => {
-        const time = getRemainingTime(currentCheckIn.expires_at);
-        setRemainingTime({ hours: time.hours, minutes: time.minutes });
-      };
-      
-      updateTime();
-      const interval = setInterval(updateTime, 60000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [currentCheckIn?.expires_at, getRemainingTime]);
+    loadCurrentCheckIn();
+  }, [loadCurrentCheckIn, courtId]);
+
+  const isCheckedInHere = currentCheckIn?.courtId === courtId;
 
   const handleCheckIn = async () => {
-    if (!user || !court) {
-      Alert.alert('Error', 'Please log in to check in');
-      return;
-    }
-    if (loading) return;
-
-    console.log('[CHECKIN] Check-in pressed', { courtId: court.id });
-    const result = await checkIn(user.id, court.id, selectedSkillLevel, selectedDuration);
-    console.log('[CHECKIN] Check-in returned', { success: result.success });
-
+    if (!user || !courtId || !court) return;
+    const result = await checkIn(user.id, courtId, selectedSkill, selectedDuration);
     if (result.success) {
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + selectedDuration);
-      const checkInData = {
-        user_id: user.id,
-        court_id: court.id,
-        skill_level: selectedSkillLevel,
-        expires_at: expiresAt.toISOString(),
-        duration_minutes: selectedDuration,
-        courts: { name: court.name },
-      };
-      queryClient.setQueryData(['user-check-in', user.id], checkInData);
-      console.log('[CHECKIN] Cache updated');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['courts'] }),
-        queryClient.invalidateQueries({ queryKey: ['friends-core', user.id] }),
-      ]);
-      console.log('[CHECKIN] Invalidate done');
-      await refetchCourts();
-      await refetchFriends();
-
-      setIsCheckedIn(true);
-      const hours = Math.floor(selectedDuration / 60);
-      const minutes = selectedDuration % 60;
-      let durationText = '';
-      if (hours > 0) {
-        durationText = `${hours} hour${hours > 1 ? 's' : ''}`;
-        if (minutes > 0) {
-          durationText += ` and ${minutes} minutes`;
-        }
-      } else {
-        durationText = `${minutes} minutes`;
-      }
-      Alert.alert('Success', `You're checked in at ${court.name} for ${durationText}!`);
-      hasCheckedInitialCheckIn.current = false;
-      await checkCurrentCheckIn();
-      console.log('[CHECKIN] Finished');
-    } else if (result.code === 'ALREADY_CHECKED_IN' && result.courtId) {
-      const otherCourtName = result.courtName || 'that court';
+      await refresh();
+    } else if (result.code === 'ALREADY_CHECKED_IN' && result.courtId && result.courtName) {
       Alert.alert(
-        'Already checked in',
-        result.error || "You're already checked in at another court. Please check out first.",
+        'Already Checked In',
+        `You're checked in at ${result.courtName}. Check out first to check in here.`,
         [
-          { text: 'OK' },
+          { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Go to court',
-            onPress: () => router.push(`/(tabs)/(home)/court/${result.courtId}` as any),
+            text: 'Go to that court',
+            onPress: () =>
+              router.push(`/court/${result.courtId}`),
           },
         ]
       );
     } else {
-      Alert.alert('Error', result.error || 'Failed to check in');
+      Alert.alert('Check-in Failed', result.error || 'Please try again');
     }
   };
 
   const handleCheckOut = async () => {
-    if (!user || !court) return;
-    if (loading) return;
-
-    console.log('[CHECKOUT] Check-out pressed', { courtId: court.id });
-    try {
-      const result = await checkOut(user.id, court.id);
-      console.log('[CHECKOUT] Check-out returned', { success: result.success });
-      if (result.success) {
-        setIsCheckedIn(false);
-        setCurrentCheckIn(null);
-        setRemainingTime(null);
-        queryClient.setQueryData(['user-check-in', user.id], null);
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['courts'] }),
-          queryClient.invalidateQueries({ queryKey: ['user-check-in', user.id] }),
-          queryClient.invalidateQueries({ queryKey: ['friends-core', user.id] }),
-        ]);
-        await Promise.all([refetchCourts(), refetchFriends()]);
-        console.log('[CHECKOUT] Finished');
-        Alert.alert('Success', 'You have checked out!');
-      } else {
-        console.warn('[CHECKOUT] Failed', result.error);
-        Alert.alert('Error', result.error || 'Failed to check out');
-      }
-    } catch (err) {
-      console.warn('[CHECKOUT] Error', err);
-      Alert.alert('Error', 'Failed to check out. Please try again.');
-    }
-  };
-
-  const openMapDirections = () => {
-    if (!court) return;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${court.latitude},${court.longitude}`;
-    Linking.openURL(url).catch(err => {
-      console.error('Failed to open map:', err);
-      Alert.alert('Error', 'Failed to open map application');
-    });
-  };
-
-  const formatDuration = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0 && mins > 0) {
-      return `${hours}h ${mins}m`;
-    } else if (hours > 0) {
-      return `${hours}h`;
+    if (!user || !courtId) return;
+    const result = await checkOut(user.id, courtId);
+    if (result.success) {
+      await refresh();
     } else {
-      return `${mins}m`;
+      Alert.alert('Check-out Failed', result.error || 'Please try again');
     }
   };
 
-  if (isLoadingCourt) {
+  const distance =
+    court && userLocation?.latitude && userLocation?.longitude
+      ? calculateDistance(
+          userLocation.latitude,
+          userLocation.longitude,
+          court.latitude,
+          court.longitude
+        )
+      : undefined;
+
+  const friendsAtCourt = (friends || []).filter((f) => f.currentCourtId === courtId);
+
+  if (!courtId) {
     return (
-      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[commonStyles.container, commonStyles.centered]}>
+        <Stack.Screen options={{ title: 'Court' }} />
+        <Text style={commonStyles.textSecondary}>Invalid court</Text>
+      </View>
+    );
+  }
+
+  if (loading || !court) {
+    return (
+      <View style={[commonStyles.container, commonStyles.centered]}>
+        <Stack.Screen options={{ title: 'Court' }} />
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[commonStyles.textSecondary, { marginTop: 16 }]}>Loading court details...</Text>
-      </View>
-    );
-  }
-
-  if (!court) {
-    return (
-      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 }]}>
-        <IconSymbol 
-          ios_icon_name="exclamationmark.triangle.fill" 
-          android_material_icon_name="warning" 
-          size={64} 
-          color={colors.error} 
-        />
-        <Text style={[commonStyles.title, { marginTop: 24, textAlign: 'center' }]}>Court Not Found</Text>
-        <Text style={[commonStyles.textSecondary, { marginTop: 12, textAlign: 'center' }]}>
-          The court you&apos;re looking for could not be found. It may have been removed or the ID is incorrect.
+        <Text style={[commonStyles.textSecondary, { marginTop: 12 }]}>
+          {loading ? 'Loading court...' : 'Court not found'}
         </Text>
-        <TouchableOpacity 
-          style={[buttonStyles.primary, { marginTop: 32 }]}
-          onPress={() => router.back()}
-        >
-          <Text style={buttonStyles.text}>Go Back</Text>
-        </TouchableOpacity>
+        {!loading && (
+          <TouchableOpacity style={[buttonStyles.primary, { marginTop: 16 }]} onPress={() => router.back()}>
+            <Text style={buttonStyles.text}>Go Back</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
 
-  const getActivityColor = (level: 'low' | 'medium' | 'high') => {
-    switch (level) {
-      case 'high': return colors.error;
-      case 'medium': return colors.accent;
-      case 'low': return colors.success;
-    }
-  };
-
-  const skillLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['Beginner', 'Intermediate', 'Advanced'];
+  const remaining = isCheckedInHere && currentCheckIn
+    ? getRemainingTime(currentCheckIn.expiresAt)
+    : null;
 
   return (
     <View style={commonStyles.container}>
-      <ScrollView 
-        style={styles.scrollView}
+      <Stack.Screen options={{ title: court.name }} />
+      <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.primary} />
+        }
       >
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <IconSymbol 
-            ios_icon_name="chevron.left" 
-            android_material_icon_name="chevron-left" 
-            size={24} 
-            color={colors.primary} 
-          />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-
         <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View style={{ flex: 1 }}>
-              <Text style={commonStyles.title}>{court.name}</Text>
-            </View>
+          <View style={styles.titleRow}>
+            <Text style={styles.courtName}>{court.name}</Text>
             <TouchableOpacity
-              style={styles.mapIconButton}
-              onPress={openMapDirections}
+              onPress={() => toggleFavorite(court.id)}
+              style={styles.favButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <IconSymbol 
-                ios_icon_name="info.circle" 
-                android_material_icon_name="info-outline" 
-                size={28} 
-                color={colors.primary} 
+              <IconSymbol
+                ios_icon_name={isFavorite(court.id) ? 'heart.fill' : 'heart'}
+                android_material_icon_name={isFavorite(court.id) ? 'favorite' : 'favorite-border'}
+                size={24}
+                color={isFavorite(court.id) ? colors.error : colors.textSecondary}
               />
             </TouchableOpacity>
           </View>
-          <View style={styles.addressContainer}>
-            <IconSymbol 
-              ios_icon_name="location.fill" 
-              android_material_icon_name="location-on" 
-              size={20} 
-              color={colors.textSecondary} 
+          {court.address && <Text style={styles.address}>{court.address}</Text>}
+          {court.city && <Text style={styles.city}>{court.city}</Text>}
+        </View>
+
+        <View style={styles.metaRow}>
+          {typeof distance === 'number' && (
+            <View style={styles.metaPill}>
+              <IconSymbol
+                ios_icon_name="location.fill"
+                android_material_icon_name="location-on"
+                size={14}
+                color={colors.primary}
+              />
+              <Text style={styles.metaText}>{distance.toFixed(1)} mi</Text>
+            </View>
+          )}
+          <View style={styles.metaPill}>
+            <IconSymbol
+              ios_icon_name="person.2.fill"
+              android_material_icon_name="people"
+              size={14}
+              color={colors.primary}
             />
-            <Text style={[commonStyles.textSecondary, { marginLeft: 6, flex: 1 }]}>
-              {court.address}
-            </Text>
+            <Text style={styles.metaText}>{court.currentPlayers} players</Text>
           </View>
-          {court.distance !== undefined && (
-            <Text style={[commonStyles.textSecondary, { marginTop: 8, fontWeight: '600' }]}>
-              📍 {court.distance.toFixed(1)} miles away
-            </Text>
+          {(court.friendsPlayingCount ?? 0) > 0 && (
+            <View style={styles.metaPill}>
+              <IconSymbol
+                ios_icon_name="person.2.fill"
+                android_material_icon_name="people"
+                size={14}
+                color={colors.accent}
+              />
+              <Text style={[styles.metaText, { color: colors.accent }]}>
+                {court.friendsPlayingCount} friends
+              </Text>
+            </View>
           )}
         </View>
 
-        <View style={commonStyles.card}>
-          <View style={styles.activityHeader}>
-            <Text style={commonStyles.subtitle}>Current Activity</Text>
-            <View style={[styles.activityBadge, { backgroundColor: getActivityColor(court.activityLevel) }]}>
-              <Text style={styles.activityText}>
-                {court.activityLevel.charAt(0).toUpperCase() + court.activityLevel.slice(1)}
+        {court.currentPlayers > 0 && (
+          <View style={styles.skillRow}>
+            <Text style={commonStyles.textSecondary}>Avg skill: </Text>
+            <SkillLevelBars averageSkillLevel={court.averageSkillLevel} size={14} />
+            {court.averageDupr != null && (
+              <Text style={[commonStyles.textSecondary, { marginLeft: 8 }]}>
+                DUPR {court.averageDupr.toFixed(1)}
               </Text>
-            </View>
-          </View>
-          
-          <View style={styles.statsContainer}>
-            <View style={styles.statRow}>
-              <View style={styles.statIcon}>
-                <IconSymbol 
-                  ios_icon_name="person.2.fill" 
-                  android_material_icon_name="people" 
-                  size={24} 
-                  color={colors.primary} 
-                />
-              </View>
-              <View style={styles.statContent}>
-                <Text style={commonStyles.textSecondary}>Active Players</Text>
-                <Text style={[commonStyles.text, styles.statValue]}>
-                  {court.currentPlayers} {court.currentPlayers === 1 ? 'player' : 'players'}
-                </Text>
-              </View>
-            </View>
-
-            {court.friendsPlayingCount > 0 && (
-              <View style={styles.statRow}>
-                <View style={styles.statIcon}>
-                  <IconSymbol 
-                    ios_icon_name="person.2.fill" 
-                    android_material_icon_name="people" 
-                    size={24} 
-                    color={colors.accent} 
-                  />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={commonStyles.textSecondary}>Friends Playing</Text>
-                  <Text style={[commonStyles.text, styles.statValue, { color: colors.accent }]}>
-                    {court.friendsPlayingCount} {court.friendsPlayingCount === 1 ? 'friend' : 'friends'}
-                  </Text>
-                </View>
-              </View>
             )}
-
-            {court.currentPlayers > 0 && (
-              <View style={styles.statRow}>
-                <View style={styles.statIcon}>
-                  <IconSymbol 
-                    ios_icon_name="chart.bar.fill" 
-                    android_material_icon_name="bar-chart" 
-                    size={24} 
-                    color={colors.primary} 
-                  />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={commonStyles.textSecondary}>Skill Level</Text>
-                  <View style={styles.skillLevelContainer}>
-                    <SkillLevelBars 
-                      averageSkillLevel={court.averageSkillLevel} 
-                      size={20}
-                      color={colors.primary}
-                    />
-                    <Text style={[commonStyles.text, { marginLeft: 12 }]}>
-                      {court.averageSkillLevel.toFixed(1)} / 3.0
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {court.averageDupr !== undefined && (
-              <View style={styles.statRow}>
-                <View style={[styles.statIcon, { backgroundColor: colors.accent + '20' }]}>
-                  <IconSymbol 
-                    ios_icon_name="chart.line.uptrend.xyaxis" 
-                    android_material_icon_name="trending-up" 
-                    size={24} 
-                    color={colors.accent} 
-                  />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={commonStyles.textSecondary}>Average DUPR Rating</Text>
-                  <Text style={[commonStyles.text, styles.statValue, { color: colors.accent }]}>
-                    {court.averageDupr.toFixed(2)}
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {friendsAtCourt.length > 0 && (
-          <View style={commonStyles.card}>
-            <Text style={commonStyles.subtitle}>Friends at This Court</Text>
-            {friendsAtCourt.map((friend, index) => {
-              const displayName = formatUserName(
-                friend.friendFirstName,
-                friend.friendLastName,
-                friend.friendNickname
-              );
-              
-              return (
-                <View key={index} style={styles.friendItem}>
-                  <View style={styles.friendIcon}>
-                    <IconSymbol 
-                      ios_icon_name="person.fill" 
-                      android_material_icon_name="person" 
-                      size={20} 
-                      color={colors.primary} 
-                    />
-                  </View>
-                  <View style={styles.friendInfo}>
-                    <Text style={commonStyles.text}>{displayName}</Text>
-                    <View style={styles.friendDetails}>
-                      {friend.friendExperienceLevel && (
-                        <Text style={commonStyles.textSecondary}>
-                          {friend.friendExperienceLevel}
-                        </Text>
-                      )}
-                      {friend.friendDuprRating && (
-                        <Text style={commonStyles.textSecondary}>
-                          {friend.friendExperienceLevel && ' • '}DUPR: {friend.friendDuprRating}
-                        </Text>
-                      )}
-                    </View>
-                    {friend.remainingTime && (
-                      <Text style={[commonStyles.textSecondary, { fontSize: 12, marginTop: 4 }]}>
-                        {friend.remainingTime.hours > 0 && `${friend.remainingTime.hours}h `}
-                        {friend.remainingTime.minutes}m remaining
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              );
-            })}
           </View>
         )}
 
-        {!isCheckedIn ? (
-          <View style={commonStyles.card}>
-            <Text style={commonStyles.subtitle}>Check In</Text>
-            <Text style={[commonStyles.textSecondary, { marginBottom: 16 }]}>
-              Select your skill level and how long you plan to stay
+        {isCheckedInHere && remaining && (
+          <View style={styles.checkedInBanner}>
+            <IconSymbol
+              ios_icon_name="checkmark.circle.fill"
+              android_material_icon_name="check-circle"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={styles.checkedInText}>
+              You're checked in • {remaining.hours}h {remaining.minutes}m remaining
             </Text>
+            <TouchableOpacity
+              style={[buttonStyles.secondary, styles.checkOutBtn]}
+              onPress={handleCheckOut}
+              disabled={checkInLoading}
+            >
+              <Text style={buttonStyles.text}>Check Out</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-            <Text style={[commonStyles.text, { marginBottom: 8, fontWeight: '600' }]}>
-              Skill Level
-            </Text>
-            <View style={styles.skillLevelButtons}>
-              {skillLevels.map((level, index) => (
+        {!isCheckedInHere && user && (
+          <View style={styles.checkInSection}>
+            <Text style={commonStyles.subtitle}>Check in</Text>
+            <Text style={commonStyles.textSecondary}>Select your skill level</Text>
+            <View style={styles.skillPills}>
+              {SKILL_LEVELS.map((level) => (
                 <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.skillLevelButton,
-                    selectedSkillLevel === level && styles.skillLevelButtonActive,
-                  ]}
-                  onPress={() => setSelectedSkillLevel(level)}
+                  key={level}
+                  style={[styles.pill, selectedSkill === level && styles.pillActive]}
+                  onPress={() => setSelectedSkill(level)}
                 >
                   <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
                     style={[
-                      styles.skillLevelText,
-                      selectedSkillLevel === level && styles.skillLevelTextActive,
+                      styles.pillText,
+                      selectedSkill === level && styles.pillTextActive,
                     ]}
                   >
                     {level}
@@ -487,319 +390,183 @@ export default function CourtDetailScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-
-            <Text style={[commonStyles.text, { marginTop: 20, marginBottom: 8, fontWeight: '600' }]}>
-              Duration
-            </Text>
-            <View style={styles.durationGrid}>
-              {DURATION_OPTIONS.map((duration, index) => (
+            <Text style={[commonStyles.textSecondary, { marginTop: 12 }]}>Duration (minutes)</Text>
+            <View style={styles.durationRow}>
+              {DURATION_OPTIONS.map((mins) => (
                 <TouchableOpacity
-                  key={index}
+                  key={mins}
                   style={[
-                    styles.durationButton,
-                    selectedDuration === duration && styles.durationButtonActive,
+                    styles.durationPill,
+                    selectedDuration === mins && styles.durationPillActive,
                   ]}
-                  onPress={() => setSelectedDuration(duration)}
+                  onPress={() => setSelectedDuration(mins)}
                 >
                   <Text
                     style={[
                       styles.durationText,
-                      selectedDuration === duration && styles.durationTextActive,
+                      selectedDuration === mins && styles.durationTextActive,
                     ]}
                   >
-                    {formatDuration(duration)}
+                    {mins}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
-
             <TouchableOpacity
-              style={[buttonStyles.primary, { marginTop: 20 }]}
+              style={[buttonStyles.primary, styles.checkInButton]}
               onPress={handleCheckIn}
-              disabled={loading}
+              disabled={checkInLoading}
             >
-              {loading ? (
-                <ActivityIndicator color={colors.card} />
+              {checkInLoading ? (
+                <ActivityIndicator color={colors.card} size="small" />
               ) : (
-                <Text style={buttonStyles.text}>Check In</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={[commonStyles.card, { backgroundColor: colors.highlight }]}>
-            <View style={styles.checkedInHeader}>
-              <IconSymbol 
-                ios_icon_name="checkmark.circle.fill" 
-                android_material_icon_name="check-circle" 
-                size={32} 
-                color={colors.success} 
-              />
-              <Text style={[commonStyles.subtitle, { marginLeft: 12 }]}>You&apos;re Checked In!</Text>
-            </View>
-            
-            {remainingTime && (
-              <View style={styles.remainingTimeContainer}>
-                <IconSymbol 
-                  ios_icon_name="clock.fill" 
-                  android_material_icon_name="schedule" 
-                  size={20} 
-                  color={colors.primary} 
-                />
-                <Text style={[commonStyles.text, { marginLeft: 8, fontWeight: '600' }]}>
-                  {remainingTime.hours > 0 && `${remainingTime.hours}h `}
-                  {remainingTime.minutes}m remaining
-                </Text>
-              </View>
-            )}
-            
-            <Text style={[commonStyles.textSecondary, { marginTop: 12, marginBottom: 20 }]}>
-              You will be automatically checked out when your time expires, or you can check out manually.
-            </Text>
-
-            <TouchableOpacity
-              style={[buttonStyles.secondary, { borderColor: colors.error }]}
-              onPress={handleCheckOut}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.error} />
-              ) : (
-                <Text style={[buttonStyles.textSecondary, { color: colors.error }]}>Check Out</Text>
+                <Text style={buttonStyles.text}>I'm Here</Text>
               )}
             </TouchableOpacity>
           </View>
         )}
 
-        <View style={commonStyles.card}>
-          <Text style={commonStyles.subtitle}>About This Court</Text>
-          
-          {court.description && (
-            <Text style={[commonStyles.text, { marginTop: 12, lineHeight: 22 }]}>
-              {court.description}
-            </Text>
-          )}
+        {!user && (
+          <Text style={[commonStyles.textSecondary, styles.signInHint]}>
+            Sign in to check in at this court
+          </Text>
+        )}
 
-          {(court.openTime || court.closeTime) && (
-            <View style={styles.hoursContainer}>
-              <View style={styles.hoursRow}>
-                <IconSymbol 
-                  ios_icon_name="clock.fill" 
-                  android_material_icon_name="schedule" 
-                  size={20} 
-                  color={colors.primary} 
-                />
-                <Text style={[commonStyles.text, { marginLeft: 8, fontWeight: '600' }]}>
-                  Hours
+        {friendsAtCourt.length > 0 && (
+          <View style={styles.friendsSection}>
+            <Text style={commonStyles.subtitle}>Friends at this court</Text>
+            {friendsAtCourt.map((f) => (
+              <View key={f.id} style={styles.friendRow}>
+                <Text style={styles.friendName}>
+                  {f.friendNickname || f.friendFirstName || f.friendEmail || 'Friend'}
                 </Text>
+                {f.friendDuprRating != null && (
+                  <Text style={commonStyles.textSecondary}>DUPR {f.friendDuprRating}</Text>
+                )}
               </View>
-              {court.openTime && court.closeTime && (
-                <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
-                  Open: {court.openTime} - {court.closeTime}
-                </Text>
-              )}
-            </View>
-          )}
-
-          {!court.description && !court.openTime && !court.closeTime && (
-            <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
-              This is a public pickleball court. Check in to let others know you&apos;re playing and see who else is here!
-            </Text>
-          )}
-        </View>
-
-        <BrandingFooter />
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 48,
-    paddingHorizontal: 20,
-    paddingBottom: 120,
-  },
-  backButton: {
+  scroll: { flex: 1 },
+  scrollContent: { padding: 20, paddingBottom: 60 },
+  header: { marginBottom: 12 },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  backText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-    marginLeft: 4,
-  },
-  header: {
-    marginBottom: 24,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 8,
   },
-  mapIconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.highlight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12,
-  },
-  addressContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  activityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  activityBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-  },
-  activityText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.card,
-  },
-  statsContainer: {
-    gap: 16,
-  },
-  statRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.highlight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  skillLevelContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  friendItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingTop: 12,
-    marginTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  friendIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.highlight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  friendInfo: {
-    flex: 1,
-  },
-  friendDetails: {
-    flexDirection: 'row',
-    marginTop: 4,
-  },
-  skillLevelButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  skillLevelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 0,
-  },
-  skillLevelButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  skillLevelText: {
-    fontSize: 12,
-    fontWeight: '600',
+  courtName: {
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.text,
+    flex: 1,
   },
-  skillLevelTextActive: {
-    color: colors.card,
-  },
-  durationGrid: {
+  favButton: { padding: 4 },
+  address: { fontSize: 15, color: colors.textSecondary, marginTop: 4 },
+  city: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: 12,
   },
-  durationButton: {
-    width: '31%',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: colors.card,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  metaText: { fontSize: 13, color: colors.text },
+  skillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkedInBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    marginBottom: 20,
+  },
+  checkedInText: { fontSize: 15, fontWeight: '600', color: colors.text, flex: 1 },
+  checkOutBtn: { paddingVertical: 8, paddingHorizontal: 16 },
+  checkInSection: {
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  skillPills: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  pill: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.background,
-    alignItems: 'center',
   },
-  durationButtonActive: {
-    borderColor: colors.primary,
+  pillActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  durationText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
+  pillText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  pillTextActive: { color: colors.card },
+  durationRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
   },
-  durationTextActive: {
-    color: colors.card,
+  durationPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
-  checkedInHeader: {
+  durationPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  durationText: { fontSize: 14, fontWeight: '600', color: colors.text },
+  durationTextActive: { color: colors.card },
+  checkInButton: { marginTop: 16 },
+  signInHint: { fontStyle: 'italic', marginTop: 8 },
+  friendsSection: { marginTop: 16 },
+  friendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  remainingTimeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    padding: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     backgroundColor: colors.card,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 8,
   },
-  hoursContainer: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: colors.highlight,
-    borderRadius: 12,
-  },
-  hoursRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  friendName: { fontSize: 15, fontWeight: '600', color: colors.text },
 });
