@@ -1,50 +1,55 @@
-import { Stack } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
-import { AuthProvider } from '@/contexts/AuthContext';
+// app/_layout.tsx
+import React, { useEffect } from 'react';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { View, ActivityIndicator } from 'react-native';
+import { useAuth } from '@/hooks/useAuth';
+import { colors } from '@/styles/commonStyles';
 
-// Create QueryClient OUTSIDE component to prevent recreation on every render
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30000, // 30 seconds - data is fresh for 30s
-      gcTime: 600000, // 10 minutes - keep unused data in cache for 10min
-      refetchOnFocus: false, // Don't refetch when tab regains focus
-      refetchOnReconnect: true, // Refetch when network reconnects
-      retry: 1, // Only retry failed queries once
-    },
-  },
-});
-
-// Define screenOptions OUTSIDE component to prevent recreation on every render
-const screenOptions = {
-  headerShown: false,
-};
+const AUTH_PATH = 'auth';
+const RESET_PATH = 'reset-password';
+const LEGAL_PATH = 'legal';
 
 export default function RootLayout() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Stack screenOptions={screenOptions}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="welcome" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="conversation/[id]" />
-        <Stack.Screen name="group-conversation/[id]" />
-        <Stack.Screen name="group-info/[id]" />
-        <Stack.Screen name="create-group" />
-        <Stack.Screen name="add-group-members/[id]" />
-        <Stack.Screen name="user/[id]" />
-        <Stack.Screen name="reset-password" />
-        <Stack.Screen name="auth-migration-notice" />
-        <Stack.Screen name="code-assistant" />
-        <Stack.Screen name="legal/privacy-policy" />
-        <Stack.Screen name="legal/terms-of-service" />
-        <Stack.Screen name="legal/disclaimer" />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      </AuthProvider>
-    </QueryClientProvider>
-  );
+  const router = useRouter();
+  const segments = useSegments();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const first = segments?.[0]; // e.g. "auth" or "(tabs)" or "legal"
+    const inAuth = first === AUTH_PATH;
+    const inReset = first === RESET_PATH;
+    const inLegal = first === LEGAL_PATH;
+    const inTabs = first === '(tabs)';
+
+    // Signed OUT: keep them on auth/reset/legal only
+    if (!user) {
+      if (!inAuth && !inReset && !inLegal) {
+        router.replace('/auth' as any);
+      }
+      return;
+    }
+
+    // Signed IN: never show auth screen
+    if (user && inAuth) {
+      router.replace('/(tabs)/(home)/' as any);
+      return;
+    }
+
+    // Signed IN but in some unknown route: shove to tabs
+    if (user && !inTabs && !inLegal && !inReset) {
+      router.replace('/(tabs)/(home)/' as any);
+    }
+  }, [user, loading, segments, router]);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return <Slot />;
 }
