@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { Court } from '@/types';
+import { getCheckInMutationPending } from '@/hooks/useCheckIn';
 import { logPerformance, getCachedData, setCachedData } from '@/utils/performanceLogger';
 import { useRealtimeManager } from '@/utils/realtimeManager';
 
@@ -234,6 +235,10 @@ export const useCourts = (userId?: string) => {
       table: 'check_ins',
       event: '*',
       onUpdate: () => {
+        if (userId && getCheckInMutationPending() === userId) {
+          console.log('useCourts: Ignoring realtime check-in event - mutation pending for current user');
+          return;
+        }
         console.log('useCourts: Check-in change detected via realtime, refreshing');
         fetchCourts();
       },

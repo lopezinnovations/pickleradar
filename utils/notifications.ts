@@ -218,15 +218,41 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
     );
 
     const pushToken = tokenData.data;
-    console.log('[Push] Got push token:', pushToken);
+    const tokenPrefix = pushToken?.startsWith('ExponentPushToken[') ? pushToken.slice(0, 25) + '...]' : pushToken ? `${pushToken.slice(0, 12)}...` : 'null';
+    const platform = Platform.OS as 'ios' | 'android' | 'web';
+    const now = new Date().toISOString();
 
-    const { error } = await supabase.from('users').update({ push_token: pushToken }).eq('id', userId);
+    console.log('[Push] Token registration:', {
+      userId,
+      tokenLength: pushToken?.length ?? 0,
+      tokenPrefix,
+      platform,
+      lastUpdated: now,
+    });
+
+    // Upsert into push_tokens (user_id + platform) - one current token per device type
+    const { error } = await supabase
+      .from('push_tokens')
+      .upsert(
+        {
+          user_id: userId,
+          platform,
+          token: pushToken,
+          active: true,
+          updated_at: now,
+        },
+        { onConflict: 'user_id,platform', ignoreDuplicates: false }
+      );
+
     if (error) {
       console.error('[Push] Error saving push token:', error);
       return null;
     }
 
-    console.log('[Push] Push token registered successfully');
+    // Also update users.push_token for backward compatibility (e.g. legacy readers)
+    await supabase.from('users').update({ push_token: pushToken }).eq('id', userId);
+
+    console.log('[Push] Push token registered successfully for user', userId);
     return pushToken;
   } catch (error) {
     console.log('[Push] Error registering push token:', error);
@@ -234,13 +260,23 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
   }
 };
 
+export type TestPushResult = {
+  success: boolean;
+  error?: string;
+  /** Full Expo API response for debugging */
+  fullResponse?: unknown;
+};
+
 export const sendTestPushNotification = async (
   expoPushToken: string,
   title: string = 'Test Push Notification',
   body: string = 'This is a test push from PickleRadar!'
-): Promise<{ success: boolean; error?: string }> => {
+): Promise<TestPushResult> => {
   try {
-    console.log('[Push] Sending test push notification to:', expoPushToken);
+    const tokenPrefix = expoPushToken?.startsWith('ExponentPushToken[')
+      ? expoPushToken.slice(0, 25) + '...]'
+      : expoPushToken?.slice(0, 20) + '...';
+    console.log('[Push] Sending test push to:', tokenPrefix);
 
     const message = {
       to: expoPushToken,
@@ -264,14 +300,97 @@ export const sendTestPushNotification = async (
     );
 
     const result = await response.json();
-    console.log('[Push] Test push notification response:', result);
+    console.log('[Push] Test push full response:', JSON.stringify(result, null, 2));
 
-    if (result?.data?.[0]?.status === 'ok') return { success: true };
+    if (result?.data?.[0]?.status === 'ok') {
+      return { success: true, fullResponse: result };
+    }
 
-    return { success: false, error: result?.data?.[0]?.message || 'Failed to send test push notification' };
-  } catch (error: any) {
-    console.error('[Push] Error sending test push notification:', error);
-    return { success: false, error: error?.message || 'Failed to send test push notification' };
+    const errMsg = result?.data?.[0]?.message || result?.errors?.[0]?.message || 'Failed to send test push notification';
+    return { success: false, error: errMsg, fullResponse: result };
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[Push] Test push error:', msg);
+    return { success: false, error: msg, fullResponse: undefined };
+  }
+};
+
+/**
+ * Register current token, then send a test push to the current user.
+ * Use from Profile or dev screen. Logs full send response.
+ */
+export const sendTestPushToCurrentUser = async (userId: string): Promise<TestPushResult> => {
+  const token = await registerPushToken(userId);
+  if (!token) {
+    return { success: false, error: 'No push token (register failed or not supported)' };
+  }
+  return sendTestPushNotification(
+    token,
+    'Test Push from PickleRadar',
+    'If you see this, push notifications are working!'
+  );
+};
+
+/**
+ * Request remote push for a new message (direct or group).
+ * Called by the sender's client after a successful message insert.
+ * Does not block; failures are logged only.
+ */
+export const notifyNewMessage = async (params: {
+  type: 'direct' | 'group';
+  sender_id: string;
+  recipient_id?: string;
+  group_id?: string;
+  content: string;
+  sender_name?: string;
+  message_id?: string;
+}): Promise<void> => {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl as string | undefined;
+    if (!supabaseUrl) {
+      console.warn('[Push] notifyNewMessage: Supabase URL not configured');
+      return;
+    }
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (!token) {
+      console.warn('[Push] notifyNewMessage: No session, skipping');
+      return;
+    }
+    const url = `${supabaseUrl}/functions/v1/notify-new-message`;
+    const body =
+      params.type === 'direct'
+        ? {
+            type: 'direct' as const,
+            sender_id: params.sender_id,
+            recipient_id: params.recipient_id,
+            content: params.content,
+            sender_name: params.sender_name,
+            message_id: params.message_id,
+          }
+        : {
+            type: 'group' as const,
+            sender_id: params.sender_id,
+            group_id: params.group_id,
+            content: params.content,
+            sender_name: params.sender_name,
+            message_id: params.message_id,
+          };
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.warn('[Push] notifyNewMessage failed:', res.status, json);
+    }
+  } catch (err) {
+    console.warn('[Push] notifyNewMessage error:', err);
   }
 };
 

@@ -43,10 +43,13 @@ export const sendTestPushNotification = async (
   _token: string,
   _title?: string,
   _body?: string
-): Promise<{ success: boolean; error?: string }> => ({
+): Promise<{ success: boolean; error?: string; fullResponse?: unknown }> => ({
   success: false,
   error: 'Push notifications are not supported on web',
 });
+
+export const sendTestPushToCurrentUser = async (_userId: string) =>
+  sendTestPushNotification('', undefined, undefined);
 
 export const scheduleCheckInNotification = async (
   _courtName: string,

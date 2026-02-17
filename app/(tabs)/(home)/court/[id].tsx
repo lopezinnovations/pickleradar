@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useCourts } from '@/hooks/useCourts';
 import { useCheckIn } from '@/hooks/useCheckIn';
@@ -17,9 +18,10 @@ export default function CourtDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const { user } = useAuth();
-  const { courts, refetch } = useCourts(user?.id);
+  const queryClient = useQueryClient();
+  const { courts, refetch: refetchCourts } = useCourts(user?.id);
   const { checkIn, checkOut, getUserCheckIn, getRemainingTime, loading } = useCheckIn();
-  const { friends } = useFriends(user?.id);
+  const { friends, refetch: refetchFriends } = useFriends(user?.id);
   
   const [selectedSkillLevel, setSelectedSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
   const [selectedDuration, setSelectedDuration] = useState(90);
@@ -50,8 +52,8 @@ export default function CourtDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       console.log('CourtDetailScreen: Screen focused, refreshing court data');
-      refetch();
-    }, [refetch])
+      refetchCourts();
+    }, [refetchCourts])
   );
 
   useEffect(() => {
@@ -101,10 +103,33 @@ export default function CourtDetailScreen() {
       Alert.alert('Error', 'Please log in to check in');
       return;
     }
+    if (loading) return;
 
+    console.log('CourtDetailScreen: CHECKIN pressed');
     const result = await checkIn(user.id, court.id, selectedSkillLevel, selectedDuration);
-    
+    console.log('CourtDetailScreen: CHECKIN returned');
+
     if (result.success) {
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + selectedDuration);
+      const checkInData = {
+        user_id: user.id,
+        court_id: court.id,
+        skill_level: selectedSkillLevel,
+        expires_at: expiresAt.toISOString(),
+        duration_minutes: selectedDuration,
+        courts: { name: court.name },
+      };
+      queryClient.setQueryData(['user-check-in', user.id], checkInData);
+      console.log('CourtDetailScreen: CHECKIN cache updated');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['courts'] }),
+        queryClient.invalidateQueries({ queryKey: ['friends-core', user.id] }),
+      ]);
+      console.log('CourtDetailScreen: CHECKIN invalidate done');
+      await refetchCourts();
+      await refetchFriends();
+
       setIsCheckedIn(true);
       const hours = Math.floor(selectedDuration / 60);
       const minutes = selectedDuration % 60;
@@ -118,9 +143,22 @@ export default function CourtDetailScreen() {
         durationText = `${minutes} minutes`;
       }
       Alert.alert('Success', `You're checked in at ${court.name} for ${durationText}!`);
-      await refetch();
       hasCheckedInitialCheckIn.current = false;
       await checkCurrentCheckIn();
+      console.log('CourtDetailScreen: CHECKIN finished');
+    } else if (result.code === 'ALREADY_CHECKED_IN' && result.courtId) {
+      const otherCourtName = result.courtName || 'that court';
+      Alert.alert(
+        'Already checked in',
+        result.error || "You're already checked in at another court. Please check out first.",
+        [
+          { text: 'OK' },
+          {
+            text: 'Go to court',
+            onPress: () => router.push(`/(tabs)/(home)/court/${result.courtId}` as any),
+          },
+        ]
+      );
     } else {
       Alert.alert('Error', result.error || 'Failed to check in');
     }
@@ -128,15 +166,28 @@ export default function CourtDetailScreen() {
 
   const handleCheckOut = async () => {
     if (!user || !court) return;
+    if (loading) return;
 
+    console.log('CourtDetailScreen: CHECKOUT pressed');
     const result = await checkOut(user.id, court.id);
-    
+    console.log('CourtDetailScreen: CHECKOUT returned');
+
     if (result.success) {
+      queryClient.setQueryData(['user-check-in', user.id], null);
+      console.log('CourtDetailScreen: CHECKOUT cache updated');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['courts'] }),
+        queryClient.invalidateQueries({ queryKey: ['friends-core', user.id] }),
+      ]);
+      console.log('CourtDetailScreen: CHECKOUT invalidate done');
+      await refetchCourts();
+      await refetchFriends();
+
       setIsCheckedIn(false);
       setCurrentCheckIn(null);
       setRemainingTime(null);
       Alert.alert('Success', 'You have checked out!');
-      await refetch();
+      console.log('CourtDetailScreen: CHECKOUT finished');
     } else {
       Alert.alert('Error', result.error || 'Failed to check out');
     }

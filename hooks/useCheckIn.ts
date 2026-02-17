@@ -1,5 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '@/supabase/client';
+
+/** Skip realtime check-in updates for this user while their mutation is pending. */
+let _pendingMutationUserId: string | null = null;
+export const setCheckInMutationPending = (uid: string | null) => { _pendingMutationUserId = uid; };
+export const getCheckInMutationPending = () => _pendingMutationUserId;
 import {
   scheduleCheckInNotification,
   cancelCheckOutNotification,
@@ -45,6 +50,7 @@ const safeAsync = (fn: () => Promise<any>) => {
 export const useCheckIn = (userId?: string) => {
   const [loading, setLoading] = useState(false);
   const [checkInHistory, setCheckInHistory] = useState<CheckInHistory[]>([]);
+  const inFlightRef = useRef(false);
 
   const fetchCheckInHistory = useCallback(async (uid: string) => {
     if (!isSupabaseConfigured()) {
@@ -178,15 +184,40 @@ export const useCheckIn = (userId?: string) => {
     courtId: string,
     skillLevel: 'Beginner' | 'Intermediate' | 'Advanced',
     durationMinutes: number = 90
-  ) => {
+  ): Promise<{
+    success: boolean;
+    error: string | null;
+    courtName?: string;
+    courtId?: string;
+    code?: 'ALREADY_CHECKED_IN';
+  }> => {
     if (!isSupabaseConfigured()) {
       console.log('useCheckIn: Supabase not configured - mock check-in');
       return { success: true, error: null };
     }
+    if (inFlightRef.current) {
+      console.log('useCheckIn: CHECKIN skipped - mutation already in flight');
+      return { success: false, error: 'Please wait for the current request to finish' };
+    }
 
+    inFlightRef.current = true;
     setLoading(true);
+    setCheckInMutationPending(uid);
     try {
-      console.log('useCheckIn: Starting check-in for user', uid, 'at court', courtId);
+      console.log('useCheckIn: CHECKIN calling supabase');
+
+      // Preflight: single-active-court rule (server is still source of truth)
+      const existingActive = await getUserCheckIn(uid);
+      if (existingActive && existingActive.court_id !== courtId) {
+        const courtName = (existingActive as CheckInData).courts?.name || 'another court';
+        return {
+          success: false,
+          error: 'You\'re already checked in at another court. Please check out first.',
+          code: 'ALREADY_CHECKED_IN',
+          courtId: existingActive.court_id,
+          courtName,
+        };
+      }
 
       const { data: existingCheckIn, error: fetchError } = await supabase
         .from('check_ins')
@@ -240,7 +271,20 @@ export const useCheckIn = (userId?: string) => {
           created_at: new Date().toISOString(),
         });
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          if (insertError.code === '23505' || /unique|duplicate/i.test(insertError.message || '')) {
+            const current = await getUserCheckIn(uid);
+            const courtName = (current as CheckInData)?.courts?.name || 'another court';
+            return {
+              success: false,
+              error: 'You\'re already checked in at another court. Please check out first.',
+              code: 'ALREADY_CHECKED_IN',
+              courtId: current?.court_id,
+              courtName,
+            };
+          }
+          throw insertError;
+        }
       }
 
       await fetchCheckInHistory(uid);
@@ -251,11 +295,25 @@ export const useCheckIn = (userId?: string) => {
         console.log('useCheckIn: notifyFriends result:', result);
       });
 
+      console.log('useCheckIn: CHECKIN returned');
       return { success: true, error: null, courtName };
     } catch (error: any) {
       console.log('useCheckIn: Check-in error:', error);
+      if (error?.code === '23505' || /unique|duplicate/i.test(error?.message || '')) {
+        const current = await getUserCheckIn(uid);
+        const courtName = (current as CheckInData)?.courts?.name || 'another court';
+        return {
+          success: false,
+          error: 'You\'re already checked in at another court. Please check out first.',
+          code: 'ALREADY_CHECKED_IN',
+          courtId: current?.court_id,
+          courtName,
+        };
+      }
       return { success: false, error: error?.message || 'Check-in failed' };
     } finally {
+      inFlightRef.current = false;
+      setCheckInMutationPending(null);
       setLoading(false);
     }
   };
@@ -265,10 +323,16 @@ export const useCheckIn = (userId?: string) => {
       console.log('useCheckIn: Supabase not configured - mock check-out');
       return { success: true, error: null };
     }
+    if (inFlightRef.current) {
+      console.log('useCheckIn: CHECKOUT skipped - mutation already in flight');
+      return { success: false, error: 'Please wait for the current request to finish' };
+    }
 
+    inFlightRef.current = true;
     setLoading(true);
+    setCheckInMutationPending(uid);
     try {
-      // Use maybeSingle so we don't throw if already checked out
+      console.log('useCheckIn: CHECKOUT calling supabase');
       const { data: checkInData, error: readError } = await supabase
         .from('check_ins')
         .select('notification_id, courts(name)')
@@ -277,37 +341,56 @@ export const useCheckIn = (userId?: string) => {
         .maybeSingle();
 
       if (readError) throw readError;
+      if (!checkInData) {
+        console.log('useCheckIn: checkOut - no check-in row found, proceeding with delete (no-op)');
+      }
 
       const courtName = (checkInData as any)?.courts?.name || 'Unknown Court';
 
-      // Cancel notification should never block checkout UX
-      if (checkInData?.notification_id && isPushNotificationSupported()) {
+      // Cancel notification: fire-and-forget, never block checkout
+      const notificationIdToCancel = checkInData?.notification_id;
+      if (notificationIdToCancel && isPushNotificationSupported()) {
         safeAsync(async () => {
-          await withTimeout(cancelCheckOutNotification(checkInData.notification_id), 8000);
+          try {
+            await withTimeout(cancelCheckOutNotification(notificationIdToCancel), 8000);
+          } catch (e) {
+            console.warn('useCheckIn: checkOut - cancelCheckOutNotification failed (non-blocking):', e);
+          }
         });
       }
 
       const { error: deleteError } = await supabase.from('check_ins').delete().eq('user_id', uid).eq('court_id', courtId);
       if (deleteError) throw deleteError;
 
-      // Manual check-out notification should never block checkout UX
+      // Manual check-out notification: fire-and-forget, never block checkout
       if (isPushNotificationSupported()) {
         safeAsync(async () => {
-          await withTimeout(sendManualCheckOutNotification(courtName), 8000);
+          try {
+            await withTimeout(sendManualCheckOutNotification(courtName), 8000);
+          } catch (e) {
+            console.warn('useCheckIn: checkOut - sendManualCheckOutNotification failed (non-blocking):', e);
+          }
         });
       }
 
-      // Friend checkout notifications: non-blocking
+      // Friend checkout notifications: fire-and-forget
       safeAsync(async () => {
-        const result = await notifyFriendsCheckout(courtId, courtName);
-        console.log('useCheckIn: notifyFriendsCheckout result:', result);
+        try {
+          const result = await notifyFriendsCheckout(courtId, courtName);
+          console.log('useCheckIn: notifyFriendsCheckout result:', result);
+        } catch (e) {
+          console.warn('useCheckIn: checkOut - notifyFriendsCheckout failed (non-blocking):', e);
+        }
       });
 
+      console.log('useCheckIn: CHECKOUT returned');
       return { success: true, error: null, courtName };
     } catch (error: any) {
       console.log('useCheckIn: Check-out error:', error);
       return { success: false, error: error?.message || 'Check-out failed' };
     } finally {
+      inFlightRef.current = false;
+      setCheckInMutationPending(null);
       setLoading(false);
     }
   };

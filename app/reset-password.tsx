@@ -1,10 +1,10 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, Linking, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase } from '@/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/supabase/client';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -18,17 +18,78 @@ export default function ResetPasswordScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
-  // Refs to track success state for timeout checks
   const passwordUpdateSucceededRef = useRef(false);
-  const resetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const processedUrlRef = useRef<string | null>(null);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (resetTimeoutRef.current) {
-        clearTimeout(resetTimeoutRef.current);
+      if (resetTimeoutRef.current) clearTimeout(resetTimeoutRef.current);
+    };
+  }, []);
+
+  // Deep link handler: support ?code=... OR #access_token=...&refresh_token=...
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    console.log('RESET: screen opened');
+
+    const parseAndInitFromUrl = async (url: string) => {
+      if (processedUrlRef.current === url) return;
+      processedUrlRef.current = url;
+      console.log('RESET: deep link received', url);
+
+      let code: string | null = null;
+      let accessToken: string | null = null;
+      let refreshToken: string | null = null;
+      try {
+        const parsed = new URL(url);
+        code = parsed.searchParams.get('code');
+        const hash = parsed.hash.slice(1);
+        const hashParams = new URLSearchParams(hash);
+        accessToken = hashParams.get('access_token');
+        refreshToken = hashParams.get('refresh_token');
+      } catch (e) {
+        console.log('RESET: parsed (URL parse error, skipping)');
+        return;
+      }
+
+      if (code) {
+        console.log('RESET: parsed (code)');
+      } else if (accessToken && refreshToken) {
+        console.log('RESET: parsed (access_token/refresh_token)');
+      } else {
+        console.log('RESET: parsed (no code or tokens, skipping)');
+        return;
+      }
+
+      console.log('RESET: session init start');
+      try {
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (error) throw error;
+        }
+        console.log('RESET: session init success');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.log('RESET: session init fail', msg);
+        setResetError('Reset link expired or invalid. Request a new one.');
       }
     };
+
+    const handleUrl = (url: string | null) => {
+      if (!url) return;
+      const lower = url.toLowerCase();
+      if (lower.includes('reset-password') || lower.includes('reset_password')) {
+        parseAndInitFromUrl(url);
+      }
+    };
+
+    Linking.getInitialURL().then(handleUrl);
+    const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+    return () => sub.remove();
   }, []);
 
   const validatePassword = (password: string) => {
@@ -68,65 +129,77 @@ export default function ResetPasswordScreen() {
     setResetError(null);
     passwordUpdateSucceededRef.current = false;
 
-    // Set timeout for password reset (15 seconds)
-    // Only show timeout error if the password update hasn't succeeded
     resetTimeoutRef.current = setTimeout(() => {
       if (!passwordUpdateSucceededRef.current) {
-        console.log('Password reset timeout exceeded');
-        setResetError('Unable to finish resetting password. Please try again.');
+        console.log('RESET: timeout exceeded');
+        setResetError('Request is taking longer than expected. Please try again.');
         setIsSubmitting(false);
       }
     }, 15000);
 
     try {
-      console.log('Updating password in Supabase');
+      if (!isSupabaseConfigured()) {
+        setResetError('Sign-in is not configured. Cannot update password.');
+        return;
+      }
+
+      console.log('RESET: session init start');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.log('RESET: session init fail', sessionError.message);
+        setResetError('Reset link expired or invalid. Request a new one.');
+        return;
+      }
+      if (!session?.access_token) {
+        console.log('RESET: session init fail (no access_token)');
+        setResetError('Reset link expired or invalid. Request a new one.');
+        return;
+      }
+      console.log('RESET: session init success');
+
+      console.log('RESET: updateUser(password) start');
       const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
+        password: newPassword,
       });
 
       if (updateError) {
-        console.log('Password update error:', updateError);
-        
-        // Check for specific error types
-        const errorMessage = updateError.message.toLowerCase();
-        
+        console.log('RESET: updateUser(password) fail', updateError.message, updateError.status);
+        passwordUpdateSucceededRef.current = false;
+        const raw = updateError.message || 'Failed to update password.';
+        const errorMessage = raw.toLowerCase();
         if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
           setResetError('Please wait a moment and try again.');
         } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
           setResetError('Network error. Please check your connection and try again.');
         } else {
-          setResetError(updateError.message || 'Failed to reset password. Please try again.');
+          setResetError('Unable to finish resetting password. Please try again.');
         }
-        passwordUpdateSucceededRef.current = false;
         return;
       }
 
-      // Password update succeeded
       passwordUpdateSucceededRef.current = true;
-      console.log('Password updated successfully');
+      console.log('RESET: updateUser(password) success');
 
-      // Clear form
       setNewPassword('');
       setConfirmPassword('');
       setResetError(null);
 
-      // Show success message and navigate
       Alert.alert(
-        'Password Updated Successfully',
-        'Your password has been changed.',
+        'Password updated',
+        'Your password has been changed. You can now sign in with your new password.',
         [
           {
             text: 'OK',
             onPress: () => {
-              console.log('Routing to app after successful password reset');
               router.replace('/(tabs)/(home)/');
             },
           },
         ]
       );
-    } catch (error: any) {
-      console.log('Unexpected error during password reset:', error);
-      setResetError(error.message || 'An unexpected error occurred. Please try again.');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.log('RESET: updateUser(password) fail (exception)', msg);
+      setResetError('An unexpected error occurred. Please try again.');
       passwordUpdateSucceededRef.current = false;
     } finally {
       // Always clear timeout and loading state

@@ -13,6 +13,7 @@ import {
   Modal,
   RefreshControl,
   Platform,
+  Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +26,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/supabase/client';
 import Constants from 'expo-constants';
 import {
-  sendTestPushNotification,
+  sendTestPushToCurrentUser,
   isPushNotificationSupported,
   requestNotificationPermissions,
   checkNotificationPermissionStatus,
@@ -63,6 +64,8 @@ export default function ProfileScreen() {
   const [duprError, setDuprError] = useState('');
   const [privacyOptIn, setPrivacyOptIn] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  /** OS permission status. Toggle ON only when permissionStatus === 'granted'. */
+  const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined' | null>(null);
   const [locationEnabled, setLocationEnabled] = useState(false);
   const [friendVisibility, setFriendVisibility] = useState(true);
 
@@ -84,7 +87,7 @@ export default function ProfileScreen() {
 
   const [showImagePickerModal, setShowImagePickerModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [enablingNotifications, setEnablingNotifications] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
@@ -100,24 +103,33 @@ export default function ProfileScreen() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase.from('users').select('push_token').eq('id', user.id).single();
+      const platform = Platform.OS as 'ios' | 'android' | 'web';
+      const { data: tokenRow } = await supabase
+        .from('push_tokens')
+        .select('token')
+        .eq('user_id', user.id)
+        .eq('platform', platform)
+        .eq('active', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (error) {
-        console.error('[Profile] Error fetching user data:', error);
-        return;
+      let pushToken = tokenRow?.token || null;
+      if (!pushToken) {
+        const { data: userData } = await supabase.from('users').select('push_token').eq('id', user.id).single();
+        pushToken = userData?.push_token || null;
       }
-
-      const pushToken = data?.push_token || null;
       setUserPushToken(pushToken);
 
-      const permissionStatus = await checkNotificationPermissionStatus();
-      setNotificationsEnabled(permissionStatus === 'granted');
+      const status = await checkNotificationPermissionStatus();
+      setPermissionStatus(status);
+      setNotificationsEnabled(status === 'granted');
 
       const isAdminUser = user.email?.toLowerCase().includes('admin') || false;
       setIsAdmin(isAdminUser);
 
       console.log('[Profile] User push token:', pushToken ? 'Present' : 'Not set');
-      console.log('[Profile] Notification permission:', permissionStatus);
+      console.log('[Profile] Notification permission:', status);
       console.log('[Profile] Admin status:', isAdminUser);
       console.log('[Profile] Build type:', isDevOrTestFlightBuild ? 'Dev/TestFlight' : 'Production');
     } catch (error) {
@@ -246,27 +258,45 @@ export default function ProfileScreen() {
     }
   };
 
+  /** Refresh notification permission from OS (no prompt). On mount/focus we call checkNotificationPermissionStatus and store it. */
+  const syncNotificationPermission = useCallback(async () => {
+    if (Platform.OS === 'web') return;
+    const status = await checkNotificationPermissionStatus();
+    setPermissionStatus(status);
+    setNotificationsEnabled(status === 'granted');
+  }, []);
+
   const handleEnableNotifications = async () => {
     if (!user) return;
-    setEnablingNotifications(true);
+    if (Platform.OS === 'web') {
+      Alert.alert('Not available', 'Push notifications are not supported on web.');
+      return;
+    }
+    if (isRegistering) return;
 
+    setIsRegistering(true);
+    console.log('PUSH toggle ON');
     try {
       const granted = await requestNotificationPermissions();
+      console.log('PUSH permission result', granted ? 'granted' : 'denied');
       if (granted) {
         await registerPushToken(user.id);
+        console.log('PUSH token registered');
         await clearNotificationsPromptDismissedAt();
-        setNotificationsEnabled(true);
+        await syncNotificationPermission();
         await fetchAdminStatusAndPushToken();
 
         Alert.alert('Notifications Enabled', 'You will now receive notifications when friends check in and send you messages.');
       } else {
+        await syncNotificationPermission();
         Alert.alert('Permission Denied', 'Please enable notifications in your device settings to receive updates.');
       }
     } catch (error) {
       console.error('[Profile] Error enabling notifications:', error);
+      await syncNotificationPermission();
       Alert.alert('Error', 'Failed to enable notifications. Please try again.');
     } finally {
-      setEnablingNotifications(false);
+      setIsRegistering(false);
     }
   };
 
@@ -448,10 +478,10 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await signOut();
-            Alert.alert('Signed Out', 'You have been signed out successfully.', [
-              { text: 'OK', onPress: () => router.replace('/auth') },
-            ]);
-          } catch {
+            router.replace('/auth');
+            Alert.alert('Signed Out', 'You have been signed out successfully.', [{ text: 'OK' }]);
+          } catch (err) {
+            console.error('[Profile] handleSignOut error:', err);
             Alert.alert('Error', 'Failed to sign out. Please try again.');
           }
         },
@@ -480,13 +510,7 @@ export default function ProfileScreen() {
 
 
   const handleSendTestPush = async () => {
-    if (!userPushToken) {
-      Alert.alert(
-        'No Push Token',
-        "You don't have a push token registered yet. Push tokens are only available in Development Builds or Production builds, not in Expo Go on Android (SDK 53+).\n\nTo test push notifications:\n• iOS: Use TestFlight or a Development Build\n• Android: Use a Development Build"
-      );
-      return;
-    }
+    if (!user?.id) return;
 
     if (!isPushNotificationSupported()) {
       Alert.alert(
@@ -498,14 +522,14 @@ export default function ProfileScreen() {
 
     setSendingTestPush(true);
     try {
-      const result = await sendTestPushNotification(
-        userPushToken,
-        'Test Push from PickleRadar',
-        'If you see this, push notifications are working! 🎾'
-      );
+      const result = await sendTestPushToCurrentUser(user.id);
+      if (result.fullResponse) {
+        console.log('[Profile] Test push full response:', JSON.stringify(result.fullResponse, null, 2));
+      }
 
       if (result.success) {
         Alert.alert('Test Push Sent!', 'A test push notification has been sent to your device. You should receive it shortly.');
+        fetchAdminStatusAndPushToken();
       } else {
         const errorMessage = result.error || 'Failed to send test push notification. Please try again.';
         console.error('[Profile] Test push failed:', errorMessage);
@@ -514,9 +538,10 @@ export default function ProfileScreen() {
           `Error: ${errorMessage}\n\nPlease check:\n• Push token is valid\n• Device has internet connection\n• Notifications are enabled in device settings`
         );
       }
-    } catch (error: any) {
-      console.error('[Profile] Error sending test push:', error);
-      Alert.alert('Error', `Failed to send test push: ${error.message || 'Unknown error occurred'}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Profile] Error sending test push:', msg);
+      Alert.alert('Error', `Failed to send test push: ${msg}`);
     } finally {
       setSendingTestPush(false);
     }
@@ -804,37 +829,59 @@ export default function ProfileScreen() {
               />
             </View>
 
-            <View style={[styles.settingRow, { borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }]}>
-              <View style={styles.settingInfo}>
-                <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Notifications</Text>
-                <Text style={commonStyles.textSecondary}>
-                  {notificationsEnabled ? 'Enabled - You will receive notifications' : 'Disabled - enable to receive updates'}
-                </Text>
+            <View style={{ borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingInfo}>
+                  <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Notifications</Text>
+                  <Text style={commonStyles.textSecondary}>
+                    {permissionStatus === 'granted'
+                      ? 'Enabled - You will receive notifications'
+                      : permissionStatus === 'denied'
+                        ? 'Disabled - enable in device Settings to receive updates'
+                        : Platform.OS === 'web'
+                          ? 'Not available on web'
+                          : 'Disabled - enable to receive updates'}
+                  </Text>
+                </View>
+
+                {Platform.OS !== 'web' && (
+                  <Switch
+                    value={permissionStatus === 'granted'}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor={colors.card}
+                    disabled={isRegistering}
+                    onValueChange={async (nextValue) => {
+                      if (nextValue) {
+                        await handleEnableNotifications();
+                        return;
+                      }
+                      Alert.alert(
+                        'Turn Off Notifications',
+                        Platform.OS === 'ios'
+                          ? 'To turn off notifications, open iPhone Settings > Notifications > PickleRadar and disable Allow Notifications.'
+                          : 'To turn off notifications, open Android Settings > Notifications > PickleRadar and disable notifications.',
+                        [
+                          {
+                            text: 'OK',
+                            onPress: () => syncNotificationPermission(),
+                          },
+                        ]
+                      );
+                    }}
+                  />
+                )}
+                {Platform.OS === 'web' && (
+                  <Text style={[commonStyles.textSecondary, { fontStyle: 'italic' }]}>Off</Text>
+                )}
               </View>
-
-              <Switch
-                value={notificationsEnabled}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.card}
-                disabled={enablingNotifications}
-                onValueChange={async (nextValue) => {
-                  if (nextValue) {
-                    await handleEnableNotifications();
-                    return;
-                  }
-
-                  Alert.alert(
-                    'Turn Off Notifications',
-                    Platform.OS === 'ios'
-                      ? 'To turn off notifications, open iPhone Settings > Notifications > PickleRadar and disable Allow Notifications.'
-                      : 'To turn off notifications, open Android Settings > Notifications > PickleRadar and disable notifications.',
-                    [{ text: 'OK' }]
-                  );
-
-                  const status = await checkNotificationPermissionStatus();
-                  setNotificationsEnabled(status === 'granted');
-                }}
-              />
+              {Platform.OS !== 'web' && permissionStatus === 'denied' && (
+                <TouchableOpacity
+                  style={[buttonStyles.secondary, { marginTop: 12, alignSelf: 'flex-start' }]}
+                  onPress={() => Linking.openSettings()}
+                >
+                  <Text style={buttonStyles.text}>Enable in Settings</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.settingRow}>

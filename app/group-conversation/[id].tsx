@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { IconSymbol } from '@/components/IconSymbol';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
+import { notifyNewMessage } from '@/utils/notifications';
 
 interface GroupMessage {
   id: string;
@@ -271,7 +272,7 @@ export default function GroupConversationScreen() {
     }, 100);
 
     try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('group_messages')
         .insert([
           {
@@ -279,9 +280,24 @@ export default function GroupConversationScreen() {
             sender_id: user.id,
             content: optimisticMessage.content,
           },
-        ]);
+        ])
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      const senderName =
+        user.pickleballerNickname ||
+        [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+        undefined;
+      notifyNewMessage({
+        type: 'group',
+        sender_id: user.id,
+        group_id: groupId,
+        content: optimisticMessage.content,
+        sender_name: senderName,
+        message_id: inserted?.id,
+      }).catch(() => {});
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.optimisticId !== optimisticId));

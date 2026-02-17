@@ -215,30 +215,37 @@ export default function HomeScreen() {
         {/* Sort + Map + Add Court */}
         <View style={styles.row}>
           <View style={styles.sortRow}>
-            <TouchableOpacity
-              style={[styles.pill, sortBy === 'favorites' && styles.pillActive]}
-              onPress={() => setSort('favorites')}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.sortScrollContent}
+              style={styles.sortScroll}
             >
-              <Text style={[styles.pillText, sortBy === 'favorites' && styles.pillTextActive]}>Favorites</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.pill, sortBy === 'activity' && styles.pillActive]}
-              onPress={() => setSort('activity')}
-            >
-              <Text style={[styles.pillText, sortBy === 'activity' && styles.pillTextActive]}>Activity</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.pill, sortBy === 'nearest' && styles.pillActive]}
-              onPress={() => setSort('nearest')}
-            >
-              <Text style={[styles.pillText, sortBy === 'nearest' && styles.pillTextActive]}>Nearest</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.pill, sortBy === 'az' && styles.pillActive]}
-              onPress={() => setSort('az')}
-            >
-              <Text style={[styles.pillText, sortBy === 'az' && styles.pillTextActive]}>A-Z</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pill, sortBy === 'favorites' && styles.pillActive]}
+                onPress={() => setSort('favorites')}
+              >
+                <Text style={[styles.pillText, sortBy === 'favorites' && styles.pillTextActive]} numberOfLines={1}>Favorites</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pill, sortBy === 'activity' && styles.pillActive]}
+                onPress={() => setSort('activity')}
+              >
+                <Text style={[styles.pillText, sortBy === 'activity' && styles.pillTextActive]} numberOfLines={1}>Activity</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pill, sortBy === 'nearest' && styles.pillActive]}
+                onPress={() => setSort('nearest')}
+              >
+                <Text style={[styles.pillText, sortBy === 'nearest' && styles.pillTextActive]} numberOfLines={1}>Nearest</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.pill, sortBy === 'az' && styles.pillActive]}
+                onPress={() => setSort('az')}
+              >
+                <Text style={[styles.pillText, sortBy === 'az' && styles.pillTextActive]} numberOfLines={1}>A-Z</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
 
           <View style={styles.actionsRight}>
@@ -404,11 +411,23 @@ const styles = StyleSheet.create({
   },
   sortRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+  sortScroll: {
     flex: 1,
   },
+  sortScrollContent: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 8,
+  },
   pill: {
+    flexShrink: 0,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 14,
@@ -431,6 +450,7 @@ const styles = StyleSheet.create({
 
   actionsRight: {
     flexDirection: 'row',
+    flexShrink: 0,
     gap: 10,
     alignItems: 'center',
   },

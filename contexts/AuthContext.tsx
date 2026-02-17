@@ -359,13 +359,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    console.log('[AuthProvider] signOut: start');
     try {
+      if (!isSupabaseConfigured()) {
+        console.warn('[AuthProvider] signOut: Supabase not configured; clearing local user state only.');
+        setUser(null);
+        console.log('[AuthProvider] signOut: end (no Supabase)');
+        return;
+      }
       await supabase.auth.signOut();
     } catch (err) {
-      console.warn('[AuthProvider] Sign out error:', err);
+      console.error('[AuthProvider] signOut error:', err);
+      // Still clear local state so UI reflects sign-out attempt
     } finally {
       setUser(null);
     }
+    console.log('[AuthProvider] signOut: end');
   }, []);
 
   const updateUserProfile = useCallback(

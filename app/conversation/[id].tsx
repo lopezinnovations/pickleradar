@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, isSupabaseConfigured } from '@/supabase/client';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
+import { notifyNewMessage } from '@/utils/notifications';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -259,7 +260,7 @@ export default function ConversationScreen() {
     }, 100);
 
     try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('messages')
         .insert([
           {
@@ -267,9 +268,24 @@ export default function ConversationScreen() {
             recipient_id: recipientId,
             content: optimisticMessage.content,
           },
-        ]);
+        ])
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      const senderName =
+        user.pickleballerNickname ||
+        [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+        undefined;
+      notifyNewMessage({
+        type: 'direct',
+        sender_id: user.id,
+        recipient_id: recipientId,
+        content: optimisticMessage.content,
+        sender_name: senderName,
+        message_id: inserted?.id,
+      }).catch(() => {});
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.optimisticId !== optimisticId));
