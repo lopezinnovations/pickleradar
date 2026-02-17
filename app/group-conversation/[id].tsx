@@ -123,7 +123,7 @@ export default function GroupConversationScreen() {
 
       setMessages(data || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('[MESSAGES] Error fetching messages:', error);
     } finally {
       setLoading(false);
     }
@@ -290,6 +290,7 @@ export default function GroupConversationScreen() {
         user.pickleballerNickname ||
         [user.firstName, user.lastName].filter(Boolean).join(' ') ||
         undefined;
+      console.log('[MESSAGES] Message inserted, triggering push for group', groupId);
       notifyNewMessage({
         type: 'group',
         sender_id: user.id,
@@ -297,9 +298,9 @@ export default function GroupConversationScreen() {
         content: optimisticMessage.content,
         sender_name: senderName,
         message_id: inserted?.id,
-      }).catch(() => {});
+      }).catch((e) => console.warn('[MESSAGES] notifyNewMessage error', e));
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('[MESSAGES] Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.optimisticId !== optimisticId));
       setNewMessage(optimisticMessage.content);
     } finally {

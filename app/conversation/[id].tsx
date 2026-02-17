@@ -99,7 +99,7 @@ export default function ConversationScreen() {
       if (error) throw error;
       setMessageRequest(data);
     } catch (error) {
-      console.error('Error checking message request:', error);
+      console.error('[MESSAGES] Error checking message request:', error);
     }
   }, [user?.id, recipientId]);
 
@@ -125,7 +125,7 @@ export default function ConversationScreen() {
         setIsMuted(false);
       }
     } catch (error) {
-      console.error('Error checking mute status:', error);
+      console.error('[MESSAGES] Error checking mute status:', error);
     }
   }, [user?.id, recipientId]);
 
@@ -155,7 +155,7 @@ export default function ConversationScreen() {
           .in('id', messageIds);
       }
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error('[MESSAGES] Error fetching messages:', error);
     } finally {
       setLoading(false);
     }
@@ -227,7 +227,7 @@ export default function ConversationScreen() {
       if (error) throw error;
       await checkMessageRequest();
     } catch (error) {
-      console.error('Error creating message request:', error);
+      console.error('[MESSAGES] Error creating message request:', error);
     }
   };
 
@@ -278,6 +278,7 @@ export default function ConversationScreen() {
         user.pickleballerNickname ||
         [user.firstName, user.lastName].filter(Boolean).join(' ') ||
         undefined;
+      console.log('[MESSAGES] Message inserted, triggering push for recipient', recipientId);
       notifyNewMessage({
         type: 'direct',
         sender_id: user.id,
@@ -285,9 +286,9 @@ export default function ConversationScreen() {
         content: optimisticMessage.content,
         sender_name: senderName,
         message_id: inserted?.id,
-      }).catch(() => {});
+      }).catch((e) => console.warn('[MESSAGES] notifyNewMessage error', e));
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('[MESSAGES] Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.optimisticId !== optimisticId));
       setNewMessage(optimisticMessage.content);
     } finally {

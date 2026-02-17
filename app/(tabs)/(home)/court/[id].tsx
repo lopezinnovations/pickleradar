@@ -51,7 +51,7 @@ export default function CourtDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      console.log('CourtDetailScreen: Screen focused, refreshing court data');
+      console.log('[CHECKIN] Screen focused, refreshing court data');
       refetchCourts();
     }, [refetchCourts])
   );
@@ -105,9 +105,9 @@ export default function CourtDetailScreen() {
     }
     if (loading) return;
 
-    console.log('CourtDetailScreen: CHECKIN pressed');
+    console.log('[CHECKIN] Check-in pressed', { courtId: court.id });
     const result = await checkIn(user.id, court.id, selectedSkillLevel, selectedDuration);
-    console.log('CourtDetailScreen: CHECKIN returned');
+    console.log('[CHECKIN] Check-in returned', { success: result.success });
 
     if (result.success) {
       const expiresAt = new Date();
@@ -121,12 +121,12 @@ export default function CourtDetailScreen() {
         courts: { name: court.name },
       };
       queryClient.setQueryData(['user-check-in', user.id], checkInData);
-      console.log('CourtDetailScreen: CHECKIN cache updated');
+      console.log('[CHECKIN] Cache updated');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['courts'] }),
         queryClient.invalidateQueries({ queryKey: ['friends-core', user.id] }),
       ]);
-      console.log('CourtDetailScreen: CHECKIN invalidate done');
+      console.log('[CHECKIN] Invalidate done');
       await refetchCourts();
       await refetchFriends();
 
@@ -145,7 +145,7 @@ export default function CourtDetailScreen() {
       Alert.alert('Success', `You're checked in at ${court.name} for ${durationText}!`);
       hasCheckedInitialCheckIn.current = false;
       await checkCurrentCheckIn();
-      console.log('CourtDetailScreen: CHECKIN finished');
+      console.log('[CHECKIN] Finished');
     } else if (result.code === 'ALREADY_CHECKED_IN' && result.courtId) {
       const otherCourtName = result.courtName || 'that court';
       Alert.alert(
@@ -168,28 +168,30 @@ export default function CourtDetailScreen() {
     if (!user || !court) return;
     if (loading) return;
 
-    console.log('CourtDetailScreen: CHECKOUT pressed');
-    const result = await checkOut(user.id, court.id);
-    console.log('CourtDetailScreen: CHECKOUT returned');
-
-    if (result.success) {
-      queryClient.setQueryData(['user-check-in', user.id], null);
-      console.log('CourtDetailScreen: CHECKOUT cache updated');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['courts'] }),
-        queryClient.invalidateQueries({ queryKey: ['friends-core', user.id] }),
-      ]);
-      console.log('CourtDetailScreen: CHECKOUT invalidate done');
-      await refetchCourts();
-      await refetchFriends();
-
-      setIsCheckedIn(false);
-      setCurrentCheckIn(null);
-      setRemainingTime(null);
-      Alert.alert('Success', 'You have checked out!');
-      console.log('CourtDetailScreen: CHECKOUT finished');
-    } else {
-      Alert.alert('Error', result.error || 'Failed to check out');
+    console.log('[CHECKOUT] Check-out pressed', { courtId: court.id });
+    try {
+      const result = await checkOut(user.id, court.id);
+      console.log('[CHECKOUT] Check-out returned', { success: result.success });
+      if (result.success) {
+        setIsCheckedIn(false);
+        setCurrentCheckIn(null);
+        setRemainingTime(null);
+        queryClient.setQueryData(['user-check-in', user.id], null);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['courts'] }),
+          queryClient.invalidateQueries({ queryKey: ['user-check-in', user.id] }),
+          queryClient.invalidateQueries({ queryKey: ['friends-core', user.id] }),
+        ]);
+        await Promise.all([refetchCourts(), refetchFriends()]);
+        console.log('[CHECKOUT] Finished');
+        Alert.alert('Success', 'You have checked out!');
+      } else {
+        console.warn('[CHECKOUT] Failed', result.error);
+        Alert.alert('Error', result.error || 'Failed to check out');
+      }
+    } catch (err) {
+      console.warn('[CHECKOUT] Error', err);
+      Alert.alert('Error', 'Failed to check out. Please try again.');
     }
   };
 

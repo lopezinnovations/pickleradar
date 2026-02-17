@@ -117,9 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(mapDbUserToUser(data as Record<string, unknown>));
       }
 
-      registerPushToken(userId).catch((err) => {
-        console.warn('[AuthProvider] Error registering push token:', err);
-      });
+      console.log('[PUSH] Registering push token on login for user', userId);
+      registerPushToken(userId)
+        .then((token) => {
+          console.log('[PUSH] Push token on login:', token ? 'registered' : 'not registered (null)');
+        })
+        .catch((err) => {
+          console.warn('[PUSH] Error registering push token:', err);
+        });
     } catch (err) {
       console.warn('[AuthProvider] Error in fetchUserProfile:', err);
     } finally {

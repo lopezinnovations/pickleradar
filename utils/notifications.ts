@@ -61,7 +61,7 @@ export const isExpoGo = (): boolean => {
 export const isPushNotificationSupported = (): boolean => {
   // Must be a physical device
   if (!Device.isDevice) {
-    console.log('[Push] Not supported: Must use physical device');
+    console.log('[PUSH] Not supported: Must use physical device');
     return false;
   }
 
@@ -70,8 +70,8 @@ export const isPushNotificationSupported = (): boolean => {
   const inExpoGo = isExpoGo();
 
   if (isAndroid && inExpoGo) {
-    console.log('[Push] Not supported: Expo Go removed Android remote push notifications in SDK 53+');
-    console.log('[Push] Please use a Development Build or TestFlight/Production build to test push notifications');
+    console.log('[PUSH] Not supported: Expo Go removed Android remote push notifications in SDK 53+');
+    console.log('[PUSH] Please use a Development Build or TestFlight/Production build to test push notifications');
     return false;
   }
 
@@ -160,7 +160,7 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('[Push] Notification permissions not granted');
+      console.log('[PUSH] Notification permissions not granted');
       return false;
     }
 
@@ -176,11 +176,11 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
       );
     }
 
-    console.log('[Push] Notification permissions granted');
+    console.log('[PUSH] Notification permissions granted');
     await clearNotificationsPromptDismissedAt();
     return true;
   } catch (error) {
-    console.log('[Push] Error requesting notification permissions:', error);
+    console.log('[PUSH] Error requesting notification permissions:', error);
     return false;
   }
 };
@@ -188,29 +188,30 @@ export const requestNotificationPermissions = async (): Promise<boolean> => {
 export const registerPushToken = async (userId: string): Promise<string | null> => {
   try {
     if (!isSupabaseConfigured()) {
-      console.log('[Push] Supabase not configured, skipping push token registration');
+      console.log('[PUSH] Supabase not configured, skipping push token registration');
       return null;
     }
 
     if (!isPushNotificationSupported()) {
-      console.log('[Push] Push notifications not supported in this environment');
+      console.log('[PUSH] Push notifications not supported in this environment');
       return null;
     }
 
     // This is a user-initiated setup path: OK to prompt
     const hasPermission = await requestNotificationPermissions();
+    console.log('[PUSH] Notification permission check:', hasPermission ? 'granted' : 'denied/not determined');
     if (!hasPermission) {
-      console.log('[Push] No notification permission, skipping push token registration');
+      console.log('[PUSH] No notification permission, skipping push token registration');
       return null;
     }
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
     if (!projectId) {
-      console.error('[Push] Expo project ID not found in app.json. Please add it under expo.extra.eas.projectId');
+      console.error('[PUSH] Expo project ID not found in app.json. Please add it under expo.extra.eas.projectId');
       return null;
     }
 
-    console.log('[Push] Getting Expo push token with project ID:', projectId);
+    console.log('[PUSH] Getting Expo push token with project ID:', projectId);
 
     const tokenData = await withTimeout(
       Notifications.getExpoPushTokenAsync({ projectId }),
@@ -222,7 +223,7 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
     const platform = Platform.OS as 'ios' | 'android' | 'web';
     const now = new Date().toISOString();
 
-    console.log('[Push] Token registration:', {
+    console.log('[PUSH] Token registration:', {
       userId,
       tokenLength: pushToken?.length ?? 0,
       tokenPrefix,
@@ -245,17 +246,17 @@ export const registerPushToken = async (userId: string): Promise<string | null> 
       );
 
     if (error) {
-      console.error('[Push] Error saving push token:', error);
+      console.error('[PUSH] Error saving push token:', error);
       return null;
     }
 
     // Also update users.push_token for backward compatibility (e.g. legacy readers)
     await supabase.from('users').update({ push_token: pushToken }).eq('id', userId);
 
-    console.log('[Push] Push token registered successfully for user', userId);
+    console.log('[PUSH] Push token registered successfully for user', userId);
     return pushToken;
   } catch (error) {
-    console.log('[Push] Error registering push token:', error);
+    console.log('[PUSH] Error registering push token:', error);
     return null;
   }
 };
@@ -276,7 +277,7 @@ export const sendTestPushNotification = async (
     const tokenPrefix = expoPushToken?.startsWith('ExponentPushToken[')
       ? expoPushToken.slice(0, 25) + '...]'
       : expoPushToken?.slice(0, 20) + '...';
-    console.log('[Push] Sending test push to:', tokenPrefix);
+    console.log('[PUSH] Sending test push to:', tokenPrefix);
 
     const message = {
       to: expoPushToken,
@@ -300,7 +301,7 @@ export const sendTestPushNotification = async (
     );
 
     const result = await response.json();
-    console.log('[Push] Test push full response:', JSON.stringify(result, null, 2));
+    console.log('[PUSH] Test push full response:', JSON.stringify(result, null, 2));
 
     if (result?.data?.[0]?.status === 'ok') {
       return { success: true, fullResponse: result };
@@ -310,7 +311,7 @@ export const sendTestPushNotification = async (
     return { success: false, error: errMsg, fullResponse: result };
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error('[Push] Test push error:', msg);
+    console.error('[PUSH] Test push error:', msg);
     return { success: false, error: msg, fullResponse: undefined };
   }
 };
@@ -345,17 +346,27 @@ export const notifyNewMessage = async (params: {
   sender_name?: string;
   message_id?: string;
 }): Promise<void> => {
-  if (!isSupabaseConfigured()) return;
+  console.log('[PUSH] notifyNewMessage triggered', {
+    type: params.type,
+    sender_id: params.sender_id,
+    recipient_id: params.recipient_id,
+    group_id: params.group_id,
+    message_id: params.message_id,
+  });
+  if (!isSupabaseConfigured()) {
+    console.warn('[PUSH] notifyNewMessage: Supabase not configured, skipping');
+    return;
+  }
   try {
     const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl as string | undefined;
     if (!supabaseUrl) {
-      console.warn('[Push] notifyNewMessage: Supabase URL not configured');
+      console.warn('[PUSH] notifyNewMessage: Supabase URL not configured');
       return;
     }
     const { data } = await supabase.auth.getSession();
     const token = data?.session?.access_token;
     if (!token) {
-      console.warn('[Push] notifyNewMessage: No session, skipping');
+      console.warn('[PUSH] notifyNewMessage: No session, skipping');
       return;
     }
     const url = `${supabaseUrl}/functions/v1/notify-new-message`;
@@ -377,6 +388,7 @@ export const notifyNewMessage = async (params: {
             sender_name: params.sender_name,
             message_id: params.message_id,
           };
+    console.log('[PUSH] notifyNewMessage calling edge function', { url, bodyKeys: Object.keys(body) });
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -385,12 +397,17 @@ export const notifyNewMessage = async (params: {
       },
       body: JSON.stringify(body),
     });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.warn('[Push] notifyNewMessage failed:', res.status, json);
+    const json = await res.json().catch((e) => {
+      console.warn('[PUSH] notifyNewMessage response parse error', e);
+      return {};
+    });
+    if (res.ok) {
+      console.log('[PUSH] notifyNewMessage success', res.status, json);
+    } else {
+      console.warn('[PUSH] notifyNewMessage failed', { status: res.status, json });
     }
   } catch (err) {
-    console.warn('[Push] notifyNewMessage error:', err);
+    console.warn('[PUSH] notifyNewMessage error:', err);
   }
 };
 

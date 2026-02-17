@@ -30,7 +30,7 @@ interface GroupPayload {
 type Payload = DirectPayload | GroupPayload;
 
 function log(msg: string, data?: unknown) {
-  const prefix = '[notify-new-message]';
+  const prefix = '[PUSH]';
   if (data !== undefined) {
     console.log(prefix, msg, JSON.stringify(data));
   } else {
@@ -74,15 +74,16 @@ async function sendExpoPush(
       body: JSON.stringify(payload),
     });
     const result = await res.json();
-    log('Push send response', { status: res.status, result });
+    log('Expo push response', { status: res.status, result });
     if (res.ok && result?.data?.[0]?.status === 'ok') {
       return { ok: true, status: res.status, result };
     }
     const errMsg = result?.data?.[0]?.message || result?.errors?.[0]?.message || 'Unknown';
+    log('Expo push error (response)', { status: res.status, error: errMsg, fullResult: result });
     return { ok: false, status: res.status, result, error: errMsg };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    log('Push send error', { error: msg });
+    log('Expo push fetch error', { error: msg });
     return { ok: false, error: msg };
   }
 }
@@ -178,7 +179,7 @@ serve(async (req) => {
       let pushToken: string | undefined;
       let tokenRowId: string | undefined;
 
-      const { data: tokenRows } = await supabase
+      const { data: tokenRows, error: tokenErr } = await supabase
         .from('push_tokens')
         .select('id, token')
         .eq('user_id', recipient_id)
@@ -186,23 +187,27 @@ serve(async (req) => {
         .order('updated_at', { ascending: false })
         .limit(1);
 
+      if (tokenErr) log('push_tokens lookup error', { recipient_id, error: tokenErr.message });
       pushToken = tokenRows?.[0]?.token;
       tokenRowId = tokenRows?.[0]?.id;
+      log('Recipient token lookup (push_tokens)', {
+        recipient_id,
+        token_exists: !!pushToken?.trim(),
+        token_prefix: pushToken?.slice(0, 28) ?? null,
+      });
 
       if (!pushToken?.trim()) {
-        const { data: legacyUser } = await supabase
+        const { data: legacyUser, error: legacyErr } = await supabase
           .from('users')
           .select('push_token')
           .eq('id', recipient_id)
           .single();
+        if (legacyErr) log('users.push_token fallback error', { recipient_id, error: legacyErr.message });
         pushToken = legacyUser?.push_token ?? undefined;
-        log('Recipient lookup', {
+        log('Recipient token lookup (fallback users.push_token)', {
           recipient_id,
           token_exists: !!pushToken?.trim(),
-          token_source: 'users.push_token (fallback)',
         });
-      } else {
-        log('Recipient lookup', { recipient_id, token_exists: true, token_source: 'push_tokens' });
       }
 
       if (!pushToken?.trim()) {
@@ -408,7 +413,7 @@ serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
-    console.error('[notify-new-message] Unexpected error:', err);
+    console.error('[PUSH] Unexpected error:', err);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

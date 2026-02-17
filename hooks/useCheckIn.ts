@@ -44,7 +44,7 @@ const withTimeout = async <T,>(p: Promise<T>, ms = 12000): Promise<T> => {
 
 // Fire-and-forget helper (never blocks UI)
 const safeAsync = (fn: () => Promise<any>) => {
-  fn().catch((e) => console.warn('useCheckIn: non-blocking task failed:', e));
+  fn().catch((e) => console.warn('[CHECKIN] non-blocking task failed:', e));
 };
 
 export const useCheckIn = (userId?: string) => {
@@ -54,7 +54,7 @@ export const useCheckIn = (userId?: string) => {
 
   const fetchCheckInHistory = useCallback(async (uid: string) => {
     if (!isSupabaseConfigured()) {
-      console.log('useCheckIn: Supabase not configured - no check-in history');
+      console.log('[CHECKIN] Supabase not configured - no check-in history');
       return;
     }
 
@@ -86,7 +86,7 @@ export const useCheckIn = (userId?: string) => {
 
       setCheckInHistory(history);
     } catch (error) {
-      console.log('useCheckIn: Error fetching check-in history:', error);
+      console.log('[CHECKIN] Error fetching check-in history:', error);
     }
   }, []);
 
@@ -96,7 +96,7 @@ export const useCheckIn = (userId?: string) => {
 
   const refetch = useCallback(async () => {
     if (userId) {
-      console.log('useCheckIn: Refetching check-in history');
+      console.log('[CHECKIN] Refetching check-in history');
       await fetchCheckInHistory(userId);
     }
   }, [userId, fetchCheckInHistory]);
@@ -130,13 +130,13 @@ export const useCheckIn = (userId?: string) => {
       const result = await response.json();
 
       if (!response.ok) {
-        console.error('useCheckIn: Error notifying friends:', result?.error);
+        console.error('[CHECKIN] Error notifying friends:', result?.error);
         return { success: false, message: result?.error || 'Failed to notify friends' };
       }
 
       return { success: true, message: result?.message };
     } catch (error: any) {
-      console.error('useCheckIn: notify-friends-checkin failed:', error);
+      console.error('[CHECKIN] notify-friends-checkin failed:', error);
       return { success: false, message: error?.message || 'Failed to notify friends' };
     }
   };
@@ -168,13 +168,13 @@ export const useCheckIn = (userId?: string) => {
       const result = await response.json();
 
       if (!response.ok) {
-        console.error('useCheckIn: Error notifying friends of checkout:', result?.error);
+        console.error('[CHECKOUT] Error notifying friends of checkout:', result?.error);
         return { success: false, message: result?.error || 'Failed to notify friends' };
       }
 
       return { success: true, message: result?.message };
     } catch (error: any) {
-      console.error('useCheckIn: notify-friends-checkout failed:', error);
+      console.error('[CHECKOUT] notify-friends-checkout failed:', error);
       return { success: false, message: error?.message || 'Failed to notify friends' };
     }
   };
@@ -192,11 +192,11 @@ export const useCheckIn = (userId?: string) => {
     code?: 'ALREADY_CHECKED_IN';
   }> => {
     if (!isSupabaseConfigured()) {
-      console.log('useCheckIn: Supabase not configured - mock check-in');
+      console.log('[CHECKIN] Supabase not configured - mock check-in');
       return { success: true, error: null };
     }
     if (inFlightRef.current) {
-      console.log('useCheckIn: CHECKIN skipped - mutation already in flight');
+      console.log('[CHECKIN] CHECKIN skipped - mutation already in flight');
       return { success: false, error: 'Please wait for the current request to finish' };
     }
 
@@ -204,18 +204,25 @@ export const useCheckIn = (userId?: string) => {
     setLoading(true);
     setCheckInMutationPending(uid);
     try {
-      console.log('useCheckIn: CHECKIN calling supabase');
+      console.log('[CHECKIN] CHECKIN calling supabase');
 
-      // Preflight: single-active-court rule (server is still source of truth)
-      const existingActive = await getUserCheckIn(uid);
-      if (existingActive && existingActive.court_id !== courtId) {
-        const courtName = (existingActive as CheckInData).courts?.name || 'another court';
+      // Preflight: single-active-court rule (query active check-in before proceeding)
+      const existingActive = await supabase
+        .from('check_ins')
+        .select('id, court_id, courts(name)')
+        .eq('user_id', uid)
+        .gte('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (existingActive.error) throw existingActive.error;
+      const activeRow = existingActive.data as { court_id: string; courts?: { name?: string } } | null;
+      if (activeRow && activeRow.court_id !== courtId) {
         return {
           success: false,
-          error: 'You\'re already checked in at another court. Please check out first.',
+          error: 'You must check out of your current court before checking into another.',
           code: 'ALREADY_CHECKED_IN',
-          courtId: existingActive.court_id,
-          courtName,
+          courtId: activeRow.court_id,
+          courtName: activeRow.courts?.name || 'another court',
         };
       }
 
@@ -277,7 +284,7 @@ export const useCheckIn = (userId?: string) => {
             const courtName = (current as CheckInData)?.courts?.name || 'another court';
             return {
               success: false,
-              error: 'You\'re already checked in at another court. Please check out first.',
+              error: 'You must check out of your current court before checking into another.',
               code: 'ALREADY_CHECKED_IN',
               courtId: current?.court_id,
               courtName,
@@ -292,19 +299,19 @@ export const useCheckIn = (userId?: string) => {
       // Friend notifications: non-blocking, NO alerts here (screen will show combined message)
       safeAsync(async () => {
         const result = await notifyFriends(courtId, courtName, skillLevel, durationMinutes);
-        console.log('useCheckIn: notifyFriends result:', result);
+        console.log('[CHECKIN] notifyFriends result:', result);
       });
 
-      console.log('useCheckIn: CHECKIN returned');
+      console.log('[CHECKIN] CHECKIN returned');
       return { success: true, error: null, courtName };
     } catch (error: any) {
-      console.log('useCheckIn: Check-in error:', error);
+      console.log('[CHECKIN] Check-in error:', error);
       if (error?.code === '23505' || /unique|duplicate/i.test(error?.message || '')) {
         const current = await getUserCheckIn(uid);
         const courtName = (current as CheckInData)?.courts?.name || 'another court';
         return {
           success: false,
-          error: 'You\'re already checked in at another court. Please check out first.',
+          error: 'You must check out of your current court before checking into another.',
           code: 'ALREADY_CHECKED_IN',
           courtId: current?.court_id,
           courtName,
@@ -320,11 +327,11 @@ export const useCheckIn = (userId?: string) => {
 
   const checkOut = async (uid: string, courtId: string) => {
     if (!isSupabaseConfigured()) {
-      console.log('useCheckIn: Supabase not configured - mock check-out');
+      console.log('[CHECKOUT] Supabase not configured - mock check-out');
       return { success: true, error: null };
     }
     if (inFlightRef.current) {
-      console.log('useCheckIn: CHECKOUT skipped - mutation already in flight');
+      console.log('[CHECKOUT] Skipped - mutation already in flight');
       return { success: false, error: 'Please wait for the current request to finish' };
     }
 
@@ -332,7 +339,7 @@ export const useCheckIn = (userId?: string) => {
     setLoading(true);
     setCheckInMutationPending(uid);
     try {
-      console.log('useCheckIn: CHECKOUT calling supabase');
+      console.log('[CHECKOUT] Calling supabase');
       const { data: checkInData, error: readError } = await supabase
         .from('check_ins')
         .select('notification_id, courts(name)')
@@ -342,7 +349,7 @@ export const useCheckIn = (userId?: string) => {
 
       if (readError) throw readError;
       if (!checkInData) {
-        console.log('useCheckIn: checkOut - no check-in row found, proceeding with delete (no-op)');
+        console.log('[CHECKOUT] No check-in row found, proceeding with delete (no-op)');
       }
 
       const courtName = (checkInData as any)?.courts?.name || 'Unknown Court';
@@ -354,7 +361,7 @@ export const useCheckIn = (userId?: string) => {
           try {
             await withTimeout(cancelCheckOutNotification(notificationIdToCancel), 8000);
           } catch (e) {
-            console.warn('useCheckIn: checkOut - cancelCheckOutNotification failed (non-blocking):', e);
+            console.warn('[CHECKOUT] cancelCheckOutNotification failed (non-blocking):', e);
           }
         });
       }
@@ -368,7 +375,7 @@ export const useCheckIn = (userId?: string) => {
           try {
             await withTimeout(sendManualCheckOutNotification(courtName), 8000);
           } catch (e) {
-            console.warn('useCheckIn: checkOut - sendManualCheckOutNotification failed (non-blocking):', e);
+            console.warn('[CHECKOUT] sendManualCheckOutNotification failed (non-blocking):', e);
           }
         });
       }
@@ -377,16 +384,16 @@ export const useCheckIn = (userId?: string) => {
       safeAsync(async () => {
         try {
           const result = await notifyFriendsCheckout(courtId, courtName);
-          console.log('useCheckIn: notifyFriendsCheckout result:', result);
+          console.log('[CHECKOUT] notifyFriendsCheckout result:', result);
         } catch (e) {
-          console.warn('useCheckIn: checkOut - notifyFriendsCheckout failed (non-blocking):', e);
+          console.warn('[CHECKOUT] notifyFriendsCheckout failed (non-blocking):', e);
         }
       });
 
-      console.log('useCheckIn: CHECKOUT returned');
+      console.log('[CHECKOUT] Returned success');
       return { success: true, error: null, courtName };
     } catch (error: any) {
-      console.log('useCheckIn: Check-out error:', error);
+      console.log('[CHECKOUT] Error:', error);
       return { success: false, error: error?.message || 'Check-out failed' };
     } finally {
       inFlightRef.current = false;
@@ -409,7 +416,7 @@ export const useCheckIn = (userId?: string) => {
       if (error) throw error;
       return (data as CheckInData) ?? null;
     } catch (error) {
-      console.log('useCheckIn: Error fetching user check-in:', error);
+      console.log('[CHECKIN] Error fetching user check-in:', error);
       return null;
     }
   };
