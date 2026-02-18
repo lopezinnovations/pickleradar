@@ -14,9 +14,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#1B4D3E"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "bundleIdentifier": "com.lopezinnovations.pickleradar",
       "supportsTablet": true,
@@ -26,18 +24,14 @@
         "NSLocationWhenInUseUsageDescription": "PickleRadar uses your location to show nearby pickleball courts, calculate distance in miles, and filter courts based on your selected radius. Location is only accessed when you grant permission and use location features.",
         "NSCameraUsageDescription": "PickleRadar needs access to your camera to allow you to take profile photos or court images. Camera access is only requested when you choose to take a photo and is never used in the background.",
         "NSPhotoLibraryUsageDescription": "PickleRadar needs access to your photo library to allow you to upload profile photos or court images.",
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["remote-notification"]
       },
       "config": {
         "googleMapsApiKey": "AIzaSyDXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
       },
       "usesAppleSignIn": true,
       "entitlements": {
-        "com.apple.developer.applesignin": [
-          "Default"
-        ]
+        "com.apple.developer.applesignin": ["Default"]
       },
       "runtimeVersion": {
         "policy": "appVersion"
@@ -45,8 +39,8 @@
     },
     "android": {
       "adaptiveIcon": {
-    "foregroundImage": "./assets/images/adaptive-icon.png",
-    "backgroundColor": "#1B4D3E"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#1B4D3E"
       },
       "package": "com.lopezinnovations.pickleradar",
       "permissions": [
@@ -106,18 +100,12 @@
     },
     "extra": {
       "router": {},
-      "supabaseUrl": "https://biczbxmaisdxpcbplddr.supabase.co",
-      "supabaseAnonKey": "sb_publishable_G_5RZYmomd6zB_uFbRCDtw_rBflTxYk",
       "eas": {
         "projectId": "b92d8e42-a250-46eb-aff1-1738c97cfb49"
       }
     },
     "sdkVersion": "54.0.0",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "updates": {
       "url": "https://u.expo.dev/b92d8e42-a250-46eb-aff1-1738c97cfb49"
     }

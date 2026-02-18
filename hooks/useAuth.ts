@@ -308,10 +308,13 @@ export function useAuth() {
     }
   }, [user?.id, refetchUser]);
 
+  const isConfigured = isSupabaseConfigured();
+
   return useMemo(
     () => ({
       user,
       authLoading,
+      isConfigured,
       signOut,
       updateUserProfile,
       uploadProfilePicture,
@@ -319,6 +322,6 @@ export function useAuth() {
       acceptConsent,
       refetchUser,
     }),
-    [user, authLoading, signOut, updateUserProfile, uploadProfilePicture, needsConsentUpdate, acceptConsent, refetchUser]
+    [user, authLoading, isConfigured, signOut, updateUserProfile, uploadProfilePicture, needsConsentUpdate, acceptConsent, refetchUser]
   );
 }

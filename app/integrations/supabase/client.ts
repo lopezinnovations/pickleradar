@@ -2,10 +2,7 @@
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
-
-// Prefer EXPO_PUBLIC_* env vars (works in Expo reliably)
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
+import Constants from "expo-constants";
 
 const isWeb = Platform.OS === "web";
 
@@ -25,14 +22,64 @@ const webStorage = {
 
 const storage = isWeb ? webStorage : AsyncStorage;
 
-export const isSupabaseConfigured = () => {
-  const ok = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
-  if (!ok) {
-    console.warn(
-      "[Supabase] Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. " +
-        "Add them to .env (recommended) or app config. Supabase features disabled."
+let _webEnvLogDone = false;
+
+function getExtra() {
+  // expo-constants shape varies between environments; this handles both.
+  return (Constants.expoConfig?.extra ?? (Constants as any).manifest?.extra ?? {}) as any;
+}
+
+function getSupabaseEnv() {
+  // Prefer runtime env vars
+  const envUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
+  const envAnon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+  if (envUrl && envAnon) {
+    const out = { url: envUrl, anon: envAnon, source: "env" as const };
+    if (isWeb && !_webEnvLogDone) {
+      _webEnvLogDone = true;
+      const anonPreview = envAnon ? `${envAnon.slice(0, 8)}…` : "(empty)";
+      console.log(
+        "[Supabase] env source=env urlPresent=true anonPresent=true anonPreview=" + anonPreview
+      );
+    }
+    return out;
+  }
+
+  // Fallback to app config extras (useful on web/dev when env injection is flaky)
+  const extra = getExtra();
+  const extraUrl = (extra?.supabaseUrl ?? extra?.SUPABASE_URL ?? "") as string;
+  const extraAnon = (extra?.supabaseAnonKey ?? extra?.SUPABASE_ANON_KEY ?? "") as string;
+
+  const out = {
+    url: extraUrl ?? "",
+    anon: extraAnon ?? "",
+    source: "extra" as const,
+  };
+  if (isWeb && !_webEnvLogDone) {
+    _webEnvLogDone = true;
+    const urlPresent = !!out.url;
+    const anonPresent = !!out.anon;
+    const anonPreview = out.anon ? `${out.anon.slice(0, 8)}…` : "(empty)";
+    console.log(
+      `[Supabase] env source=extra urlPresent=${urlPresent} anonPresent=${anonPresent} anonPreview=${anonPreview}`
     );
   }
+  return out;
+}
+
+export const isSupabaseConfigured = () => {
+  const { url, anon, source } = getSupabaseEnv();
+  const ok = !!url && !!anon;
+
+  if (!ok) {
+    console.warn(
+      `[Supabase] Missing config (source=${source}). ` +
+        "Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env for local web/dev, " +
+        "and in eas.json env (or EAS env vars) for builds."
+    );
+  }
+
   return ok;
 };
 
@@ -43,13 +90,14 @@ declare global {
 }
 
 export const supabase = (() => {
+  if (globalThis.__pickleradar_supabase__) return globalThis.__pickleradar_supabase__ as any;
+
+  const { url, anon } = getSupabaseEnv();
+
   // ✅ If not configured, don't create a client (prevents crash)
-  if (!isSupabaseConfigured()) return null as any;
+  if (!url || !anon) return null as any;
 
-  const existing = globalThis.__pickleradar_supabase__;
-  if (existing) return existing;
-
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  const client = createClient(url, anon, {
     auth: {
       storage,
       autoRefreshToken: true,
