@@ -1,96 +1,59 @@
+// app/index.tsx
+import React, { useEffect, useRef, useState } from "react";
+import { View, ActivityIndicator, Text } from "react-native";
+import { Redirect } from "expo-router";
+import { colors } from "@/styles/commonStyles";
+import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
 
-import React, { useEffect, useState, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
-import { Redirect } from 'expo-router';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
-import { colors } from '@/styles/commonStyles';
-
-export default function LandingScreen() {
+export default function Index() {
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authed, setAuthed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hasCheckedAuth = useRef(false);
+  const ran = useRef(false);
 
   useEffect(() => {
-    // Only check auth once on mount
-    if (hasCheckedAuth.current) {
-      return;
-    }
-    hasCheckedAuth.current = true;
-    checkAuthStatus();
+    if (ran.current) return;
+    ran.current = true;
+
+    (async () => {
+      try {
+        // No env vars? Don't crash; go to welcome.
+        if (!isSupabaseConfigured() || !supabase) {
+          setAuthed(false);
+          return;
+        }
+
+        const { data, error: e } = await supabase.auth.getSession();
+        if (e) {
+          setAuthed(false);
+          return;
+        }
+
+        setAuthed(!!data.session?.user);
+      } catch (err: any) {
+        setError(err?.message ?? "Failed to initialize app");
+        setAuthed(false);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
-
-  const checkAuthStatus = async () => {
-    console.log('LandingScreen: Checking authentication status...');
-    
-    try {
-      if (!isSupabaseConfigured()) {
-        console.log('LandingScreen: Supabase not configured, redirecting to welcome');
-        setIsAuthenticated(false);
-        setLoading(false);
-        return;
-      }
-
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.log('LandingScreen: Error getting session:', sessionError);
-        setIsAuthenticated(false);
-        setLoading(false);
-        return;
-      }
-      
-      if (session?.user) {
-        console.log('LandingScreen: User session found:', session.user.email);
-        setIsAuthenticated(true);
-      } else {
-        console.log('LandingScreen: No active session');
-        setIsAuthenticated(false);
-      }
-    } catch (err) {
-      console.log('LandingScreen: Error checking auth:', err);
-      setError('Failed to initialize app. Please restart.');
-      setIsAuthenticated(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <Text style={{ color: colors.error, textAlign: "center" }}>{error}</Text>
       </View>
     );
   }
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
-  // Redirect based on authentication status
-  if (isAuthenticated) {
-    return <Redirect href="/(tabs)/(home)/" />;
-  } else {
-    return <Redirect href="/welcome" />;
-  }
+  return authed ? <Redirect href="/(tabs)/(home)/" /> : <Redirect href="/welcome" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  errorText: {
-    fontSize: 16,
-    color: colors.error,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-});

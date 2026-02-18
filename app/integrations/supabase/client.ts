@@ -1,4 +1,6 @@
+// app/integrations/supabase/client.ts
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 
 // Prefer EXPO_PUBLIC_* env vars (works in Expo reliably)
@@ -6,12 +8,6 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 const isWeb = Platform.OS === "web";
-
-// Only require AsyncStorage on native (prevents web crash)
-const nativeAsyncStorage = !isWeb
-  ? // eslint-disable-next-line @typescript-eslint/no-var-requires
-    require("@react-native-async-storage/async-storage").default
-  : null;
 
 // Minimal async interface for web storage
 const webStorage = {
@@ -27,16 +23,33 @@ const webStorage = {
   },
 };
 
-const storage = isWeb ? webStorage : nativeAsyncStorage;
+const storage = isWeb ? webStorage : AsyncStorage;
 
+export const isSupabaseConfigured = () => {
+  const ok = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
+  if (!ok) {
+    console.warn(
+      "[Supabase] Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY. " +
+        "Add them to .env (recommended) or app config. Supabase features disabled."
+    );
+  }
+  return ok;
+};
+
+// --- HMR-safe singleton (prevents multiple clients) ---
 declare global {
   // eslint-disable-next-line no-var
   var __pickleradar_supabase__: ReturnType<typeof createClient> | undefined;
 }
 
-export const supabase =
-  globalThis.__pickleradar_supabase__ ??
-  createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = (() => {
+  // ✅ If not configured, don't create a client (prevents crash)
+  if (!isSupabaseConfigured()) return null as any;
+
+  const existing = globalThis.__pickleradar_supabase__;
+  if (existing) return existing;
+
+  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
       storage,
       autoRefreshToken: true,
@@ -46,16 +59,6 @@ export const supabase =
     },
   });
 
-if (!globalThis.__pickleradar_supabase__) {
-  globalThis.__pickleradar_supabase__ = supabase;
-}
-
-export const isSupabaseConfigured = () => {
-  const ok = !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
-  if (!ok) {
-    console.warn(
-      "Supabase missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY"
-    );
-  }
-  return ok;
-};
+  globalThis.__pickleradar_supabase__ = client;
+  return client;
+})();

@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+
 import { Court } from '@/types';
 import { getCheckInMutationPending } from '@/hooks/useCheckIn';
 import { logPerformance, getCachedData, setCachedData } from '@/utils/performanceLogger';
@@ -223,7 +224,7 @@ export const useCourts = (userId?: string) => {
 
   // FIXED: Use RealtimeManager for robust subscription management
   useEffect(() => {
-    if (!isSupabaseConfigured() || hasSetupRealtime.current) {
+    if (!userId || !isSupabaseConfigured() || hasSetupRealtime.current) {
       return;
     }
 
@@ -252,7 +253,7 @@ export const useCourts = (userId?: string) => {
       unsubscribe();
       hasSetupRealtime.current = false;
     };
-  }, [fetchCourts, realtimeManager]);
+  }, [userId, fetchCourts, realtimeManager]);
 
   return { courts, loading, refetch: fetchCourts };
 };

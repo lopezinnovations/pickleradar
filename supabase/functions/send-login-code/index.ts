@@ -29,34 +29,34 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    
+
     console.log('send-login-code: Supabase URL configured:', !!supabaseUrl);
     console.log('send-login-code: Service key configured:', !!supabaseServiceKey);
-    
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Check if user exists
     console.log('send-login-code: Checking if user exists');
     const { data: existingUser, error: userError } = await supabase.auth.admin.listUsers();
-    
+
     if (userError) {
       console.error('send-login-code: Error listing users:', userError);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Failed to verify user',
           message: 'Unable to send login code. Please try again later.',
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-    
-    const userExists = existingUser?.users?.some(u => u.email === email);
+
+    const userExists = existingUser?.users?.some((u) => u.email === email);
     console.log('send-login-code: User exists:', userExists);
 
     if (!userExists) {
       console.log('send-login-code: User not found');
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'User not found',
           message: 'No account found with this email address. Please sign up first.',
         }),
@@ -81,21 +81,19 @@ serve(async (req) => {
 
     // Store the code in the database
     console.log('send-login-code: Storing new code');
-    const { error: insertError } = await supabase
-      .from('login_codes')
-      .insert({
-        email,
-        code,
-        expires_at: expiresAt,
-        used: false,
-        attempts: 0,
-        max_attempts: 5,
-      });
+    const { error: insertError } = await supabase.from('login_codes').insert({
+      email,
+      code,
+      expires_at: expiresAt,
+      used: false,
+      attempts: 0,
+      max_attempts: 5,
+    });
 
     if (insertError) {
       console.error('send-login-code: Error storing login code:', insertError);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Failed to generate login code',
           message: 'Unable to send login code. Please try again later.',
         }),
@@ -116,27 +114,27 @@ serve(async (req) => {
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
             <h1 style="color: white; margin: 0; font-size: 28px;">PickleRadar</h1>
           </div>
-          
+
           <div style="background: #ffffff; padding: 40px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
             <h2 style="color: #333; margin-top: 0;">Your PickleRadar Login Code</h2>
-            
+
             <p style="font-size: 16px; color: #555;">Use the six-digit code below to sign in to your PickleRadar account:</p>
-            
+
             <div style="background: #f5f5f5; border: 2px solid #667eea; border-radius: 8px; padding: 20px; text-align: center; margin: 30px 0;">
               <p style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #667eea; margin: 0; font-family: 'Courier New', monospace;">
                 ${code}
               </p>
             </div>
-            
+
             <p style="font-size: 16px; color: #555;">
               Enter this code in the app to access your profile. The code will expire in <strong>10 minutes</strong>.
             </p>
-            
+
             <p style="font-size: 14px; color: #888; margin-top: 30px;">
               If you did not request this code, you can safely ignore this email.
             </p>
           </div>
-          
+
           <div style="text-align: center; padding: 20px; color: #888; font-size: 12px;">
             <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
             <p style="margin: 5px 0;">Powered by <strong>Lopez Innovations LLC</strong></p>
@@ -147,13 +145,13 @@ serve(async (req) => {
 
     // Try to send email using Resend API if available
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    
+
     console.log('send-login-code: Resend API key configured:', !!resendApiKey);
-    
+
     if (!resendApiKey) {
       console.error('send-login-code: RESEND_API_KEY not configured');
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Email service not configured',
           message: 'Unable to send login code. Please contact support or use password login.',
         }),
@@ -166,7 +164,7 @@ serve(async (req) => {
       const resendResponse = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
+          Authorization: `Bearer ${resendApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -184,7 +182,7 @@ serve(async (req) => {
       if (!resendResponse.ok) {
         console.error('send-login-code: Resend API error:', responseText);
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             error: 'Failed to send email',
             message: 'Unable to send login code. Please try again or use password login.',
           }),
@@ -196,7 +194,7 @@ serve(async (req) => {
     } catch (resendError) {
       console.error('send-login-code: Error sending email via Resend:', resendError);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Failed to send email',
           message: 'Unable to send login code. Please try again or use password login.',
         }),
@@ -205,8 +203,8 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         message: 'Login code sent to your email',
         expiresIn: 600, // 10 minutes in seconds
       }),
@@ -215,7 +213,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('send-login-code: Unexpected error:', error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Internal server error',
         message: 'Unable to send login code. Please try again or use password login.',
       }),

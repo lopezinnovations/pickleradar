@@ -1,7 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -358,9 +359,9 @@ export const notifyNewMessage = async (params: {
     return;
   }
   try {
-    const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl as string | undefined;
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
     if (!supabaseUrl) {
-      console.warn('[PUSH] notifyNewMessage: Supabase URL not configured');
+      console.warn('[PUSH] notifyNewMessage: EXPO_PUBLIC_SUPABASE_URL not set');
       return;
     }
     const { data } = await supabase.auth.getSession();

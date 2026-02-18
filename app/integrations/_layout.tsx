@@ -1,11 +1,5 @@
-
-import { Stack } from 'expo-router';
-
-// This layout prevents the integrations folder from being treated as a route
+// app/integrations/_layout.tsx
 export default function IntegrationsLayout() {
+  // Prevent /integrations from becoming routable
   return null;
 }
-
-export const unstable_settings = {
-  initialRouteName: undefined,
-};

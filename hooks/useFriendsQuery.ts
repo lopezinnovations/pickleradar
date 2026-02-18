@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+
 import { FriendWithDetails } from '@/types';
 
 interface UserWithStatus {

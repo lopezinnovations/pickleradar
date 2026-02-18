@@ -1,3 +1,4 @@
+// app/(tabs)/profile.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -25,10 +26,10 @@ import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 
-// ✅ FIX: Use the correct supabase client path (matches your other files)
+// ✅ supabase client path
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
-// ✅ FIX: Align to your notifications utilities (matches your other code)
+// ✅ notifications utilities
 import {
   sendTestPushNotification,
   isPushNotificationSupported,
@@ -99,7 +100,7 @@ export default function ProfileScreen() {
   const hasLoadedUserData = useRef(false);
   const hasLoadedCheckIn = useRef(false);
 
-  // NOTE: This is fine to keep for logging, but not used for any logic
+  // NOTE: logging only
   const isDevOrTestFlightBuild = Constants.appOwnership !== 'standalone';
 
   const fetchAdminStatusAndPushToken = useCallback(async () => {
@@ -177,8 +178,16 @@ export default function ProfileScreen() {
       setFirstName((user as any).firstName || (user as any).first_name || '');
       setLastName((user as any).lastName || (user as any).last_name || '');
       setPickleballerNickname((user as any).pickleballerNickname || (user as any).pickleballer_nickname || '');
-      setSkillLevel(((user as any).experienceLevel || (user as any).experience_level || (user as any).skillLevel || 'Beginner') as any);
-      setDuprRating((user as any).duprRating ? String((user as any).duprRating) : ((user as any).dupr_rating ? String((user as any).dupr_rating) : ''));
+      setSkillLevel(
+        ((user as any).experienceLevel || (user as any).experience_level || (user as any).skillLevel || 'Beginner') as any
+      );
+      setDuprRating(
+        (user as any).duprRating
+          ? String((user as any).duprRating)
+          : (user as any).dupr_rating
+          ? String((user as any).dupr_rating)
+          : ''
+      );
       setDuprError('');
       setPrivacyOptIn(!!((user as any).privacyOptIn || (user as any).privacy_opt_in));
       setLocationEnabled(!!((user as any).locationEnabled || (user as any).location_enabled));
@@ -251,11 +260,11 @@ export default function ProfileScreen() {
     setAcceptingConsent(true);
     try {
       const result = await acceptConsent();
-      if (result.success) {
+      if ((result as any).success) {
         setShowConsentPrompt(false);
         Alert.alert('Success', 'Thank you for accepting the updated terms!');
       } else {
-        Alert.alert('Error', result.error || 'Failed to update consent. Please try again.');
+        Alert.alert('Error', (result as any).error || 'Failed to update consent. Please try again.');
       }
     } catch {
       Alert.alert('Error', 'Failed to update consent. Please try again.');
@@ -459,9 +468,7 @@ export default function ProfileScreen() {
       if (updateError) throw updateError;
 
       await signOut();
-      Alert.alert('Account Deleted', 'Your account has been deactivated.', [
-        { text: 'OK', onPress: () => router.replace('/auth') },
-      ]);
+      Alert.alert('Account Deleted', 'Your account has been deactivated.', [{ text: 'OK', onPress: () => router.replace('/auth') }]);
     } catch {
       Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
     } finally {
@@ -500,8 +507,12 @@ export default function ProfileScreen() {
     setFirstName((user as any).firstName || (user as any).first_name || '');
     setLastName((user as any).lastName || (user as any).last_name || '');
     setPickleballerNickname((user as any).pickleballerNickname || (user as any).pickleballer_nickname || '');
-    setSkillLevel(((user as any).experienceLevel || (user as any).experience_level || (user as any).skillLevel || 'Beginner') as any);
-    setDuprRating((user as any).duprRating ? String((user as any).duprRating) : ((user as any).dupr_rating ? String((user as any).dupr_rating) : ''));
+    setSkillLevel(
+      ((user as any).experienceLevel || (user as any).experience_level || (user as any).skillLevel || 'Beginner') as any
+    );
+    setDuprRating(
+      (user as any).duprRating ? String((user as any).duprRating) : (user as any).dupr_rating ? String((user as any).dupr_rating) : ''
+    );
     setDuprError('');
     setPrivacyOptIn(!!((user as any).privacyOptIn || (user as any).privacy_opt_in));
     setLocationEnabled(!!((user as any).locationEnabled || (user as any).location_enabled));
@@ -522,7 +533,6 @@ export default function ProfileScreen() {
 
     setSendingTestPush(true);
     try {
-      // ✅ FIX: correct function name (matches your utils)
       const result = await sendTestPushNotification(user.id);
 
       if (result?.success) {
@@ -586,9 +596,7 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(120, insets.bottom + 80) }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
         <View style={styles.content}>
           {/* Consent Prompt */}
@@ -671,7 +679,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
 
             <Text style={[commonStyles.title, { color: colors.primary, fontSize: 22 }]}>
-              {((user as any).firstName && (user as any).lastName)
+              {(user as any).firstName && (user as any).lastName
                 ? `${(user as any).firstName} ${(user as any).lastName}`
                 : (user as any).phone || (user as any).email || 'User'}
             </Text>
@@ -780,10 +788,7 @@ export default function ProfileScreen() {
             <View style={{ marginTop: 16 }}>
               <Text style={commonStyles.text}>DUPR Rating (optional)</Text>
               <TextInput
-                style={[
-                  commonStyles.input,
-                  { marginTop: 8, borderColor: duprError ? colors.accent : colors.border, borderWidth: 1 },
-                ]}
+                style={[commonStyles.input, { marginTop: 8, borderColor: duprError ? colors.accent : colors.border, borderWidth: 1 }]}
                 value={duprRating}
                 onChangeText={handleDuprChange}
                 placeholder="1.0 - 7.0"
@@ -866,10 +871,7 @@ export default function ProfileScreen() {
               </View>
 
               {Platform.OS !== 'web' && permissionStatus === 'denied' && (
-                <TouchableOpacity
-                  style={[buttonStyles.secondary, { marginTop: 12, alignSelf: 'flex-start' }]}
-                  onPress={() => Linking.openSettings()}
-                >
+                <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 12, alignSelf: 'flex-start' }]} onPress={() => Linking.openSettings()}>
                   <Text style={buttonStyles.text}>Enable in Settings</Text>
                 </TouchableOpacity>
               )}
@@ -919,8 +921,7 @@ export default function ProfileScreen() {
                 </Text>
 
                 <Text style={[commonStyles.textSecondary, { marginTop: 6 }]}>
-                  Expires: {formatDate(currentCheckIn.expires_at)}{' '}
-                  {remainingTime ? `(${remainingTime.hours}h ${remainingTime.minutes}m remaining)` : ''}
+                  Expires: {formatDate(currentCheckIn.expires_at)} {remainingTime ? `(${remainingTime.hours}h ${remainingTime.minutes}m remaining)` : ''}
                 </Text>
 
                 <TouchableOpacity style={[buttonStyles.danger, { marginTop: 14 }]} onPress={handleManualCheckOut} disabled={checkingOut}>
@@ -936,9 +937,7 @@ export default function ProfileScreen() {
           {isAdmin && (
             <View style={commonStyles.card}>
               <Text style={commonStyles.subtitle}>Admin Tools</Text>
-              <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
-                Push Token: {userPushToken ? 'Present ✅' : 'Not set ❌'}
-              </Text>
+              <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>Push Token: {userPushToken ? 'Present ✅' : 'Not set ❌'}</Text>
 
               <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 14 }]} onPress={handleSendTestPush} disabled={sendingTestPush}>
                 {sendingTestPush ? <ActivityIndicator color={colors.primary} /> : <Text style={buttonStyles.text}>Send Test Push</Text>}

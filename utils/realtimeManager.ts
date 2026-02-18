@@ -25,7 +25,8 @@
  * }, [userId]);
  */
 
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { logPerformance } from './performanceLogger';
 import React from 'react';

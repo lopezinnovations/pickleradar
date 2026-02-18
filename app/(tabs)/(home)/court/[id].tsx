@@ -20,7 +20,7 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars } from '@/components/SkillLevelBars';
 import { Court } from '@/types';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
+import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
 import { calculateDistance } from '@/utils/locationUtils';
 
 const DURATION_OPTIONS = [60, 90, 120] as const;

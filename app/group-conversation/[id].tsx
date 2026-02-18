@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
+import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
 import { IconSymbol } from '@/components/IconSymbol';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 import { notifyNewMessage } from '@/utils/notifications';
@@ -138,7 +138,7 @@ export default function GroupConversationScreen() {
   }, [groupId, fetchGroupInfo, fetchMessages, checkMuteStatus]);
 
   useEffect(() => {
-    if (!groupId || !isSupabaseConfigured()) return;
+    if (!groupId || !user?.id || !isSupabaseConfigured()) return;
 
     const channel = supabase
       .channel(`group_messages:${groupId}`)
@@ -178,7 +178,7 @@ export default function GroupConversationScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [groupId]);
+  }, [groupId, user?.id]);
 
   const handleMuteGroup = async (minutes: number | null) => {
     if (!user?.id || !groupId || !isSupabaseConfigured()) return;

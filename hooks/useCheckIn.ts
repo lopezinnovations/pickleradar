@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+
 import {
   scheduleCheckInNotification,
   cancelCheckOutNotification,

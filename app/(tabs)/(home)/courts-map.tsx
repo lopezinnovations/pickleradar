@@ -93,8 +93,11 @@ export default function CourtsMapScreen() {
     }
   }, [parsedCourtsResult.parseError]);
 
-  // Prefer params if passed, else use hook data
-  const courts: Court[] = (parsedCourtsResult.courts ?? (hookCourts ?? [])) as Court[];
+  // Prefer params if passed, else use hook data (memoized so useEffect deps are stable)
+  const courts = useMemo(
+    () => (parsedCourtsResult.courts ?? (hookCourts ?? [])) as Court[],
+    [parsedCourtsResult.courts, hookCourts]
+  );
 
   const userLocation = parsedLocationResult.location ?? hookUserLocation ?? null;
 

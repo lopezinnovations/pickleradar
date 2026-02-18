@@ -39,33 +39,17 @@ export default function CodeAssistantScreen() {
   const [initialLoading, setInitialLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
-  // Load or create conversation on mount
-  useEffect(() => {
-    console.log('CodeAssistant: Initializing conversation');
-    initializeConversation();
+  const loadMessages = useCallback(async (convId: string) => {
+    try {
+      console.log('CodeAssistant: Loading messages for conversation:', convId);
+      // TODO: Backend Integration - GET /api/code-assistant/conversations/:id/messages
+      setMessages([]);
+    } catch (error) {
+      console.error('CodeAssistant: Error loading messages:', error);
+    }
   }, []);
 
-  const initializeConversation = async () => {
-    try {
-      // Check if we have a saved conversation ID
-      const savedConversationId = await AsyncStorage.getItem(CONVERSATION_KEY);
-      
-      if (savedConversationId) {
-        console.log('CodeAssistant: Loading existing conversation:', savedConversationId);
-        setConversationId(savedConversationId);
-        await loadMessages(savedConversationId);
-      } else {
-        console.log('CodeAssistant: Creating new conversation');
-        await createNewConversation();
-      }
-    } catch (error) {
-      console.error('CodeAssistant: Error initializing conversation:', error);
-    } finally {
-      setInitialLoading(false);
-    }
-  };
-
-  const createNewConversation = async () => {
+  const createNewConversation = useCallback(async () => {
     try {
       // TODO: Backend Integration - POST /api/code-assistant/conversations
       // Creates a new conversation for code assistance
@@ -87,20 +71,31 @@ export default function CodeAssistantScreen() {
     } catch (error) {
       console.error('CodeAssistant: Error creating conversation:', error);
     }
-  };
+  }, []);
 
-  const loadMessages = async (convId: string) => {
+  const initializeConversation = useCallback(async () => {
     try {
-      console.log('CodeAssistant: Loading messages for conversation:', convId);
-      // TODO: Backend Integration - GET /api/code-assistant/conversations/:id/messages
-      // Returns: [{ id, role, content, createdAt }]
-      
-      // Temporary mock - will be replaced by backend integration
-      setMessages([]);
+      const savedConversationId = await AsyncStorage.getItem(CONVERSATION_KEY);
+      if (savedConversationId) {
+        console.log('CodeAssistant: Loading existing conversation:', savedConversationId);
+        setConversationId(savedConversationId);
+        await loadMessages(savedConversationId);
+      } else {
+        console.log('CodeAssistant: Creating new conversation');
+        await createNewConversation();
+      }
     } catch (error) {
-      console.error('CodeAssistant: Error loading messages:', error);
+      console.error('CodeAssistant: Error initializing conversation:', error);
+    } finally {
+      setInitialLoading(false);
     }
-  };
+  }, [loadMessages, createNewConversation]);
+
+  // Load or create conversation on mount
+  useEffect(() => {
+    console.log('CodeAssistant: Initializing conversation');
+    initializeConversation();
+  }, [initializeConversation]);
 
   const sendMessage = async () => {
     if (!inputText.trim() || !conversationId || loading) {
