@@ -55,6 +55,7 @@ export default function HomeScreen() {
   const [showFilters, setShowFilters] = useState(true);
 
   const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasAutoRequestedLocationRef = useRef(false);
 
   const debouncedSearch = useCallback((query: string) => {
     setDebouncedSearchQuery(query);
@@ -83,9 +84,19 @@ export default function HomeScreen() {
     }, [refetch])
   );
 
-  // Ask for location only when user is signed in (avoids alert on auth screen after sign out)
+  // Ask for location only once when user is signed in and has no location (avoids repeated requests and success alert loop)
   useEffect(() => {
-    if (!user || hasLocation || requestingPermission) return;
+    if (!user) {
+      hasAutoRequestedLocationRef.current = false;
+      return;
+    }
+    if (hasLocation || requestingPermission) return;
+    if (hasAutoRequestedLocationRef.current) {
+      console.log('[Home] location effect: already requested once, skipping');
+      return;
+    }
+    hasAutoRequestedLocationRef.current = true;
+    console.log('[Home] location effect: requesting location once');
     requestLocation();
   }, [user, hasLocation, requestingPermission, requestLocation]);
 

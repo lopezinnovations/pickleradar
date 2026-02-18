@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from './useAuth';
 import { requestLocationPermission, geocodeZipCode } from '@/utils/locationUtils';
@@ -7,6 +7,7 @@ import { requestLocationPermission, geocodeZipCode } from '@/utils/locationUtils
 export const useLocation = () => {
   const { user, updateUserProfile } = useAuth();
   const [requestingPermission, setRequestingPermission] = useState(false);
+  const locationSuccessShownRef = useRef(false);
 
   // Only request location when user is authenticated. Never show alerts when !user (e.g. after sign out).
   const requestLocation = useCallback(async () => {
@@ -15,7 +16,7 @@ export const useLocation = () => {
       return;
     }
 
-    console.log('useLocation: User explicitly requested location permission');
+    console.log('useLocation: Requesting location permission');
     setRequestingPermission(true);
 
     try {
@@ -28,7 +29,11 @@ export const useLocation = () => {
           locationEnabled: true,
           locationPermissionRequested: true,
         });
-        Alert.alert('Success', 'Location saved! You can now see nearby courts.');
+        if (!locationSuccessShownRef.current) {
+          locationSuccessShownRef.current = true;
+          console.log('useLocation: Showing location success message once');
+          Alert.alert('Success', 'Location saved! You can now see nearby courts.');
+        }
       } else {
         await updateUserProfile({ locationPermissionRequested: true });
         Alert.alert(
