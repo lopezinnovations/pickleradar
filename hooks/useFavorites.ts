@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, isSupabaseConfigured } from '@/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
 import { useQueryClient } from '@tanstack/react-query';
 
 export function useFavorites(userId: string | undefined) {

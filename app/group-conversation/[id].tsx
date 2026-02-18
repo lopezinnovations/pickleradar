@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase, isSupabaseConfigured } from '@/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
 import { IconSymbol } from '@/components/IconSymbol';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 import { notifyNewMessage } from '@/utils/notifications';

@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator,
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase, isSupabaseConfigured } from '@/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
 
 export default function ResetPasswordScreen() {
   const router = useRouter();

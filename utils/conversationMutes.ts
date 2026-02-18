@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '@/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
 
 export type ConversationType = 'direct' | 'group';
 

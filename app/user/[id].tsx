@@ -6,7 +6,7 @@ import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars } from '@/components/SkillLevelBars';
-import { supabase, isSupabaseConfigured } from '@/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
 
 interface UserProfile {
   id: string;

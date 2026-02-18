@@ -1,6 +1,6 @@
 // hooks/useAuth.ts
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '@/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client;
 
 type ExperienceLevel = 'Beginner' | 'Intermediate' | 'Advanced';
 
