@@ -1,7 +1,10 @@
 // app/_layout.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator } from 'react-native';
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 import { useAuth } from '@/hooks/useAuth';
 import { colors } from '@/styles/commonStyles';
 
@@ -13,6 +16,20 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const { user, loading } = useAuth();
+
+  // IMPORTANT: keep QueryClient stable across renders
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: 1,
+            staleTime: 30_000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
 
   useEffect(() => {
     if (loading) return;
@@ -43,13 +60,15 @@ export default function RootLayout() {
     }
   }, [user, loading, segments, router]);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  return <Slot />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      {loading ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : (
+        <Slot />
+      )}
+    </QueryClientProvider>
+  );
 }

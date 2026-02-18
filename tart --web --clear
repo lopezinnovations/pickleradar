@@ -1,0 +1,56 @@
+[33m8c36d8a2d[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m password reset fix/signout fix
+[33m9f232c80f[m update
+[33me8fafd744[m[33m ([m[1;33mtag: [m[1;33mcheckpoint-launch-ready[m[33m)[m Checkpoint: friends/search/messages stable, launch-ready baseline
+[33m72059d4ac[m Stable checkpoint: app loading correctly after auth and web fixes
+[33m2d1f0ee5c[m friends updates
+[33m0872102c5[m Refactor profile component and update notifications
+[33mdcc7d1c2c[m Update profile.tsx
+[33m0d4b6afc5[m Refactor consent prompt rendering in profile.tsx
+[33m130320ea9[m Refactor profile component layout and consent prompt
+[33m4f7c36efe[m Remove Code Assistant feature from profile
+[33md2cd44d56[m feat: Implement a complete code assistant with chat interface
+[33m5015abffa[m feat: Implement comprehensive push notification diagnostics and fixes
+[33mbaa75fc96[m fix: Remove duplicate privacyPolicy field from root expo block
+[33mb76f38461[m revert: Restored to commit 3ea57b58 - fix: Adjust KeyboardAvoidingView for messaging screens to prevent input obstruction
+[33m656189573[m feat: Add push notification diagnostics and setup guide
+[33mdf1186ae9[m feat: Improve sort chip wrapping, relocate map button, and gate push test UI
+[33mc41d19d0a[m feat: Implement friend check-in notifications and fix various app issues
+[33md233fd3f2[m feat: Implement notification prompt persistence and manual enable button
+[33me73752267[m feat: Implement React Query, pull-to-refresh, and optimized realtime for tabs
+[33m965688476[m feat: Implement caching, skeleton loaders, and search debouncing
+[33meb394f24f[m refactor: Improve performance logging utility and add summary features
+[33mcf6e0e94d[m fix: Update privacy policy, app.json, and camera permission flow for compliance
+[33m37bf5f92e[m feat: Implement robust push notification system with environment checks
+[33m671138902[m fix: Resolve icon rendering and experience level button wrapping
+[33m604628d68[m feat: Enhance auth, profile, messages with UI feedback and fixes
+[33mdf7b59071[m fix: Resolve React Hook dependency warnings and ESLint errors
+[33mc5909357d[m Refactor: Remove icons from Sign Out, Legal Compliance, Delete Account
+[33m7a83f494a[m feat: Enhance auth and profile with DUPR validation and UI updates
+[33m7b30173eb[m feat: Move sign out to card, account actions to LegalFooter
+[33m950bf86cc[m feat: Refactor profile page layout and actions for clarity
+[33mc832fb5a8[m refactor: Memoize refetch functions to prevent infinite loops
+[33mbe5387e6d[m fix: Fix profile page glitch and friends page login issue
+[33m5afcad444[m fix: Fix auth initialization and profile/friends loading issues
+[33mfe87bac93[m feat: Add refetch to useAuth, useCheckIn and auto-refresh messages
+[33mfabc545e0[m Docs: Add summary of messaging and profile updates implementation
+[33mdf0dba554[m feat: Implement profile editing, sign-out, and friend status
+[33m5a9b0db00[m feat: Implement profile update and friends list with online status
+[33m11b3c1eaf[m fix: Resolve linting errors and update dependencies
+[33me235692ca[m feat: Implement phone number authentication and UI improvements
+[33ma7a69d4ea[m feat: Improve consent prompt UI and user flow on profile page
+[33m687bfe640[m fix: Restore separator bars and fix consent acceptance flow
+[33mbb05e1179[m feat: Display consent status and add legal footer to profile
+[33md164b7220[m style: Remove separator bars from user stats in profile
+[33mde7ea09df[m style: Fix overlapping separator bars in profile summary
+[33m8a451726e[m feat: Implement profile skill bars and enhance profile layout
+[33m0fab11fdb[m feat: Implement profile picture upload and display functionality
+[33mf216260c3[m feat: Implement court discovery with sorting, filtering, and location
+[33m3e5ea3ade[m fix: Prevent infinite loops in useEffect hooks and auth listeners
+[33m3894e912b[m feat: Implement manual checkout on profile and Google Maps link
+[33mc6f358bf2[m feat: Implement duration selection and auto check-out features
+[33m6e1d4cb67[m style: Refactor logo styles, background color, remove paddle icons
+[33m68a9e475f[m feat: Implement landing page and fix profile authentication
+[33m4f416adca[m feat: Add check-in history to useCheckIn hook
+[33mb454acb0b[m feat: Integrate Supabase for backend services and authentication
+[33m9c1afec14[m Docs: Add implementation summary, quick start guide, and iOS icon
+[33m4cfb5e989[m init

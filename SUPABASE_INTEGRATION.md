@@ -113,7 +113,7 @@ Manages friend relationships and requests.
 ## App Integration
 
 ### Client Configuration
-Location: `supabase/client.ts`
+Location: `app/integrations/supabase/client.ts`
 
 The Supabase client is configured with:
 - AsyncStorage for session persistence
