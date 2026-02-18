@@ -25,7 +25,7 @@
       "ios": { "simulator": false },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://biczbxmaisdxpcbplddr.supabase.co",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "PASTE_YOUR_SUPABASE_ANON_KEY"
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJpY3pieG1haXNkeHBjYnBsZGRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYzNTk5MzIsImV4cCI6MjA4MTkzNTkzMn0.PNRJJAC0DPqCnbGUyp--up--pgZvIIULZtGz4yrq-_o"
       }
     }
   },
