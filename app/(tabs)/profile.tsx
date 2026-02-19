@@ -85,6 +85,7 @@ export default function ProfileScreen() {
   const [acceptingConsent, setAcceptingConsent] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [savingPrefs, setSavingPrefs] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
 
   const [isAdmin, setIsAdmin] = useState(false);
@@ -433,6 +434,50 @@ export default function ProfileScreen() {
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Failed to update profile. Please try again.');
+    }
+  };
+
+  const buildProfilePayload = () => {
+    const duprValue = duprRating.trim() ? parseFloat(duprRating) : undefined;
+    return {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      pickleballerNickname: pickleballerNickname.trim() || undefined,
+      experienceLevel: skillLevel,
+      duprRating: duprValue,
+      privacyOptIn,
+      locationEnabled,
+      friendVisibility,
+    };
+  };
+
+  const handleLocationToggle = async (value: boolean) => {
+    if (savingPrefs) return;
+    const prev = locationEnabled;
+    setLocationEnabled(value);
+    setSavingPrefs(true);
+    try {
+      await updateUserProfile({ ...buildProfilePayload(), locationEnabled: value });
+    } catch (error: any) {
+      setLocationEnabled(prev);
+      Alert.alert('Error', error?.message || 'Failed to update. Please try again.');
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  const handlePrivacyToggle = async (value: boolean) => {
+    if (savingPrefs) return;
+    const prev = privacyOptIn;
+    setPrivacyOptIn(value);
+    setSavingPrefs(true);
+    try {
+      await updateUserProfile({ ...buildProfilePayload(), privacyOptIn: value });
+    } catch (error: any) {
+      setPrivacyOptIn(prev);
+      Alert.alert('Error', error?.message || 'Failed to update. Please try again.');
+    } finally {
+      setSavingPrefs(false);
     }
   };
 
@@ -884,10 +929,10 @@ export default function ProfileScreen() {
               </View>
               <Switch
                 value={locationEnabled}
-                onValueChange={setLocationEnabled}
+                onValueChange={handleLocationToggle}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor={colors.card}
-                disabled={!isEditing}
+                disabled={savingPrefs}
               />
             </View>
 
@@ -898,10 +943,10 @@ export default function ProfileScreen() {
               </View>
               <Switch
                 value={privacyOptIn}
-                onValueChange={setPrivacyOptIn}
+                onValueChange={handlePrivacyToggle}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor={colors.card}
-                disabled={!isEditing}
+                disabled={savingPrefs}
               />
             </View>
           </View>
