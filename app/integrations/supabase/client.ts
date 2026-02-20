@@ -1,7 +1,7 @@
 // app/integrations/supabase/client.ts
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 
 const isWeb = Platform.OS === "web";
@@ -56,6 +56,7 @@ function getSupabaseEnv() {
     anon: extraAnon ?? "",
     source: "extra" as const,
   };
+
   if (isWeb && !_webEnvLogDone) {
     _webEnvLogDone = true;
     const urlPresent = !!out.url;
@@ -65,6 +66,7 @@ function getSupabaseEnv() {
       `[Supabase] env source=extra urlPresent=${urlPresent} anonPresent=${anonPresent} anonPreview=${anonPreview}`
     );
   }
+
   return out;
 }
 
@@ -75,8 +77,8 @@ export const isSupabaseConfigured = () => {
   if (!ok) {
     console.warn(
       `[Supabase] Missing config (source=${source}). ` +
-        "Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env for local web/dev, " +
-        "and in eas.json env (or EAS env vars) for builds."
+        "Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY in .env for local dev, " +
+        "and in EAS env vars / eas.json for builds."
     );
   }
 
@@ -86,16 +88,18 @@ export const isSupabaseConfigured = () => {
 // --- HMR-safe singleton (prevents multiple clients) ---
 declare global {
   // eslint-disable-next-line no-var
-  var __pickleradar_supabase__: ReturnType<typeof createClient> | undefined;
+  var __pickleradar_supabase__: SupabaseClient | undefined;
 }
 
-export const supabase = (() => {
-  if (globalThis.__pickleradar_supabase__) return globalThis.__pickleradar_supabase__ as any;
+/**
+ * Always use this to get the client.
+ * Prevents the “configured but supabase is null” bug.
+ */
+export function getSupabaseClient(): SupabaseClient | null {
+  if (globalThis.__pickleradar_supabase__) return globalThis.__pickleradar_supabase__;
 
   const { url, anon } = getSupabaseEnv();
-
-  // ✅ If not configured, don't create a client (prevents crash)
-  if (!url || !anon) return null as any;
+  if (!url || !anon) return null;
 
   const client = createClient(url, anon, {
     auth: {
@@ -109,4 +113,7 @@ export const supabase = (() => {
 
   globalThis.__pickleradar_supabase__ = client;
   return client;
-})();
+}
+
+// Back-compat export: ok to import, but ALWAYS null-check before use.
+export const supabase = getSupabaseClient();

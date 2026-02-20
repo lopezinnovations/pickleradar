@@ -1,12 +1,23 @@
+// app/auth.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, ScrollView, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Image,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
-import { supabase } from "@/app/integrations/supabase/client";
+import { getSupabaseClient } from '@/app/integrations/supabase/client';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -14,7 +25,7 @@ export default function AuthScreen() {
   const prefilledEmail = params.email as string;
   const successMessage = params.message as string;
   const { signUp, signIn, isConfigured } = useAuth();
-  
+
   const [email, setEmail] = useState(prefilledEmail || '');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -22,7 +33,9 @@ export default function AuthScreen() {
   const [pickleballerNickname, setPickleballerNickname] = useState('');
   const [duprRating, setDuprRating] = useState('');
   const [duprError, setDuprError] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
+  const [experienceLevel, setExperienceLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>(
+    'Beginner'
+  );
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -48,21 +61,6 @@ export default function AuthScreen() {
     }
   }, [successMessage]);
 
-  // Clear any existing sessions on mount to ensure clean state
-  useEffect(() => {
-    const clearOldSessions = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session && session.user.phone) {
-          await supabase.auth.signOut();
-        }
-      } catch (error) {
-        console.log('Error clearing old sessions:', error);
-      }
-    };
-    clearOldSessions();
-  }, []);
-
   // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
@@ -75,13 +73,13 @@ export default function AuthScreen() {
     };
   }, []);
 
-  const validateEmail = (email: string) => {
+  const validateEmail = (emailVal: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return emailRegex.test(emailVal);
   };
 
-  const validatePassword = (password: string) => {
-    return password.length >= 6;
+  const validatePassword = (passwordVal: string) => {
+    return passwordVal.length >= 6;
   };
 
   const validateDuprRating = (value: string) => {
@@ -171,8 +169,8 @@ export default function AuthScreen() {
 
     try {
       const result = await signUp(
-        email, 
-        password, 
+        email,
+        password,
         consentAccepted,
         firstName,
         lastName,
@@ -180,7 +178,7 @@ export default function AuthScreen() {
         experienceLevel,
         duprRating.trim() ? parseFloat(duprRating) : undefined
       );
-      
+
       if (result.success) {
         // Clear form
         setEmail('');
@@ -192,20 +190,16 @@ export default function AuthScreen() {
         setDuprError('');
         setExperienceLevel('Beginner');
         setConsentAccepted(false);
-        
+
         // Show success message and redirect to sign in
-        Alert.alert(
-          'Account Created!',
-          'Your account has been created successfully. You can now sign in.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                setIsSignUp(false);
-              },
+        Alert.alert('Account Created!', 'Your account has been created successfully. You can now sign in.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              setIsSignUp(false);
             },
-          ]
-        );
+          },
+        ]);
       } else {
         Alert.alert('Sign Up Failed', result.message || 'Failed to create account. Please try again.');
       }
@@ -245,27 +239,22 @@ export default function AuthScreen() {
 
     try {
       const result = await signIn(email, password);
-      
+
       if (result.success) {
         console.log('User signed in successfully');
         // Clear form
         setEmail('');
         setPassword('');
         // Show success message before redirect
-        Alert.alert(
-          'Welcome Back!',
-          'You have successfully signed in.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                router.replace('/(tabs)/(home)/');
-              },
+        Alert.alert('Welcome Back!', 'You have successfully signed in.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace('/(tabs)/(home)/');
             },
-          ]
-        );
+          },
+        ]);
       } else {
-        // Show generic error message
         Alert.alert('Sign In Failed', 'Incorrect email or password. Please try again.');
       }
     } catch (error: any) {
@@ -297,6 +286,12 @@ export default function AuthScreen() {
       return;
     }
 
+    const sb = getSupabaseClient();
+    if (!sb) {
+      Alert.alert('Supabase Required', 'Supabase is not configured. Please check your environment variables.');
+      return;
+    }
+
     setIsSendingCode(true);
     setResendDisabled(true);
     setResendCountdown(30);
@@ -305,7 +300,7 @@ export default function AuthScreen() {
     if (resendIntervalRef.current) {
       clearInterval(resendIntervalRef.current);
     }
-    
+
     resendIntervalRef.current = setInterval(() => {
       setResendCountdown((prev) => {
         if (prev <= 1) {
@@ -321,53 +316,45 @@ export default function AuthScreen() {
 
     try {
       console.log('Sending OTP to email:', email);
-      const { data, error } = await supabase.auth.signInWithOtp({
+      const { error } = await sb.auth.signInWithOtp({
         email,
-        options: { 
-          shouldCreateUser: false
-        }
+        options: {
+          shouldCreateUser: false,
+          // If you are not using deep links for web reset flow, this is still fine for native.
+          emailRedirectTo: 'pickleradar://reset-password',
+        },
       });
 
       if (error) {
         console.log('Error sending OTP:', error);
-        
+
         // Clear countdown on error
         if (resendIntervalRef.current) {
           clearInterval(resendIntervalRef.current);
         }
         setResendDisabled(false);
         setResendCountdown(0);
-        
-        Alert.alert(
-          'Error',
-          error.message || 'Unable to send reset code. Please try again.',
-          [{ text: 'OK' }]
-        );
+
+        Alert.alert('Error', error.message || 'Unable to send reset code. Please try again.', [{ text: 'OK' }]);
         return;
       }
 
       console.log('OTP sent successfully');
       setShowCodeInput(true);
-      Alert.alert(
-        'Check Your Email',
-        'We sent a six-digit code to your email. Enter it below to reset your password.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Check Your Email', 'We sent a six-digit code to your email. Enter it below to reset your password.', [
+        { text: 'OK' },
+      ]);
     } catch (error: any) {
       console.log('Unexpected error sending OTP:', error);
-      
+
       // Clear countdown on error
       if (resendIntervalRef.current) {
         clearInterval(resendIntervalRef.current);
       }
       setResendDisabled(false);
       setResendCountdown(0);
-      
-      Alert.alert(
-        'Error',
-        'Unable to send reset code. Please try again.',
-        [{ text: 'OK' }]
-      );
+
+      Alert.alert('Error', 'Unable to send reset code. Please try again.', [{ text: 'OK' }]);
     } finally {
       setIsSendingCode(false);
     }
@@ -378,6 +365,17 @@ export default function AuthScreen() {
 
     if (!loginCode.trim() || loginCode.length !== 6) {
       Alert.alert('Error', 'Please enter the six-digit code from your email');
+      return;
+    }
+
+    if (!isConfigured) {
+      setVerificationError('Supabase is not configured.');
+      return;
+    }
+
+    const sb = getSupabaseClient();
+    if (!sb) {
+      setVerificationError('Supabase is not configured.');
       return;
     }
 
@@ -396,18 +394,17 @@ export default function AuthScreen() {
 
     try {
       console.log('Verifying OTP code');
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { data, error } = await sb.auth.verifyOtp({
         email,
         token: loginCode,
-        type: 'email'
+        type: 'email',
       });
 
       if (error) {
         console.log('OTP verification error:', error);
-        
-        // Check for specific error types
-        const errorMessage = error.message.toLowerCase();
-        
+
+        const errorMessage = (error.message || '').toLowerCase();
+
         if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
           setVerificationError('Too many attempts. Please wait 30-60 seconds before retrying.');
         } else if (errorMessage.includes('invalid') || errorMessage.includes('token')) {
@@ -417,6 +414,7 @@ export default function AuthScreen() {
         } else {
           setVerificationError(error.message || 'Failed to verify code. Please try again.');
         }
+
         isVerificationSuccessfulRef.current = false;
         return;
       }
@@ -435,17 +433,15 @@ export default function AuthScreen() {
       setLoginCode('');
       setVerificationError(null);
 
-      // Route directly to Reset Password screen (no modal)
       router.replace({
         pathname: '/reset-password',
-        params: { email }
+        params: { email },
       });
     } catch (error: any) {
       console.log('Unexpected error during OTP verification:', error);
       setVerificationError(error.message || 'An unexpected error occurred during verification.');
       isVerificationSuccessfulRef.current = false;
     } finally {
-      // Clear timeout
       if (verificationTimeoutRef.current) {
         clearTimeout(verificationTimeoutRef.current);
       }
@@ -484,39 +480,39 @@ export default function AuthScreen() {
     setVerificationError(null);
   };
 
-  const experienceLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = ['Beginner', 'Intermediate', 'Advanced'];
+  const experienceLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = [
+    'Beginner',
+    'Intermediate',
+    'Advanced',
+  ];
 
   // Compute button text and disabled state
   const verifyButtonText = isVerifying ? 'Verifying...' : 'Verify Code';
   const verifyButtonDisabled = isVerifying || !loginCode || loginCode.length !== 6;
-  
-  const resendButtonText = resendDisabled && resendCountdown > 0 
-    ? `Resend (${resendCountdown}s)` 
-    : 'Resend Code';
+
+  const resendButtonText =
+    resendDisabled && resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend Code';
 
   return (
     <View style={commonStyles.container}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={handleBack}
-        >
-          <IconSymbol 
-            ios_icon_name="chevron.left" 
-            android_material_icon_name="chevron-left" 
-            size={24} 
-            color={colors.primary} 
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+          <IconSymbol
+            ios_icon_name="chevron.left"
+            android_material_icon_name="chevron-left"
+            size={24}
+            color={colors.primary}
           />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Image 
+          <Image
             source={require('@/assets/images/d00ee021-be7a-42f9-a115-ea45cb937f7f.jpeg')}
             style={styles.logo}
             resizeMode="contain"
@@ -525,19 +521,19 @@ export default function AuthScreen() {
             {isForgotPassword ? 'Forgot Password?' : isSignUp ? 'Create Account' : 'Welcome Back'}
           </Text>
           <Text style={commonStyles.textSecondary}>
-            {isForgotPassword 
-              ? showCodeInput 
+            {isForgotPassword
+              ? showCodeInput
                 ? 'Enter the six-digit code from your email'
-                : 'Enter your email to receive a reset code' 
-              : isSignUp 
-                ? 'Sign up to start finding pickleball courts' 
-                : 'Sign in to continue'}
+                : 'Enter your email to receive a reset code'
+              : isSignUp
+              ? 'Sign up to start finding pickleball courts'
+              : 'Sign in to continue'}
           </Text>
         </View>
 
         <View style={styles.form}>
           {isSignUp && (
-            <React.Fragment>
+            <>
               <Text style={styles.label}>First Name</Text>
               <TextInput
                 style={commonStyles.input}
@@ -616,7 +612,7 @@ export default function AuthScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            </React.Fragment>
+            </>
           )}
 
           <Text style={styles.label}>Email</Text>
@@ -633,7 +629,7 @@ export default function AuthScreen() {
           />
 
           {isForgotPassword && showCodeInput && (
-            <React.Fragment>
+            <>
               <Text style={styles.label}>Six-Digit Code</Text>
               <TextInput
                 style={[commonStyles.input, styles.codeInput]}
@@ -645,26 +641,24 @@ export default function AuthScreen() {
                 maxLength={6}
                 editable={!isVerifying}
               />
-              <Text style={styles.helperText}>
-                Check your email for a six-digit code and enter it here
-              </Text>
-              
+              <Text style={styles.helperText}>Check your email for a six-digit code and enter it here</Text>
+
               {verificationError && (
                 <View style={styles.errorContainer}>
-                  <IconSymbol 
-                    ios_icon_name="exclamationmark.triangle.fill" 
-                    android_material_icon_name="warning" 
-                    size={20} 
-                    color={colors.accent} 
+                  <IconSymbol
+                    ios_icon_name="exclamationmark.triangle.fill"
+                    android_material_icon_name="warning"
+                    size={20}
+                    color={colors.accent}
                   />
                   <Text style={styles.errorMessage}>{verificationError}</Text>
                 </View>
               )}
-            </React.Fragment>
+            </>
           )}
 
           {!isForgotPassword && (
-            <React.Fragment>
+            <>
               <Text style={styles.label}>Password</Text>
               <TextInput
                 style={commonStyles.input}
@@ -683,11 +677,9 @@ export default function AuthScreen() {
                 disabled={loading}
                 activeOpacity={0.7}
               >
-                <Text style={styles.showPasswordText}>
-                  {showPassword ? 'Hide Password' : 'Show Password'}
-                </Text>
+                <Text style={styles.showPasswordText}>{showPassword ? 'Hide Password' : 'Show Password'}</Text>
               </TouchableOpacity>
-            </React.Fragment>
+            </>
           )}
 
           {isSignUp && (
@@ -700,18 +692,18 @@ export default function AuthScreen() {
               >
                 <View style={[styles.checkbox, consentAccepted && styles.checkboxChecked]}>
                   {consentAccepted && (
-                    <IconSymbol 
-                      ios_icon_name="checkmark" 
-                      android_material_icon_name="check" 
-                      size={16} 
-                      color={colors.card} 
+                    <IconSymbol
+                      ios_icon_name="checkmark"
+                      android_material_icon_name="check"
+                      size={16}
+                      color={colors.card}
                     />
                   )}
                 </View>
                 <View style={styles.consentTextContainer}>
                   <Text style={styles.consentText}>
                     I agree to the{' '}
-                    <Text 
+                    <Text
                       style={styles.consentLink}
                       onPress={(e) => {
                         e.stopPropagation();
@@ -719,9 +711,9 @@ export default function AuthScreen() {
                       }}
                     >
                       Privacy Policy
-                    </Text>
-                    {' '}and{' '}
-                    <Text 
+                    </Text>{' '}
+                    and{' '}
+                    <Text
                       style={styles.consentLink}
                       onPress={(e) => {
                         e.stopPropagation();
@@ -738,24 +730,26 @@ export default function AuthScreen() {
 
           <TouchableOpacity
             style={[
-              buttonStyles.primary, 
-              { marginTop: 8 }, 
-              ((loading || isVerifying || isSendingCode) || (isSignUp && !consentAccepted) || (isForgotPassword && showCodeInput && verifyButtonDisabled)) && { opacity: 0.6 }
+              buttonStyles.primary,
+              { marginTop: 8 },
+              ((loading || isVerifying || isSendingCode) ||
+                (isSignUp && !consentAccepted) ||
+                (isForgotPassword && showCodeInput && verifyButtonDisabled)) && { opacity: 0.6 },
             ]}
             onPress={
-              isForgotPassword 
-                ? showCodeInput 
-                  ? handleVerifyCode 
-                  : handleSendCode 
-                : isSignUp 
-                  ? handleSignUp 
-                  : handleSignIn
+              isForgotPassword
+                ? showCodeInput
+                  ? handleVerifyCode
+                  : handleSendCode
+                : isSignUp
+                ? handleSignUp
+                : handleSignIn
             }
             disabled={
-              loading || 
-              isVerifying || 
-              isSendingCode || 
-              (isSignUp && !consentAccepted) || 
+              loading ||
+              isVerifying ||
+              isSendingCode ||
+              (isSignUp && !consentAccepted) ||
               (isForgotPassword && showCodeInput && verifyButtonDisabled)
             }
             activeOpacity={0.8}
@@ -764,18 +758,16 @@ export default function AuthScreen() {
               <View style={styles.loadingContainer}>
                 <ActivityIndicator color={colors.card} size="small" />
                 <Text style={[buttonStyles.text, { marginLeft: 8 }]}>
-                  {isForgotPassword && showCodeInput ? verifyButtonText : isSendingCode ? 'Sending...' : 'Loading...'}
+                  {isForgotPassword && showCodeInput
+                    ? verifyButtonText
+                    : isSendingCode
+                    ? 'Sending...'
+                    : 'Loading...'}
                 </Text>
               </View>
             ) : (
               <Text style={buttonStyles.text}>
-                {isForgotPassword 
-                  ? showCodeInput 
-                    ? verifyButtonText
-                    : 'Send Code' 
-                  : isSignUp 
-                    ? 'Sign Up' 
-                    : 'Sign In'}
+                {isForgotPassword ? (showCodeInput ? verifyButtonText : 'Send Code') : isSignUp ? 'Sign Up' : 'Sign In'}
               </Text>
             )}
           </TouchableOpacity>
@@ -800,24 +792,15 @@ export default function AuthScreen() {
               disabled={loading}
               activeOpacity={0.7}
             >
-              <Text style={styles.forgotPasswordText}>
-                Forgot Password?
-              </Text>
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
           )}
 
           {!isForgotPassword && (
-            <TouchableOpacity
-              style={styles.toggleButton}
-              onPress={toggleMode}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.toggleButton} onPress={toggleMode} disabled={loading} activeOpacity={0.7}>
               <Text style={styles.toggleText}>
                 {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-                <Text style={styles.toggleLink}>
-                  {isSignUp ? 'Sign In' : 'Sign Up'}
-                </Text>
+                <Text style={styles.toggleLink}>{isSignUp ? 'Sign In' : 'Sign Up'}</Text>
               </Text>
             </TouchableOpacity>
           )}
@@ -830,10 +813,7 @@ export default function AuthScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.toggleText}>
-                Remember your password?{' '}
-                <Text style={styles.toggleLink}>
-                  Sign In
-                </Text>
+                Remember your password? <Text style={styles.toggleLink}>Sign In</Text>
               </Text>
             </TouchableOpacity>
           )}
@@ -842,19 +822,17 @@ export default function AuthScreen() {
         {!isConfigured && (
           <View style={[commonStyles.card, { backgroundColor: colors.accent, marginTop: 20 }]}>
             <View style={styles.warningHeader}>
-              <IconSymbol 
-                ios_icon_name="exclamationmark.triangle.fill" 
-                android_material_icon_name="warning" 
-                size={24} 
-                color={colors.card} 
+              <IconSymbol
+                ios_icon_name="exclamationmark.triangle.fill"
+                android_material_icon_name="warning"
+                size={24}
+                color={colors.card}
               />
-              <Text style={[commonStyles.subtitle, { marginLeft: 12, color: colors.card }]}>
-                Supabase Required
-              </Text>
+              <Text style={[commonStyles.subtitle, { marginLeft: 12, color: colors.card }]}>Supabase Required</Text>
             </View>
             <Text style={[commonStyles.textSecondary, { marginTop: 12, color: colors.card }]}>
-              To use authentication and all features, please enable Supabase by pressing the Supabase button 
-              in Natively and connecting to a project.
+              To use authentication and all features, please enable Supabase by pressing the Supabase button in Natively
+              and connecting to a project.
             </Text>
           </View>
         )}
@@ -870,7 +848,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 48,
+    paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 40,
   },

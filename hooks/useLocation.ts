@@ -1,41 +1,77 @@
-
-import { useState, useCallback, useRef } from 'react';
-import { Alert } from 'react-native';
+// hooks/useLocation.ts
+import { useCallback, useRef, useState } from 'react';
+import { Alert, Platform } from 'react-native';
 import { useAuth } from './useAuth';
 import { requestLocationPermission, geocodeZipCode } from '@/utils/locationUtils';
+
+type LocationResult = {
+  granted: boolean;
+  latitude?: number;
+  longitude?: number;
+  status?: 'granted' | 'denied' | 'undetermined';
+};
 
 export const useLocation = () => {
   const { user, updateUserProfile } = useAuth();
   const [requestingPermission, setRequestingPermission] = useState(false);
-  const locationSuccessShownRef = useRef(false);
 
-  // Only request location when user is authenticated. Never show alerts when !user (e.g. after sign out).
+  // Prevent repeated alerts across tab-focus loops
+  const deniedShownRef = useRef(false);
+  const successShownRef = useRef(false);
+
+  const hasLocation = !!(user?.latitude && user?.longitude);
+  const userLocation =
+    user?.latitude && user?.longitude
+      ? { latitude: user.latitude, longitude: user.longitude }
+      : null;
+
   const requestLocation = useCallback(async () => {
-    if (!user) {
-      console.log('useLocation: No user, skipping location request (no alert)');
+    if (!user) return;
+    if (Platform.OS === 'web') return;
+
+    // If user explicitly turned off location services in profile, don't auto-request.
+    const locationEnabled =
+      (user as any)?.locationEnabled ?? (user as any)?.location_enabled ?? null;
+
+    if (locationEnabled === false) {
+      // They turned it off; don’t prompt.
       return;
     }
 
-    console.log('useLocation: Requesting location permission');
+    // If we already have location, don’t prompt again.
+    if (hasLocation) return;
+
+    // If we already recorded that we asked and user denied, don't re-alert on every focus.
+    const alreadyRequested =
+      (user as any)?.locationPermissionRequested ??
+      (user as any)?.location_permission_requested ??
+      false;
+
     setRequestingPermission(true);
-
     try {
-      const result = await requestLocationPermission();
+      const result = (await requestLocationPermission()) as LocationResult;
 
-      if (result.granted && result.latitude && result.longitude) {
+      // Always mark that we attempted at least once
+      await updateUserProfile({ locationPermissionRequested: true });
+
+      if (result.granted && result.latitude != null && result.longitude != null) {
         await updateUserProfile({
           latitude: result.latitude,
           longitude: result.longitude,
           locationEnabled: true,
-          locationPermissionRequested: true,
         });
-        if (!locationSuccessShownRef.current) {
-          locationSuccessShownRef.current = true;
-          console.log('useLocation: Showing location success message once');
+
+        if (!successShownRef.current) {
+          successShownRef.current = true;
           Alert.alert('Success', 'Location saved! You can now see nearby courts.');
         }
-      } else {
-        await updateUserProfile({ locationPermissionRequested: true });
+        deniedShownRef.current = false;
+        return;
+      }
+
+      // Denied case
+      if (!alreadyRequested && !deniedShownRef.current) {
+        deniedShownRef.current = true;
         Alert.alert(
           'Location Access Denied',
           'You can still use PickleRadar by searching for courts using a ZIP code.'
@@ -43,55 +79,53 @@ export const useLocation = () => {
       }
     } catch (error) {
       console.error('useLocation: Error requesting location:', error);
-      if (user) {
-        Alert.alert(
-          'Location Error',
-          'Unable to access location. You can still search by ZIP code.'
-        );
+
+      // Avoid spamming error alerts on focus loops
+      if (!deniedShownRef.current) {
+        deniedShownRef.current = true;
+        Alert.alert('Location Error', 'Unable to access location. You can still search by ZIP code.');
       }
+
       try {
-        if (user) await updateUserProfile({ locationPermissionRequested: true });
+        await updateUserProfile({ locationPermissionRequested: true });
       } catch (updateError) {
         console.error('useLocation: Error updating permission status:', updateError);
       }
     } finally {
       setRequestingPermission(false);
     }
-  }, [user, updateUserProfile]);
+  }, [user, hasLocation, updateUserProfile]);
 
-  const updateZipCode = async (zipCode: string) => {
-    if (!user) return { success: false, error: 'Not logged in' };
+  const updateZipCode = useCallback(
+    async (zipCode: string) => {
+      if (!user) return { success: false, error: 'Not logged in' };
 
-    try {
-      console.log('useLocation: Geocoding ZIP code:', zipCode);
-      const result = await geocodeZipCode(zipCode);
-      
-      if (result.success && result.latitude && result.longitude) {
-        console.log('useLocation: ZIP code geocoded successfully');
-        await updateUserProfile({
-          zipCode,
-          latitude: result.latitude,
-          longitude: result.longitude,
-        });
-        return { success: true };
-      } else {
-        console.log('useLocation: ZIP code geocoding failed:', result.error);
+      try {
+        const result = await geocodeZipCode(zipCode);
+
+        if (result.success && result.latitude != null && result.longitude != null) {
+          await updateUserProfile({
+            zipCode,
+            latitude: result.latitude,
+            longitude: result.longitude,
+          });
+          return { success: true };
+        }
+
         return { success: false, error: result.error || 'Invalid ZIP code' };
+      } catch (error) {
+        console.error('useLocation: Error updating ZIP code:', error);
+        return { success: false, error: 'Failed to update ZIP code' };
       }
-    } catch (error) {
-      console.error('useLocation: Error updating ZIP code:', error);
-      return { success: false, error: 'Failed to update ZIP code' };
-    }
-  };
+    },
+    [user, updateUserProfile]
+  );
 
   return {
     requestLocation,
     updateZipCode,
     requestingPermission,
-    hasLocation: !!(user?.latitude && user?.longitude),
-    userLocation: user?.latitude && user?.longitude ? {
-      latitude: user.latitude,
-      longitude: user.longitude,
-    } : null,
+    hasLocation,
+    userLocation,
   };
 };

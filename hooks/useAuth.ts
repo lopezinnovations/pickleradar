@@ -1,100 +1,75 @@
 // hooks/useAuth.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
 type AcceptConsentResult = { success: true } | { success: false; error?: string };
 
+const LATEST_ACCEPTED_VERSION = '1';
+
+const USERS_TABLE = 'users';
+const AVATAR_BUCKET = 'avatars';
+
 type UpdateUserProfileInput = {
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   pickleballerNickname?: string;
-  // You have both skill_level and experience_level; Profile uses experienceLevel
   experienceLevel?: 'Beginner' | 'Intermediate' | 'Advanced' | string;
   duprRating?: number;
   privacyOptIn?: boolean;
   locationEnabled?: boolean;
   friendVisibility?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  zipCode?: string | null;
+  locationPermissionRequested?: boolean;
+  notificationPromptShown?: boolean;
+  notificationsEnabled?: boolean;
+  isDeleted?: boolean;
 };
-
-const USERS_TABLE = 'users';
-
-// If your bucket name differs, change this:
-const AVATAR_BUCKET = 'avatars';
-
-// If you version your legal/consent texts, put the current version here:
-const LATEST_ACCEPTED_VERSION = '1';
 
 function mergeUser(authUser: any, profileRow: any) {
   if (!authUser && !profileRow) return null;
-
   const base = authUser ? { ...authUser } : {};
   const profile = profileRow ? { ...profileRow } : {};
-
-  // Provide camelCase aliases used by UI (non-breaking)
   return {
     ...base,
     ...profile,
-
-    firstName: profile.first_name ?? profile.firstName ?? base.firstName,
-    lastName: profile.last_name ?? profile.lastName ?? base.lastName,
-    pickleballerNickname: profile.pickleballer_nickname ?? profile.pickleballerNickname ?? base.pickleballerNickname,
-
-    experienceLevel: profile.experience_level ?? profile.experienceLevel ?? base.experienceLevel,
-    skillLevel: profile.skill_level ?? profile.skillLevel ?? base.skillLevel,
-
-    duprRating: profile.dupr_rating ?? profile.duprRating ?? base.duprRating,
-    privacyOptIn: profile.privacy_opt_in ?? profile.privacyOptIn ?? base.privacyOptIn,
-    locationEnabled: profile.location_enabled ?? profile.locationEnabled ?? base.locationEnabled,
-    friendVisibility: profile.friend_visibility ?? profile.friendVisibility ?? base.friendVisibility,
-
-    profilePictureUrl: profile.profile_picture_url ?? profile.profilePictureUrl ?? base.profilePictureUrl,
-
-    // Consent/acceptance fields that match your schema
-    termsAccepted: profile.terms_accepted ?? profile.termsAccepted ?? base.termsAccepted,
-    privacyAccepted: profile.privacy_accepted ?? profile.privacyAccepted ?? base.privacyAccepted,
-    acceptedAt: profile.accepted_at ?? profile.acceptedAt ?? base.acceptedAt,
-    acceptedVersion: profile.accepted_version ?? profile.acceptedVersion ?? base.acceptedVersion,
+    firstName: profile.first_name ?? base.firstName,
+    lastName: profile.last_name ?? base.lastName,
+    pickleballerNickname: profile.pickleballer_nickname ?? base.pickleballerNickname,
+    experienceLevel: profile.experience_level ?? base.experienceLevel,
+    skillLevel: profile.skill_level ?? base.skillLevel,
+    duprRating: profile.dupr_rating ?? base.duprRating,
+    privacyOptIn: profile.privacy_opt_in ?? base.privacyOptIn,
+    locationEnabled: profile.location_enabled ?? base.locationEnabled,
+    friendVisibility: profile.friend_visibility ?? base.friendVisibility,
+    profilePictureUrl: profile.profile_picture_url ?? base.profilePictureUrl,
+    notificationsEnabled: profile.notifications_enabled ?? base.notificationsEnabled,
+    latitude: profile.latitude ?? base.latitude,
+    longitude: profile.longitude ?? base.longitude,
+    zipCode: profile.zip_code ?? base.zipCode,
+    locationPermissionRequested:
+      profile.location_permission_requested ?? base.locationPermissionRequested,
+    termsAccepted: profile.terms_accepted ?? base.termsAccepted,
+    privacyAccepted: profile.privacy_accepted ?? base.privacyAccepted,
+    acceptedAt: profile.accepted_at ?? base.acceptedAt,
+    acceptedVersion: profile.accepted_version ?? base.acceptedVersion,
+    isDeleted: profile.is_deleted ?? base.isDeleted,
   };
 }
 
 export function useAuth() {
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-
-  // coalesce concurrent refetches
   const inflightRef = useRef<Promise<any> | null>(null);
 
   const fetchProfileRow = useCallback(async (userId: string) => {
-    if (!isSupabaseConfigured()) return null;
-
+    if (!isSupabaseConfigured() || !supabase) return null;
     const { data, error } = await supabase
       .from(USERS_TABLE)
       .select(
-        `
-        id,
-        email,
-        phone,
-        first_name,
-        last_name,
-        pickleballer_nickname,
-        experience_level,
-        skill_level,
-        dupr_rating,
-        privacy_opt_in,
-        location_enabled,
-        friend_visibility,
-        profile_picture_url,
-        notifications_enabled,
-        notification_prompt_shown,
-        push_token,
-        is_super_admin,
-        terms_accepted,
-        privacy_accepted,
-        accepted_at,
-        accepted_version,
-        is_deleted,
-        updated_at
-      `
+        'id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, skill_level, dupr_rating, privacy_opt_in, location_enabled, profile_picture_url, notifications_enabled, notification_prompt_shown, terms_accepted, privacy_accepted, accepted_at, accepted_version, latitude, longitude, zip_code, location_permission_requested, is_deleted, updated_at'
       )
       .eq('id', userId)
       .maybeSingle();
@@ -107,29 +82,23 @@ export function useAuth() {
   }, []);
 
   const refetchUser = useCallback(async () => {
-    if (!isSupabaseConfigured()) return null;
-
+    if (!isSupabaseConfigured() || !supabase) return null;
     if (inflightRef.current) return inflightRef.current;
 
     inflightRef.current = (async () => {
       try {
         const { data: userResp, error: userErr } = await supabase.auth.getUser();
         if (userErr) throw userErr;
-
         const authUser = userResp?.user ?? null;
         if (!authUser?.id) {
           setUser(null);
           return null;
         }
-
         const profileRow = await fetchProfileRow(authUser.id);
-
-        // Optional: if soft-deleted, treat as signed out
         if ((profileRow as any)?.is_deleted) {
           setUser(null);
           return null;
         }
-
         const merged = mergeUser(authUser, profileRow);
         setUser(merged);
         return merged;
@@ -141,93 +110,115 @@ export function useAuth() {
         setAuthLoading(false);
       }
     })();
-
     return inflightRef.current;
   }, [fetchProfileRow]);
 
   useEffect(() => {
+    const client = supabase;
+    if (!isSupabaseConfigured() || !client) {
+      setAuthLoading(false);
+      setUser(null);
+      return;
+    }
     let mounted = true;
 
     const init = async () => {
-      if (!isSupabaseConfigured()) {
-        if (mounted) {
-          setAuthLoading(false);
-          setUser(null);
-        }
+      setAuthLoading(true);
+      const { data: userResp, error: userErr } = await client.auth.getUser();
+      if (userErr || !userResp?.user?.id) {
+        if (mounted) setUser(null);
+        setAuthLoading(false);
         return;
       }
+      const row = await fetchProfileRow(userResp.user.id);
+      if (!mounted) return;
+      if ((row as any)?.is_deleted) {
+        setUser(null);
+        setAuthLoading(false);
+        return;
+      }
+      setUser(mergeUser(userResp.user, row));
+      setAuthLoading(false);
+    };
 
-      setAuthLoading(true);
-      await refetchUser();
+    init();
 
-      const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = client.auth.onAuthStateChange(
+      async (_event: AuthChangeEvent, session: Session | null) => {
         if (!mounted) return;
-
         const authUser = session?.user ?? null;
         if (!authUser?.id) {
           setUser(null);
           setAuthLoading(false);
           return;
         }
-
         const profileRow = await fetchProfileRow(authUser.id);
-
+        if (!mounted) return;
         if ((profileRow as any)?.is_deleted) {
           setUser(null);
           setAuthLoading(false);
           return;
         }
-
         setUser(mergeUser(authUser, profileRow));
         setAuthLoading(false);
-      });
-
-      return () => {
-        sub?.subscription?.unsubscribe();
-      };
-    };
-
-    let cleanup: (() => void) | undefined;
-    init().then((c) => {
-      cleanup = c as any;
-    });
+      }
+    );
 
     return () => {
       mounted = false;
-      cleanup?.();
+      sub?.subscription?.unsubscribe();
     };
-  }, [fetchProfileRow, refetchUser]);
+  }, [fetchProfileRow]);
 
   const signOut = useCallback(async () => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured() || !supabase) return;
     await supabase.auth.signOut();
     setUser(null);
   }, []);
 
   const updateUserProfile = useCallback(
     async (input: UpdateUserProfileInput) => {
-      if (!isSupabaseConfigured()) throw new Error('Supabase is not configured.');
+      if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase is not configured.');
       if (!user?.id) throw new Error('Not signed in.');
 
-      const payload: any = {
-        first_name: input.firstName,
-        last_name: input.lastName,
-        pickleballer_nickname: input.pickleballerNickname ?? null,
+      const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-        // Keep your canonical field as experience_level; also mirror to skill_level if you want
-        experience_level: input.experienceLevel ?? null,
-        skill_level: input.experienceLevel ?? null,
+      if (input.firstName !== undefined) payload.first_name = input.firstName.trim() || null;
+      if (input.lastName !== undefined) payload.last_name = input.lastName.trim() || null;
+      if (input.pickleballerNickname !== undefined)
+        payload.pickleballer_nickname = input.pickleballerNickname.trim() || null;
+      if (input.experienceLevel !== undefined) {
+        payload.experience_level = input.experienceLevel || null;
+        payload.skill_level = input.experienceLevel || null;
+      }
+      if (input.duprRating !== undefined)
+        payload.dupr_rating = typeof input.duprRating === 'number' ? input.duprRating : null;
+      if (input.privacyOptIn !== undefined) payload.privacy_opt_in = input.privacyOptIn;
+      if (input.locationEnabled !== undefined) payload.location_enabled = input.locationEnabled;
+      if (input.friendVisibility !== undefined) payload.friend_visibility = input.friendVisibility;
+      if (input.latitude !== undefined) payload.latitude = input.latitude;
+      if (input.longitude !== undefined) payload.longitude = input.longitude;
+      if (input.zipCode !== undefined) payload.zip_code = input.zipCode;
+      if (input.locationPermissionRequested !== undefined)
+        payload.location_permission_requested = input.locationPermissionRequested;
+      if (input.notificationPromptShown !== undefined)
+        payload.notification_prompt_shown = input.notificationPromptShown;
+      if (input.notificationsEnabled !== undefined)
+        payload.notifications_enabled = input.notificationsEnabled;
+      if (input.isDeleted !== undefined) payload.is_deleted = input.isDeleted;
 
-        dupr_rating: typeof input.duprRating === 'number' ? input.duprRating : null,
-        privacy_opt_in: typeof input.privacyOptIn === 'boolean' ? input.privacyOptIn : null,
-        location_enabled: typeof input.locationEnabled === 'boolean' ? input.locationEnabled : null,
-        friend_visibility: typeof input.friendVisibility === 'boolean' ? input.friendVisibility : null,
-        updated_at: new Date().toISOString(),
-      };
+      if (Object.keys(payload).length === 1) return;
 
-      const { error } = await supabase.from(USERS_TABLE).update(payload).eq('id', user.id);
+      const clean = Object.fromEntries(
+        Object.entries(payload).filter(([, v]) => v !== undefined)
+      ) as Record<string, unknown>;
+
+      const { error } = await supabase
+        .from(USERS_TABLE)
+        .update(clean)
+        .eq('id', user.id);
+
       if (error) throw error;
-
       await refetchUser();
     },
     [user?.id, refetchUser]
@@ -236,32 +227,28 @@ export function useAuth() {
   const uploadProfilePicture = useCallback(
     async (uri: string): Promise<{ success: boolean; error?: string }> => {
       try {
-        if (!isSupabaseConfigured()) return { success: false, error: 'Supabase is not configured.' };
+        if (!isSupabaseConfigured() || !supabase)
+          return { success: false, error: 'Supabase is not configured.' };
         if (!user?.id) return { success: false, error: 'Not signed in.' };
 
-        // RN + web: fetch(uri) -> blob
         const res = await fetch(uri);
         const blob = await res.blob();
-
         const ext = 'jpg';
         const filePath = `${user.id}/${Date.now()}.${ext}`;
 
         const { error: uploadErr } = await supabase.storage
           .from(AVATAR_BUCKET)
           .upload(filePath, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
-
         if (uploadErr) return { success: false, error: uploadErr.message };
 
         const { data: pub } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath);
         const publicUrl = pub?.publicUrl;
-
         if (!publicUrl) return { success: false, error: 'Failed to get public URL.' };
 
         const { error: updateErr } = await supabase
           .from(USERS_TABLE)
           .update({ profile_picture_url: publicUrl, updated_at: new Date().toISOString() })
           .eq('id', user.id);
-
         if (updateErr) return { success: false, error: updateErr.message };
 
         await refetchUser();
@@ -273,21 +260,23 @@ export function useAuth() {
     [user?.id, refetchUser]
   );
 
-  // Your Profile expects needsConsentUpdate?.() and acceptConsent()
-  // Use your schema: terms_accepted + privacy_accepted + accepted_version
   const needsConsentUpdate = useCallback(() => {
-    const termsAccepted = !!(user as any)?.termsAccepted ?? !!(user as any)?.terms_accepted;
-    const privacyAccepted = !!(user as any)?.privacyAccepted ?? !!(user as any)?.privacy_accepted;
-    const acceptedVersion = (user as any)?.acceptedVersion ?? (user as any)?.accepted_version ?? null;
-
+    const termsAcceptedRaw = (user as any)?.termsAccepted ?? (user as any)?.terms_accepted ?? null;
+    const privacyAcceptedRaw =
+      (user as any)?.privacyAccepted ?? (user as any)?.privacy_accepted ?? null;
+    const termsAccepted = termsAcceptedRaw === true;
+    const privacyAccepted = privacyAcceptedRaw === true;
+    const rawVersion = (user as any)?.acceptedVersion ?? (user as any)?.accepted_version ?? null;
+    const acceptedVersion = rawVersion != null ? String(rawVersion).trim() : '';
     if (!termsAccepted || !privacyAccepted) return true;
-    if (acceptedVersion !== LATEST_ACCEPTED_VERSION) return true;
+    if (acceptedVersion !== String(LATEST_ACCEPTED_VERSION).trim()) return true;
     return false;
   }, [user]);
 
   const acceptConsent = useCallback(async (): Promise<AcceptConsentResult> => {
     try {
-      if (!isSupabaseConfigured()) return { success: false, error: 'Supabase is not configured.' };
+      if (!isSupabaseConfigured() || !supabase)
+        return { success: false, error: 'Supabase is not configured.' };
       if (!user?.id) return { success: false, error: 'Not signed in.' };
 
       const payload = {
@@ -301,6 +290,17 @@ export function useAuth() {
       const { error } = await supabase.from(USERS_TABLE).update(payload).eq('id', user.id);
       if (error) return { success: false, error: error.message };
 
+      setUser((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              terms_accepted: true,
+              privacy_accepted: true,
+              accepted_at: payload.accepted_at,
+              accepted_version: LATEST_ACCEPTED_VERSION,
+            }
+          : null
+      );
       await refetchUser();
       return { success: true };
     } catch (e: any) {
@@ -322,6 +322,16 @@ export function useAuth() {
       acceptConsent,
       refetchUser,
     }),
-    [user, authLoading, isConfigured, signOut, updateUserProfile, uploadProfilePicture, needsConsentUpdate, acceptConsent, refetchUser]
+    [
+      user,
+      authLoading,
+      isConfigured,
+      signOut,
+      updateUserProfile,
+      uploadProfilePicture,
+      needsConsentUpdate,
+      acceptConsent,
+      refetchUser,
+    ]
   );
 }

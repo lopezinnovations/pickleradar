@@ -161,7 +161,7 @@ export default function PrivacyPolicyScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    paddingTop: 48,
+    paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,

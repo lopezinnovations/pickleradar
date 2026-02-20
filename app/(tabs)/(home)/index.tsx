@@ -54,7 +54,7 @@ export default function HomeScreen() {
   const [showAddCourtModal, setShowAddCourtModal] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
 
-  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoRefreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasAutoRequestedLocationRef = useRef(false);
 
   const debouncedSearch = useCallback((query: string) => {
@@ -107,7 +107,8 @@ export default function HomeScreen() {
   };
 
   const processedCourts = useMemo(() => {
-    let filtered: Court[] = courts ?? [];
+    let filtered: Court[] = (Array.isArray(courts) ? courts : []) as Court[];
+    const skillLevels = filters.skillLevels ?? [];
 
     // Search
     if (debouncedSearchQuery.trim()) {
@@ -121,11 +122,11 @@ export default function HomeScreen() {
     }
 
     // Skill level filter
-    if (filters.skillLevels.length > 0) {
+    if (skillLevels.length > 0) {
       filtered = filtered.filter((court) => {
         if (!court.averageSkillLevel || court.averageSkillLevel === 0) return false;
         const skillLabel = getSkillLevelLabel(court.averageSkillLevel);
-        return filters.skillLevels.includes(skillLabel);
+        return skillLevels.includes(skillLabel);
       });
     }
 
@@ -141,7 +142,7 @@ export default function HomeScreen() {
           return (b.currentPlayers ?? 0) - (a.currentPlayers ?? 0);
         case 'nearest':
           return (a.distance ?? 9999) - (b.distance ?? 9999);
-        case 'az':
+        case 'az' as SortOption:
           return (a.name ?? '').localeCompare(b.name ?? '');
         case 'favorites':
           // favorites first, then activity
@@ -171,10 +172,11 @@ export default function HomeScreen() {
 
   const toggleSkillFilter = (skill: 'Beginner' | 'Intermediate' | 'Advanced') => {
     setFilters((prev) => {
-      const exists = prev.skillLevels.includes(skill);
+      const current = prev.skillLevels ?? [];
+      const exists = current.includes(skill);
       return {
         ...prev,
-        skillLevels: exists ? prev.skillLevels.filter((s) => s !== skill) : [...prev.skillLevels, skill],
+        skillLevels: exists ? current.filter((s) => s !== skill) : [...current, skill],
       };
     });
   };
@@ -236,39 +238,27 @@ export default function HomeScreen() {
                 style={[styles.pill, sortBy === 'favorites' && styles.pillActive]}
                 onPress={() => setSort('favorites')}
               >
-                <Text style={[styles.pillText, sortBy === 'favorites' && styles.pillTextActive]} numberOfLines={1}>Favorites</Text>
+                <Text style={[styles.pillText, sortBy === 'favorites' && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">Favorites</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.pill, sortBy === 'activity' && styles.pillActive]}
                 onPress={() => setSort('activity')}
               >
-                <Text style={[styles.pillText, sortBy === 'activity' && styles.pillTextActive]} numberOfLines={1}>Activity</Text>
+                <Text style={[styles.pillText, sortBy === 'activity' && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">Activity</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.pill, sortBy === 'nearest' && styles.pillActive]}
                 onPress={() => setSort('nearest')}
               >
-                <Text style={[styles.pillText, sortBy === 'nearest' && styles.pillTextActive]} numberOfLines={1}>Nearest</Text>
+                <Text style={[styles.pillText, sortBy === 'nearest' && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">Nearest</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.pill, sortBy === 'az' && styles.pillActive]}
-                onPress={() => setSort('az')}
+                style={[styles.pill, sortBy === ('az' as SortOption) && styles.pillActive]}
+                onPress={() => setSort('az' as SortOption)}
               >
-                <Text style={[styles.pillText, sortBy === 'az' && styles.pillTextActive]} numberOfLines={1}>A-Z</Text>
+                <Text style={[styles.pillText, sortBy === ('az' as SortOption) && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">A-Z</Text>
               </TouchableOpacity>
             </ScrollView>
-          </View>
-
-          <View style={styles.actionsRight}>
-            <TouchableOpacity style={styles.smallButton} onPress={handleOpenMap}>
-              <IconSymbol ios_icon_name="map" android_material_icon_name="map" size={18} color={colors.primary} />
-              <Text style={styles.smallButtonText}>Map</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.smallButton} onPress={() => setShowAddCourtModal(true)}>
-              <IconSymbol ios_icon_name="plus" android_material_icon_name="add" size={18} color={colors.primary} />
-              <Text style={styles.smallButtonText}>Add</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -287,7 +277,7 @@ export default function HomeScreen() {
           <>
             <View style={styles.filterRow}>
               {(['Beginner', 'Intermediate', 'Advanced'] as const).map((level) => {
-                const active = filters.skillLevels.includes(level);
+                const active = (filters.skillLevels ?? []).includes(level);
                 return (
                   <TouchableOpacity
                     key={level}
@@ -311,8 +301,28 @@ export default function HomeScreen() {
           </>
         )}
 
-        <View style={styles.countRow}>
-          <Text style={commonStyles.subtitle}>{processedCourts.length} Courts</Text>
+        <View style={styles.courtsHeaderRow}>
+          <Text style={styles.countText}>
+            {processedCourts.length} Courts
+          </Text>
+
+          <View style={styles.courtsHeaderActions}>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={handleOpenMap}
+            >
+              <IconSymbol ios_icon_name="map" android_material_icon_name="map" size={16} color="#2e7d32" />
+              <Text style={styles.headerActionText}>Map</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={() => setShowAddCourtModal(true)}
+            >
+              <IconSymbol ios_icon_name="plus" android_material_icon_name="add" size={16} color="#2e7d32" />
+              <Text style={styles.headerActionText}>Add</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Court Cards */}
@@ -327,6 +337,12 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.courtName}>{court.name}</Text>
                 {!!court.address && <Text style={styles.courtAddress}>{court.address}</Text>}
+                {court.city && (court as Court & { state?: string }).state && (
+                  <Text style={styles.cityStateText}>
+                    {court.city}, {(court as Court & { state?: string }).state}
+                    {court.zipCode ? ` ${court.zipCode}` : ''}
+                  </Text>
+                )}
               </View>
 
               <TouchableOpacity
@@ -379,7 +395,7 @@ export default function HomeScreen() {
         onSuccess={() => {
           setShowAddCourtModal(false);
           refetch();
-          router.replace('/(tabs)/(home)/');
+          router.replace('/(tabs)/(home)');
         }}
       />
     </View>
@@ -388,7 +404,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    paddingTop: 48,
+    paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
@@ -422,9 +438,9 @@ const styles = StyleSheet.create({
   },
   sortRow: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
     alignItems: 'center',
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     minWidth: 0,
   },
   sortScroll: {
@@ -432,12 +448,12 @@ const styles = StyleSheet.create({
   },
   sortScrollContent: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
     alignItems: 'center',
     gap: 8,
-    paddingRight: 8,
+    paddingRight: 12,
   },
   pill: {
+    alignSelf: 'flex-start',
     flexShrink: 0,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -457,29 +473,6 @@ const styles = StyleSheet.create({
   },
   pillTextActive: {
     color: colors.card,
-  },
-
-  actionsRight: {
-    flexDirection: 'row',
-    flexShrink: 0,
-    gap: 10,
-    alignItems: 'center',
-  },
-  smallButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  smallButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
   },
 
   filtersHeaderRow: {
@@ -547,6 +540,39 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
+  courtsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
+  courtsHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#c8e6c9',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 18,
+    marginLeft: 8,
+  },
+  headerActionText: {
+    marginLeft: 4,
+    color: '#2e7d32',
+    fontWeight: '500',
+  },
+  countText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
   courtCard: {
     marginHorizontal: 20,
     marginTop: 12,
@@ -570,6 +596,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  cityStateText: {
+    fontSize: 13,
+    color: '#6b8e6b',
+    marginTop: 2,
   },
   favoriteButton: {
     paddingLeft: 8,

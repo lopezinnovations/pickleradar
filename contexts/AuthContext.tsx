@@ -171,33 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
-        if (session?.user?.email) {
-          await fetchUserProfile(session.user.id, session.user.email);
-        } else if (session?.user) {
-          setUser(null);
-          setLoading(false);
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.warn('[AuthProvider] Error in auth state change:', err);
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Single auth listener lives in hooks/useAuth.ts only (no duplicate onAuthStateChange here).
   }, [fetchUserProfile]);
 
   const signUp = useCallback(

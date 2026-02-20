@@ -64,20 +64,14 @@ export default function FriendsScreen() {
       });
   }, [activeTab, allUsers, debouncedSearchQuery, user?.id]);
 
-  const getFriendDisplayName = useCallback(
-    (f: (typeof friends)[0]) =>
-      [f.friendFirstName, f.friendLastName].filter(Boolean).join(' ') ||
-      f.friendNickname ||
-      `User ${f.friendId.slice(0, 8)}`,
-    []
-  );
+  const getFriendDisplayName = useCallback((f: (typeof friends)[0]) => {
+    const firstLast = [f.friendFirstName, f.friendLastName].filter(Boolean).join(' ').trim();
+    return f.friendNickname || firstLast || 'User';
+  }, []);
 
   const getUserDisplayName = useCallback((u: any) => {
-    return (
-      [u.first_name, u.last_name].filter(Boolean).join(' ') ||
-      u.pickleballer_nickname ||
-      `User ${String(u.id).slice(0, 8)}`
-    );
+    const firstLast = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
+    return u.pickleballer_nickname || firstLast || 'User';
   }, []);
 
   const searchPlaceholder =

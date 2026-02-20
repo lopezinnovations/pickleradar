@@ -24,6 +24,7 @@ if (Platform.OS !== 'web') {
 
 // Constants for notification prompt persistence
 const NOTIFICATION_PROMPT_DISMISSED_KEY = 'notificationsPromptDismissedAt';
+export const NOTIFICATIONS_PROMPT_DISMISSED_KEY = 'notifications_prompt_dismissed';
 const MIN_DAYS_BETWEEN_PROMPTS = 14; // 14 days
 
 // ---------- Helpers ----------
@@ -93,11 +94,37 @@ export const getNotificationsPromptDismissedAt = async (): Promise<number | null
 };
 
 /**
+ * Check if user has permanently dismissed the notifications prompt (Enable or Not now).
+ * When true, never show the prompt again.
+ */
+export const getNotificationsPromptDismissed = async (): Promise<boolean> => {
+  try {
+    const v = await AsyncStorage.getItem(NOTIFICATIONS_PROMPT_DISMISSED_KEY);
+    return v === 'true';
+  } catch (error) {
+    console.log('[Notifications] Error reading notifications_prompt_dismissed:', error);
+    return false;
+  }
+};
+
+/**
+ * Permanently dismiss the notifications prompt (never show again).
+ */
+export const setNotificationsPromptDismissed = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(NOTIFICATIONS_PROMPT_DISMISSED_KEY, 'true');
+  } catch (error) {
+    console.log('[Notifications] Error saving notifications_prompt_dismissed:', error);
+  }
+};
+
+/**
  * Set the timestamp when the user dismissed the notification prompt
  */
 export const setNotificationsPromptDismissedAt = async (): Promise<void> => {
   try {
     await AsyncStorage.setItem(NOTIFICATION_PROMPT_DISMISSED_KEY, Date.now().toString());
+    await setNotificationsPromptDismissed();
     console.log('[Notifications] Prompt dismissed timestamp saved');
   } catch (error) {
     console.log('[Notifications] Error saving prompt dismissed timestamp:', error);
@@ -121,6 +148,9 @@ export const clearNotificationsPromptDismissedAt = async (): Promise<void> => {
  */
 export const shouldShowNotificationsPrompt = async (): Promise<boolean> => {
   try {
+    if (await getNotificationsPromptDismissed()) {
+      return false;
+    }
     const { status } = await withTimeout(Notifications.getPermissionsAsync(), 5000);
     if (status === 'granted') {
       console.log('[Notifications] Already granted, no need to show prompt');

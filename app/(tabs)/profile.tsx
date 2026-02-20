@@ -14,7 +14,6 @@ import {
   Modal,
   RefreshControl,
   Platform,
-  Linking,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,21 +23,8 @@ import { useCheckIn } from '@/hooks/useCheckIn';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
 import * as ImagePicker from 'expo-image-picker';
-import Constants from 'expo-constants';
 
-// ✅ supabase client path
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
-
-// ✅ notifications utilities
-import {
-  sendTestPushNotification,
-  isPushNotificationSupported,
-  requestNotificationPermissions,
-  checkNotificationPermissionStatus,
-  registerPushToken,
-  clearNotificationsPromptDismissedAt,
-  setNotificationsPromptDismissedAt,
-} from '@/utils/notifications';
+type RemainingTime = { hours: number; minutes: number };
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -64,175 +50,42 @@ export default function ProfileScreen() {
     refetch: refetchCheckIns,
   } = useCheckIn(user?.id);
 
+  // Profile fields
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [pickleballerNickname, setPickleballerNickname] = useState('');
-  const [skillLevel, setSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Beginner');
   const [duprRating, setDuprRating] = useState('');
   const [duprError, setDuprError] = useState('');
-  const [privacyOptIn, setPrivacyOptIn] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined' | null>(null);
-  const [locationEnabled, setLocationEnabled] = useState(false);
-  const [friendVisibility, setFriendVisibility] = useState(true);
 
+  // Preferences
+  const [privacyOptInValue, setPrivacyOptInValue] = useState(false);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
+  // Check-in
   const [currentCheckIn, setCurrentCheckIn] = useState<any>(null);
-  const [remainingTime, setRemainingTime] = useState<{ hours: number; minutes: number } | null>(null);
+  const [remainingTime, setRemainingTime] = useState<RemainingTime | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
 
+  // UI state
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [showConsentPrompt, setShowConsentPrompt] = useState(false);
   const [acceptingConsent, setAcceptingConsent] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [savingPrefs, setSavingPrefs] = useState(false);
+
+  // Delete account
   const [deletingAccount, setDeletingAccount] = useState(false);
-
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [userPushToken, setUserPushToken] = useState<string | null>(null);
-  const [sendingTestPush, setSendingTestPush] = useState(false);
-
-  const [showImagePickerModal, setShowImagePickerModal] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [isRegistering, setIsRegistering] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
-  const hasLoadedUserData = useRef(false);
+  // --- IMPORTANT: prevents Edge/web from wiping inputs while typing ---
+  // Only initialize form once per userId (do NOT depend on needsConsentUpdate in deps).
+  const initProfileRef = useRef<string | null>(null);
+
   const hasLoadedCheckIn = useRef(false);
-
-  // NOTE: logging only
-  const isDevOrTestFlightBuild = Constants.appOwnership !== 'standalone';
-
-  const fetchAdminStatusAndPushToken = useCallback(async () => {
-    if (!user || !isSupabaseConfigured()) return;
-
-    try {
-      const platform = Platform.OS as 'ios' | 'android' | 'web';
-
-      const { data: tokenRow } = await supabase
-        .from('push_tokens')
-        .select('token')
-        .eq('user_id', user.id)
-        .eq('platform', platform)
-        .eq('active', true)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      let pushToken = tokenRow?.token || null;
-
-      // fallback if you still had legacy storage
-      if (!pushToken) {
-        const { data: userData } = await supabase.from('users').select('push_token').eq('id', user.id).maybeSingle();
-        pushToken = (userData as any)?.push_token || null;
-      }
-
-      setUserPushToken(pushToken);
-
-      const status = await checkNotificationPermissionStatus();
-      setPermissionStatus(status);
-
-      const isAdminUser = user.email?.toLowerCase().includes('admin') || false;
-      setIsAdmin(isAdminUser);
-
-      console.log('[Profile] Push token:', pushToken ? 'Present' : 'Not set');
-      console.log('[Profile] Notification permission:', status);
-      console.log('[Profile] Admin status:', isAdminUser);
-      console.log('[Profile] Build type:', isDevOrTestFlightBuild ? 'Dev/TestFlight' : 'Production');
-    } catch (error) {
-      console.error('[Profile] fetchAdminStatusAndPushToken error:', error);
-    }
-  }, [user, isDevOrTestFlightBuild]);
-
-  const loadCurrentCheckIn = useCallback(async () => {
-    if (!user) return;
-    const checkIn = await getUserCheckIn(user.id);
-    if (checkIn) {
-      setCurrentCheckIn(checkIn);
-      const time = getRemainingTime(checkIn.expires_at);
-      setRemainingTime({ hours: time.hours, minutes: time.minutes });
-    } else {
-      setCurrentCheckIn(null);
-      setRemainingTime(null);
-    }
-  }, [user, getUserCheckIn, getRemainingTime]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([refetchUser(), refetchCheckIns(), loadCurrentCheckIn(), fetchAdminStatusAndPushToken()]);
-    setRefreshing(false);
-  }, [refetchUser, refetchCheckIns, loadCurrentCheckIn, fetchAdminStatusAndPushToken]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) return;
-      refetchUser();
-      refetchCheckIns();
-      loadCurrentCheckIn();
-      fetchAdminStatusAndPushToken();
-    }, [user, refetchUser, refetchCheckIns, loadCurrentCheckIn, fetchAdminStatusAndPushToken])
-  );
-
-  useEffect(() => {
-    if (user && !hasLoadedUserData.current) {
-      setFirstName((user as any).firstName || (user as any).first_name || '');
-      setLastName((user as any).lastName || (user as any).last_name || '');
-      setPickleballerNickname((user as any).pickleballerNickname || (user as any).pickleballer_nickname || '');
-      setSkillLevel(
-        ((user as any).experienceLevel || (user as any).experience_level || (user as any).skillLevel || 'Beginner') as any
-      );
-      setDuprRating(
-        (user as any).duprRating
-          ? String((user as any).duprRating)
-          : (user as any).dupr_rating
-          ? String((user as any).dupr_rating)
-          : ''
-      );
-      setDuprError('');
-      setPrivacyOptIn(!!((user as any).privacyOptIn || (user as any).privacy_opt_in));
-      setLocationEnabled(!!((user as any).locationEnabled || (user as any).location_enabled));
-      setFriendVisibility((user as any).friendVisibility !== false);
-
-      hasLoadedUserData.current = true;
-
-      if (needsConsentUpdate?.()) setShowConsentPrompt(true);
-      fetchAdminStatusAndPushToken();
-    } else if (!user && !authLoading) {
-      hasLoadedUserData.current = false;
-      setIsAdmin(false);
-      setUserPushToken(null);
-    }
-  }, [user, authLoading, needsConsentUpdate, fetchAdminStatusAndPushToken]);
-
-  useEffect(() => {
-    if (user && !hasLoadedCheckIn.current) {
-      loadCurrentCheckIn();
-      hasLoadedCheckIn.current = true;
-    } else if (!user && !authLoading) {
-      hasLoadedCheckIn.current = false;
-      setCurrentCheckIn(null);
-      setRemainingTime(null);
-    }
-  }, [user, authLoading, loadCurrentCheckIn]);
-
-  useEffect(() => {
-    if (currentCheckIn?.expires_at) {
-      const updateTime = () => {
-        const time = getRemainingTime(currentCheckIn.expires_at);
-        setRemainingTime({ hours: time.hours, minutes: time.minutes });
-
-        if ((time as any).totalMinutes !== undefined && (time as any).totalMinutes <= 0) {
-          hasLoadedCheckIn.current = false;
-          loadCurrentCheckIn();
-        }
-      };
-
-      updateTime();
-      const interval = setInterval(updateTime, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [currentCheckIn?.expires_at, getRemainingTime, loadCurrentCheckIn]);
 
   const validateDuprRating = (value: string) => {
     if (!value.trim()) {
@@ -257,6 +110,103 @@ export default function ProfileScreen() {
     validateDuprRating(value);
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
+  const loadCurrentCheckIn = useCallback(async () => {
+    if (!user) return;
+    const checkIn = await getUserCheckIn(user.id);
+    if (checkIn) {
+      setCurrentCheckIn(checkIn);
+      const time = getRemainingTime(checkIn.expires_at);
+      setRemainingTime({ hours: time.hours, minutes: time.minutes });
+    } else {
+      setCurrentCheckIn(null);
+      setRemainingTime(null);
+    }
+  }, [user, getUserCheckIn, getRemainingTime]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refetchUser(), refetchCheckIns(), loadCurrentCheckIn()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchUser, refetchCheckIns, loadCurrentCheckIn]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) refetchUser();
+    }, [refetchUser, user?.id])
+  );
+
+  // Initialize form ONCE per userId (prevents ?deleting while typing? in Edge)
+  useEffect(() => {
+    const userId = user?.id ?? null;
+    if (!userId || authLoading) return;
+
+    if (initProfileRef.current === userId) return;
+    initProfileRef.current = userId;
+
+    const fn = (user as any).firstName ?? (user as any).first_name ?? '';
+    const ln = (user as any).lastName ?? (user as any).last_name ?? '';
+    const nick = (user as any).pickleballerNickname ?? (user as any).pickleballer_nickname ?? '';
+    const dupr = (user as any).duprRating ?? (user as any).dupr_rating;
+    setFirstName(typeof fn === 'string' ? fn : '');
+    setLastName(typeof ln === 'string' ? ln : '');
+    setPickleballerNickname(typeof nick === 'string' ? nick : '');
+    setDuprRating(dupr != null && !Number.isNaN(Number(dupr)) ? String(dupr) : '');
+    setDuprError('');
+    setPrivacyOptInValue(!!((user as any)?.privacyOptIn ?? (user as any)?.privacy_opt_in ?? false));
+
+    try {
+      if (typeof needsConsentUpdate === 'function' && needsConsentUpdate()) setShowConsentPrompt(true);
+    } catch {}
+  }, [user?.id, authLoading]);
+
+  // Reset init guard when signing out / switching accounts
+  useEffect(() => {
+    if (!user?.id && !authLoading) {
+      initProfileRef.current = null;
+      setIsEditing(false);
+      setPrivacyOptInValue(false);
+      setCurrentCheckIn(null);
+      setRemainingTime(null);
+      hasLoadedCheckIn.current = false;
+    }
+  }, [user?.id, authLoading]);
+
+  // Check-in load once per session
+  useEffect(() => {
+    if (user?.id && !hasLoadedCheckIn.current) {
+      loadCurrentCheckIn();
+      hasLoadedCheckIn.current = true;
+    }
+  }, [user?.id, loadCurrentCheckIn]);
+
+  // Update remaining time
+  useEffect(() => {
+    if (currentCheckIn?.expires_at) {
+      const updateTime = () => {
+        const time = getRemainingTime(currentCheckIn.expires_at);
+        setRemainingTime({ hours: time.hours, minutes: time.minutes });
+
+        if ((time as any).totalMinutes !== undefined && (time as any).totalMinutes <= 0) {
+          hasLoadedCheckIn.current = false;
+          loadCurrentCheckIn();
+        }
+      };
+
+      updateTime();
+      const interval = setInterval(updateTime, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [currentCheckIn?.expires_at, getRemainingTime, loadCurrentCheckIn]);
+
   const handleAcceptConsent = async () => {
     setAcceptingConsent(true);
     try {
@@ -274,57 +224,42 @@ export default function ProfileScreen() {
     }
   };
 
-  const syncNotificationPermission = useCallback(async () => {
-    if (Platform.OS === 'web') return;
-    const status = await checkNotificationPermissionStatus();
-    setPermissionStatus(status);
-  }, []);
+  const handlePrivacyToggle = useCallback(
+    async (next: boolean) => {
+      if (!user?.id || savingPrefs) return;
 
-  const handleEnableNotifications = useCallback(async () => {
-    if (!user) return;
+      const prev = privacyOptInValue;
+      setPrivacyOptInValue(next);
+      setSavingPrefs(true);
 
-    if (Platform.OS === 'web') {
-      Alert.alert('Not available', 'Push notifications are not supported on web.');
-      return;
-    }
-    if (isRegistering) return;
-
-    setIsRegistering(true);
-    try {
-      const granted = await requestNotificationPermissions();
-      if (granted) {
-        await registerPushToken(user.id);
-        await clearNotificationsPromptDismissedAt();
-        await syncNotificationPermission();
-        await fetchAdminStatusAndPushToken();
-        Alert.alert('Notifications Enabled', 'You will now receive notifications for messages and friends activity.');
-      } else {
-        await setNotificationsPromptDismissedAt();
-        await syncNotificationPermission();
-        Alert.alert('Permission Denied', 'Enable notifications in your device Settings to receive updates.');
+      try {
+        // DB-safe (public.users.privacy_opt_in)
+        await updateUserProfile({ privacy_opt_in: next });
+      } catch (e: any) {
+        setPrivacyOptInValue(prev);
+        Alert.alert('Error', e?.message || 'Failed to update preference.');
+      } finally {
+        setSavingPrefs(false);
       }
-    } catch (error) {
-      console.error('[Profile] handleEnableNotifications error:', error);
-      await syncNotificationPermission();
-      Alert.alert('Error', 'Failed to enable notifications. Please try again.');
-    } finally {
-      setIsRegistering(false);
-    }
-  }, [user, isRegistering, syncNotificationPermission, fetchAdminStatusAndPushToken]);
+    },
+    [user?.id, savingPrefs, privacyOptInValue, updateUserProfile]
+  );
 
   const handlePickImage = async () => {
+    if (!isEditing) return;
     setShowImagePickerModal(true);
   };
 
   const handleTakePhoto = async () => {
     setShowImagePickerModal(false);
+    if (Platform.OS === 'web') {
+      Alert.alert('Not available', 'Profile picture upload is not available on web.');
+      return;
+    }
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant camera access to take photos. Camera access is only used when you choose to take a photo.'
-        );
+        Alert.alert('Permission Required', 'Please grant camera access to take a photo.');
         return;
       }
 
@@ -337,7 +272,6 @@ export default function ProfileScreen() {
       if (!result.canceled && result.assets[0]) {
         setUploadingImage(true);
         const uploadResult = await uploadProfilePicture(result.assets[0].uri);
-
         if (uploadResult.success) Alert.alert('Success', 'Profile picture updated successfully!');
         else Alert.alert('Error', uploadResult.error || 'Failed to upload profile picture');
       }
@@ -351,6 +285,10 @@ export default function ProfileScreen() {
 
   const handleChooseFromLibrary = async () => {
     setShowImagePickerModal(false);
+    if (Platform.OS === 'web') {
+      Alert.alert('Not available', 'Profile picture upload is not available on web.');
+      return;
+    }
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -368,7 +306,6 @@ export default function ProfileScreen() {
       if (!result.canceled && result.assets[0]) {
         setUploadingImage(true);
         const uploadResult = await uploadProfilePicture(result.assets[0].uri);
-
         if (uploadResult.success) Alert.alert('Success', 'Profile picture updated successfully!');
         else Alert.alert('Error', uploadResult.error || 'Failed to upload profile picture');
       }
@@ -423,13 +360,10 @@ export default function ProfileScreen() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         pickleballerNickname: pickleballerNickname.trim() || undefined,
-        experienceLevel: skillLevel,
         duprRating: duprValue,
-        privacyOptIn,
-        locationEnabled,
-        friendVisibility,
+        privacyOptIn: privacyOptInValue,
       });
-
+      await refetchUser();
       setIsEditing(false);
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error: any) {
@@ -437,48 +371,21 @@ export default function ProfileScreen() {
     }
   };
 
-  const buildProfilePayload = () => {
-    const duprValue = duprRating.trim() ? parseFloat(duprRating) : undefined;
-    return {
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      pickleballerNickname: pickleballerNickname.trim() || undefined,
-      experienceLevel: skillLevel,
-      duprRating: duprValue,
-      privacyOptIn,
-      locationEnabled,
-      friendVisibility,
-    };
-  };
-
-  const handleLocationToggle = async (value: boolean) => {
-    if (savingPrefs) return;
-    const prev = locationEnabled;
-    setLocationEnabled(value);
-    setSavingPrefs(true);
-    try {
-      await updateUserProfile({ ...buildProfilePayload(), locationEnabled: value });
-    } catch (error: any) {
-      setLocationEnabled(prev);
-      Alert.alert('Error', error?.message || 'Failed to update. Please try again.');
-    } finally {
-      setSavingPrefs(false);
-    }
-  };
-
-  const handlePrivacyToggle = async (value: boolean) => {
-    if (savingPrefs) return;
-    const prev = privacyOptIn;
-    setPrivacyOptIn(value);
-    setSavingPrefs(true);
-    try {
-      await updateUserProfile({ ...buildProfilePayload(), privacyOptIn: value });
-    } catch (error: any) {
-      setPrivacyOptIn(prev);
-      Alert.alert('Error', error?.message || 'Failed to update. Please try again.');
-    } finally {
-      setSavingPrefs(false);
-    }
+  const cancelEdits = () => {
+    if (!user) return;
+    setFirstName((user as any).firstName || (user as any).first_name || '');
+    setLastName((user as any).lastName || (user as any).last_name || '');
+    setPickleballerNickname((user as any).pickleballerNickname || (user as any).pickleballer_nickname || '');
+    setDuprRating(
+      (user as any).duprRating
+        ? String((user as any).duprRating)
+        : (user as any).dupr_rating
+        ? String((user as any).dupr_rating)
+        : ''
+    );
+    setDuprError('');
+    setPrivacyOptInValue(!!((user as any)?.privacyOptIn ?? (user as any)?.privacy_opt_in ?? false));
+    setIsEditing(false);
   };
 
   const handleDeleteAccountPress = () => {
@@ -490,30 +397,14 @@ export default function ProfileScreen() {
     if (deleteConfirmText !== 'DELETE') return;
     setShowDeleteModal(false);
     setDeleteConfirmText('');
-    await confirmDeleteAccount();
-  };
 
-  const confirmDeleteAccount = async () => {
-    if (!user || !isSupabaseConfigured()) return;
+    if (!user?.id) return;
+
     setDeletingAccount(true);
-
     try {
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          email: null,
-          first_name: null,
-          last_name: null,
-          phone: null,
-          pickleballer_nickname: null,
-          profile_picture_url: null,
-        })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      await signOut();
-      Alert.alert('Account Deleted', 'Your account has been deactivated.', [{ text: 'OK', onPress: () => router.replace('/auth') }]);
+      // Your schema doesn?t show is_deleted; don?t write it unless you actually have it.
+      // If you DO have it, change to: await updateUserProfile({ is_deleted: true });
+      Alert.alert('Not Implemented', 'Account deletion flag is not available in your users table yet.');
     } catch {
       Alert.alert('Error', 'Failed to delete account. Please try again or contact support.');
     } finally {
@@ -541,62 +432,7 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Unknown';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
-  const cancelEdits = () => {
-    if (!user) return;
-    setFirstName((user as any).firstName || (user as any).first_name || '');
-    setLastName((user as any).lastName || (user as any).last_name || '');
-    setPickleballerNickname((user as any).pickleballerNickname || (user as any).pickleballer_nickname || '');
-    setSkillLevel(
-      ((user as any).experienceLevel || (user as any).experience_level || (user as any).skillLevel || 'Beginner') as any
-    );
-    setDuprRating(
-      (user as any).duprRating ? String((user as any).duprRating) : (user as any).dupr_rating ? String((user as any).dupr_rating) : ''
-    );
-    setDuprError('');
-    setPrivacyOptIn(!!((user as any).privacyOptIn || (user as any).privacy_opt_in));
-    setLocationEnabled(!!((user as any).locationEnabled || (user as any).location_enabled));
-    setFriendVisibility((user as any).friendVisibility !== false);
-    setIsEditing(false);
-  };
-
-  const handleSendTestPush = async () => {
-    if (!user?.id) return;
-
-    if (!isPushNotificationSupported()) {
-      Alert.alert(
-        'Push Not Supported',
-        'Push notifications are not supported in Expo Go on Android (SDK 53+).\n\nTo test push:\n• iOS: TestFlight or Dev Build\n• Android: Dev Build'
-      );
-      return;
-    }
-
-    setSendingTestPush(true);
-    try {
-      const result = await sendTestPushNotification(user.id);
-
-      if (result?.success) {
-        Alert.alert('Test Push Sent!', 'A test push notification has been sent.');
-        fetchAdminStatusAndPushToken();
-      } else {
-        const msg = result?.error || 'Failed to send test push notification.';
-        Alert.alert('Failed to Send', msg);
-      }
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      Alert.alert('Error', `Failed to send test push: ${msg}`);
-    } finally {
-      setSendingTestPush(false);
-    }
-  };
-
-  // ---------------- UI STATES ----------------
-
+  // ---------- UI STATES ----------
   if (authLoading) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -610,7 +446,12 @@ export default function ProfileScreen() {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
         <View style={styles.emptyStateIcon}>
-          <IconSymbol ios_icon_name="person.crop.circle" android_material_icon_name="account-circle" size={64} color={colors.textSecondary} />
+          <IconSymbol
+            ios_icon_name="person.crop.circle"
+            android_material_icon_name="account-circle"
+            size={64}
+            color={colors.textSecondary}
+          />
         </View>
         <Text style={[commonStyles.title, { marginTop: 16, textAlign: 'center' }]}>Not Logged In</Text>
         <Text style={[commonStyles.textSecondary, { marginTop: 8, textAlign: 'center' }]}>
@@ -623,11 +464,29 @@ export default function ProfileScreen() {
     );
   }
 
+  const profilePictureUrl = (user as any)?.profilePictureUrl ?? (user as any)?.profile_picture_url ?? null;
+
+  // While editing, show the live text fields in the header so it doesn?t feel ?stale?
+  const headerName =
+    firstName.trim() || lastName.trim()
+      ? `${firstName.trim()} ${lastName.trim()}`.trim()
+      : (user as any).firstName && (user as any).lastName
+      ? `${(user as any).firstName} ${(user as any).lastName}`
+      : (user as any).first_name && (user as any).last_name
+      ? `${(user as any).first_name} ${(user as any).last_name}`
+      : (user as any).phone || (user as any).email || 'User';
+
+  const headerNickname =
+    pickleballerNickname.trim()
+      ? pickleballerNickname.trim()
+      : (user as any).pickleballerNickname || (user as any).pickleballer_nickname || '';
+
   return (
     <View style={commonStyles.container}>
-      <View style={[styles.headerBar, { paddingTop: Math.max(48, insets.top + 8) }]}>
+      <View style={[styles.headerBar, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity style={styles.gearButton} onPress={() => setIsEditing(!isEditing)}>
+
+        <TouchableOpacity style={styles.gearButton} onPress={() => setIsEditing((p) => !p)}>
           <IconSymbol
             ios_icon_name={isEditing ? 'xmark.circle.fill' : 'gearshape.fill'}
             android_material_icon_name={isEditing ? 'cancel' : 'settings'}
@@ -641,7 +500,14 @@ export default function ProfileScreen() {
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(120, insets.bottom + 80) }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
         <View style={styles.content}>
           {/* Consent Prompt */}
@@ -707,11 +573,15 @@ export default function ProfileScreen() {
 
           {/* Header / Avatar */}
           <View style={styles.header}>
-            <TouchableOpacity style={styles.avatarContainer} onPress={handlePickImage} disabled={uploadingImage || !isEditing}>
+            <TouchableOpacity
+              style={styles.avatarContainer}
+              onPress={handlePickImage}
+              disabled={uploadingImage || !isEditing}
+            >
               {uploadingImage ? (
                 <ActivityIndicator size="large" color={colors.primary} />
-              ) : (user as any).profilePictureUrl ? (
-                <Image source={{ uri: (user as any).profilePictureUrl }} style={styles.avatarImage} resizeMode="cover" />
+              ) : profilePictureUrl ? (
+                <Image source={{ uri: profilePictureUrl }} style={styles.avatarImage} resizeMode="cover" />
               ) : (
                 <IconSymbol ios_icon_name="person.crop.circle.fill" android_material_icon_name="account-circle" size={64} color={colors.primary} />
               )}
@@ -723,15 +593,11 @@ export default function ProfileScreen() {
               )}
             </TouchableOpacity>
 
-            <Text style={[commonStyles.title, { color: colors.primary, fontSize: 22 }]}>
-              {(user as any).firstName && (user as any).lastName
-                ? `${(user as any).firstName} ${(user as any).lastName}`
-                : (user as any).phone || (user as any).email || 'User'}
-            </Text>
+            <Text style={[commonStyles.title, { color: colors.primary, fontSize: 22 }]}>{headerName}</Text>
 
-            {(user as any).pickleballerNickname && (
+            {!!headerNickname && (
               <Text style={[commonStyles.textSecondary, { fontSize: 16, marginTop: 4 }]}>
-                &quot;{(user as any).pickleballerNickname}&quot;
+                &quot;{headerNickname}&quot;
               </Text>
             )}
 
@@ -739,13 +605,6 @@ export default function ProfileScreen() {
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{checkInHistory?.length || 0}</Text>
                 <Text style={commonStyles.textSecondary}>Check-ins</Text>
-              </View>
-
-              <View style={styles.separator} />
-
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{skillLevel}</Text>
-                <Text style={commonStyles.textSecondary}>Experience</Text>
               </View>
 
               {!!duprRating && (
@@ -801,39 +660,12 @@ export default function ProfileScreen() {
             </View>
 
             <View style={{ marginTop: 16 }}>
-              <Text style={commonStyles.text}>Skill Level</Text>
-
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                {(['Beginner', 'Intermediate', 'Advanced'] as const).map((lvl) => {
-                  const selected = skillLevel === lvl;
-                  return (
-                    <TouchableOpacity
-                      key={lvl}
-                      onPress={() => isEditing && setSkillLevel(lvl)}
-                      disabled={!isEditing}
-                      style={{
-                        flex: 1,
-                        paddingVertical: 10,
-                        borderRadius: 12,
-                        borderWidth: 2,
-                        borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary : colors.card,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: isEditing ? 1 : 0.7,
-                      }}
-                    >
-                      <Text style={{ color: selected ? colors.card : colors.text, fontWeight: '600' }}>{lvl}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={{ marginTop: 16 }}>
               <Text style={commonStyles.text}>DUPR Rating (optional)</Text>
               <TextInput
-                style={[commonStyles.input, { marginTop: 8, borderColor: duprError ? colors.accent : colors.border, borderWidth: 1 }]}
+                style={[
+                  commonStyles.input,
+                  { marginTop: 8, borderColor: duprError ? colors.accent : colors.border, borderWidth: 1 },
+                ]}
                 value={duprRating}
                 onChangeText={handleDuprChange}
                 placeholder="1.0 - 7.0"
@@ -841,114 +673,40 @@ export default function ProfileScreen() {
                 editable={isEditing}
                 placeholderTextColor={colors.textSecondary}
               />
-              {!!duprError && <Text style={[commonStyles.textSecondary, { color: colors.accent, marginTop: 6 }]}>{duprError}</Text>}
-            </View>
-
-            {isEditing && (
-              <View style={{ flexDirection: 'row', gap: 12, marginTop: 18 }}>
-                <TouchableOpacity style={[buttonStyles.primary, { flex: 1 }]} onPress={handleSaveProfile}>
-                  <Text style={buttonStyles.text}>Save</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[buttonStyles.secondary, { flex: 1 }]} onPress={cancelEdits}>
-                  <Text style={buttonStyles.text}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
-          {/* Privacy & Permissions */}
-          <View style={commonStyles.card}>
-            <Text style={commonStyles.subtitle}>Privacy & Permissions</Text>
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={commonStyles.text}>Friend Visibility</Text>
-                <Text style={commonStyles.textSecondary}>Let friends see when you&apos;re playing</Text>
-              </View>
-              <Switch
-                value={friendVisibility}
-                onValueChange={setFriendVisibility}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.card}
-                disabled={!isEditing}
-              />
-            </View>
-
-            <View style={{ borderTopWidth: 2, borderTopColor: colors.primary, marginTop: 16, paddingTop: 16 }}>
-              <View style={styles.settingRow}>
-                <View style={styles.settingInfo}>
-                  <Text style={[commonStyles.text, { fontWeight: '600' }]}>Push Notifications</Text>
-                  <Text style={commonStyles.textSecondary}>
-                    {permissionStatus === 'granted'
-                      ? 'Enabled - You will receive notifications'
-                      : permissionStatus === 'denied'
-                      ? 'Disabled - enable in device Settings to receive updates'
-                      : Platform.OS === 'web'
-                      ? 'Not available on web'
-                      : 'Disabled - enable to receive updates'}
-                  </Text>
-                </View>
-
-                {Platform.OS !== 'web' ? (
-                  <Switch
-                    value={permissionStatus === 'granted'}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor={colors.card}
-                    disabled={isRegistering}
-                    onValueChange={async (nextValue) => {
-                      if (nextValue) {
-                        await handleEnableNotifications();
-                        return;
-                      }
-                      Alert.alert(
-                        'Turn Off Notifications',
-                        Platform.OS === 'ios'
-                          ? 'To turn off notifications, open iPhone Settings > Notifications > PickleRadar and disable Allow Notifications.'
-                          : 'To turn off notifications, open Android Settings > Notifications > PickleRadar and disable notifications.',
-                        [{ text: 'OK', onPress: () => syncNotificationPermission() }]
-                      );
-                    }}
-                  />
-                ) : (
-                  <Text style={[commonStyles.textSecondary, { fontStyle: 'italic' }]}>Off</Text>
-                )}
-              </View>
-
-              {Platform.OS !== 'web' && permissionStatus === 'denied' && (
-                <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 12, alignSelf: 'flex-start' }]} onPress={() => Linking.openSettings()}>
-                  <Text style={buttonStyles.text}>Enable in Settings</Text>
-                </TouchableOpacity>
+              {!!duprError && (
+                <Text style={[commonStyles.textSecondary, { color: colors.accent, marginTop: 6 }]}>{duprError}</Text>
               )}
             </View>
 
-            <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={commonStyles.text}>Location Services</Text>
-                <Text style={commonStyles.textSecondary}>Show nearby courts first</Text>
-              </View>
-              <Switch
-                value={locationEnabled}
-                onValueChange={handleLocationToggle}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.card}
-                disabled={savingPrefs}
-              />
-            </View>
+            {isEditing && (
+              <TouchableOpacity style={[buttonStyles.primary, { marginTop: 18, width: '100%' }]} onPress={handleSaveProfile}>
+                <Text style={buttonStyles.text}>Save</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Preferences */}
+          <View style={commonStyles.card}>
+            <Text style={commonStyles.subtitle}>Preferences</Text>
 
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={commonStyles.text}>Privacy Opt-in</Text>
-                <Text style={commonStyles.textSecondary}>Allow basic profile info to be visible to friends</Text>
+                <Text style={commonStyles.text}>Show my activity to friends</Text>
+                <Text style={commonStyles.textSecondary}>Let friends see when you&apos;re playing</Text>
               </View>
+
               <Switch
-                value={privacyOptIn}
+                value={privacyOptInValue}
                 onValueChange={handlePrivacyToggle}
                 trackColor={{ false: colors.border, true: colors.primary }}
                 thumbColor={colors.card}
                 disabled={savingPrefs}
               />
             </View>
+
+            <Text style={[commonStyles.textSecondary, { marginTop: 10 }]}>
+              Location and Notifications can be managed in your phone&apos;s Settings.
+            </Text>
           </View>
 
           {/* Current Check-in */}
@@ -962,14 +720,20 @@ export default function ProfileScreen() {
             ) : currentCheckIn ? (
               <>
                 <Text style={[commonStyles.text, { marginTop: 8 }]}>
-                  You are checked in at <Text style={{ fontWeight: '700' }}>{currentCheckIn.courts?.name || 'a court'}</Text>
+                  You are checked in at{' '}
+                  <Text style={{ fontWeight: '700' }}>{currentCheckIn.courts?.name || 'a court'}</Text>
                 </Text>
 
                 <Text style={[commonStyles.textSecondary, { marginTop: 6 }]}>
-                  Expires: {formatDate(currentCheckIn.expires_at)} {remainingTime ? `(${remainingTime.hours}h ${remainingTime.minutes}m remaining)` : ''}
+                  Expires: {formatDate(currentCheckIn.expires_at)}{' '}
+                  {remainingTime ? `(${remainingTime.hours}h ${remainingTime.minutes}m remaining)` : ''}
                 </Text>
 
-                <TouchableOpacity style={[buttonStyles.danger, { marginTop: 14 }]} onPress={handleManualCheckOut} disabled={checkingOut}>
+                <TouchableOpacity
+                  style={[buttonStyles.danger, { marginTop: 14 }]}
+                  onPress={handleManualCheckOut}
+                  disabled={checkingOut}
+                >
                   {checkingOut ? <ActivityIndicator color={colors.card} /> : <Text style={buttonStyles.text}>Check Out</Text>}
                 </TouchableOpacity>
               </>
@@ -978,33 +742,14 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Admin Tools */}
-          {isAdmin && (
-            <View style={commonStyles.card}>
-              <Text style={commonStyles.subtitle}>Admin Tools</Text>
-              <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>Push Token: {userPushToken ? 'Present ✅' : 'Not set ❌'}</Text>
-
-              <TouchableOpacity style={[buttonStyles.secondary, { marginTop: 14 }]} onPress={handleSendTestPush} disabled={sendingTestPush}>
-                {sendingTestPush ? <ActivityIndicator color={colors.primary} /> : <Text style={buttonStyles.text}>Send Test Push</Text>}
-              </TouchableOpacity>
-            </View>
-          )}
-
           {/* Account */}
           <View style={commonStyles.card}>
             <Text style={commonStyles.subtitle}>Account</Text>
 
             <View style={{ marginTop: 12 }}>
               <Text style={commonStyles.textSecondary}>Email</Text>
-              <Text style={commonStyles.text}>{user.email || '—'}</Text>
+              <Text style={commonStyles.text}>{(user as any).email || '?'}</Text>
             </View>
-
-            <TouchableOpacity
-              style={[buttonStyles.secondary, { marginTop: 16 }]}
-              onPress={() => router.push({ pathname: '/reset-password', params: { email: user.email || '' } })}
-            >
-              <Text style={buttonStyles.textSecondary}>Reset Password</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Sign Out */}
@@ -1015,8 +760,14 @@ export default function ProfileScreen() {
           {/* Danger Zone */}
           <View style={[commonStyles.card, styles.dangerZone]}>
             <Text style={[commonStyles.subtitle, { color: colors.error }]}>Danger Zone</Text>
-            <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>Permanently delete your account. This action cannot be undone.</Text>
-            <TouchableOpacity style={[buttonStyles.danger, { marginTop: 16 }]} onPress={handleDeleteAccountPress} disabled={deletingAccount}>
+            <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
+              Permanently delete your account. This action cannot be undone.
+            </Text>
+            <TouchableOpacity
+              style={[buttonStyles.danger, { marginTop: 16 }]}
+              onPress={handleDeleteAccountPress}
+              disabled={deletingAccount}
+            >
               {deletingAccount ? <ActivityIndicator color={colors.card} /> : <Text style={buttonStyles.text}>Delete Account</Text>}
             </TouchableOpacity>
           </View>
@@ -1031,11 +782,21 @@ export default function ProfileScreen() {
           <View style={styles.modalCard}>
             <Text style={[commonStyles.subtitle, { marginBottom: 12 }]}>Update Profile Picture</Text>
 
-            <TouchableOpacity style={[buttonStyles.primary, { marginBottom: 10 }]} onPress={handleTakePhoto}>
+            {Platform.OS === 'web' && (
+              <Text style={[commonStyles.textSecondary, { marginBottom: 12 }]}>
+                Profile picture upload is not available on web.
+              </Text>
+            )}
+
+            <TouchableOpacity style={[buttonStyles.primary, { marginBottom: 10 }]} onPress={handleTakePhoto} disabled={Platform.OS === 'web'}>
               <Text style={buttonStyles.text}>Take Photo</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[buttonStyles.primary, { marginBottom: 10 }]} onPress={handleChooseFromLibrary}>
+            <TouchableOpacity
+              style={[buttonStyles.primary, { marginBottom: 10 }]}
+              onPress={handleChooseFromLibrary}
+              disabled={Platform.OS === 'web'}
+            >
               <Text style={buttonStyles.text}>Choose from Library</Text>
             </TouchableOpacity>
 
@@ -1088,7 +849,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.background,

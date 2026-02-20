@@ -11,6 +11,7 @@ import {
   requestNotificationPermissions, 
   shouldShowNotificationsPrompt,
   setNotificationsPromptDismissedAt,
+  setNotificationsPromptDismissed,
   registerPushToken
 } from '@/utils/notifications';
 import { debounce } from '@/utils/performanceLogger';
@@ -70,6 +71,7 @@ export default function MessagesScreen() {
 
   const handleEnableNotifications = async () => {
     setShowNotificationPrompt(false);
+    await setNotificationsPromptDismissed();
     const granted = await requestNotificationPermissions();
     if (granted && user) {
       await registerPushToken(user.id);

@@ -258,6 +258,7 @@ export default function CourtDetailScreen() {
         });
 
         await refresh().catch(() => {});
+        Alert.alert('Checked In', `You're checked in at ${court.name}.`);
       } else if (result.code === 'ALREADY_CHECKED_IN' && result.courtId) {
         Alert.alert(
           'Already Checked In',
@@ -287,6 +288,7 @@ export default function CourtDetailScreen() {
         optimisticUntilRef.current = Date.now() + 2500;
         setCurrentCheckIn(null);
         await refresh().catch(() => {});
+        Alert.alert('Checked Out', "You've been checked out.");
       } else {
         Alert.alert('Check-out Failed', result.error || 'Please try again');
       }
