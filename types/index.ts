@@ -3,8 +3,9 @@ export interface Court {
   id: string;
   name: string;
   address: string;
-  city?: string;
-  zipCode?: string;
+  city?: string | null;
+  state?: string | null;
+  zip_code?: string | null;
   latitude: number;
   longitude: number;
   activityLevel: 'low' | 'medium' | 'high';

@@ -59,6 +59,7 @@ export default function ProfileScreen() {
 
   // Preferences
   const [privacyOptInValue, setPrivacyOptInValue] = useState(false);
+  const [friendVisibilityDraft, setFriendVisibilityDraft] = useState(true);
   const [savingPrefs, setSavingPrefs] = useState(false);
 
   // Check-in
@@ -162,6 +163,7 @@ export default function ProfileScreen() {
     setDuprRating(dupr != null && !Number.isNaN(Number(dupr)) ? String(dupr) : '');
     setDuprError('');
     setPrivacyOptInValue(!!((user as any)?.privacyOptIn ?? (user as any)?.privacy_opt_in ?? false));
+    setFriendVisibilityDraft((user as any)?.friendVisibility ?? (user as any)?.friend_visibility ?? true);
 
     try {
       if (typeof needsConsentUpdate === 'function' && needsConsentUpdate()) setShowConsentPrompt(true);
@@ -170,10 +172,15 @@ export default function ProfileScreen() {
 
   // Reset init guard when signing out / switching accounts
   useEffect(() => {
+    setFriendVisibilityDraft((user as any)?.friendVisibility ?? (user as any)?.friend_visibility ?? true);
+  }, [(user as any)?.friendVisibility, (user as any)?.friend_visibility]);
+
+  useEffect(() => {
     if (!user?.id && !authLoading) {
       initProfileRef.current = null;
       setIsEditing(false);
       setPrivacyOptInValue(false);
+      setFriendVisibilityDraft(true);
       setCurrentCheckIn(null);
       setRemainingTime(null);
       hasLoadedCheckIn.current = false;
@@ -362,6 +369,7 @@ export default function ProfileScreen() {
         pickleballerNickname: pickleballerNickname.trim() || undefined,
         duprRating: duprValue,
         privacyOptIn: privacyOptInValue,
+        friendVisibility: friendVisibilityDraft,
       });
       await refetchUser();
       setIsEditing(false);
@@ -385,6 +393,7 @@ export default function ProfileScreen() {
     );
     setDuprError('');
     setPrivacyOptInValue(!!((user as any)?.privacyOptIn ?? (user as any)?.privacy_opt_in ?? false));
+    setFriendVisibilityDraft((user as any)?.friendVisibility ?? (user as any)?.friend_visibility ?? true);
     setIsEditing(false);
   };
 
@@ -695,13 +704,18 @@ export default function ProfileScreen() {
                 <Text style={commonStyles.textSecondary}>Let friends see when you&apos;re playing</Text>
               </View>
 
-              <Switch
-                value={privacyOptInValue}
-                onValueChange={handlePrivacyToggle}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={colors.card}
-                disabled={savingPrefs}
-              />
+              {isEditing ? (
+                <Switch
+                  value={friendVisibilityDraft}
+                  onValueChange={setFriendVisibilityDraft}
+                  trackColor={{ false: colors.border, true: colors.primary }}
+                  thumbColor={colors.card}
+                />
+              ) : (
+                <Text style={commonStyles.text}>
+                  {((user as any)?.friendVisibility ?? (user as any)?.friend_visibility ?? true) ? 'On' : 'Off'}
+                </Text>
+              )}
             </View>
 
             <Text style={[commonStyles.textSecondary, { marginTop: 10 }]}>

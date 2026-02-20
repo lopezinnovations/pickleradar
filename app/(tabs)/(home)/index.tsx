@@ -337,10 +337,9 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.courtName}>{court.name}</Text>
                 {!!court.address && <Text style={styles.courtAddress}>{court.address}</Text>}
-                {court.city && (court as Court & { state?: string }).state && (
-                  <Text style={styles.cityStateText}>
-                    {court.city}, {(court as Court & { state?: string }).state}
-                    {court.zipCode ? ` ${court.zipCode}` : ''}
+                {(court.city || court.state || court.zip_code) && (
+                  <Text style={styles.cityZipText}>
+                    {[court.city, court.state].filter(Boolean).join(', ') + (court.zip_code ? ` ${court.zip_code}` : '')}
                   </Text>
                 )}
               </View>
@@ -512,14 +511,15 @@ const styles = StyleSheet.create({
   },
 
   checkboxRow: {
-    marginTop: 12,
+     marginTop: 12,
     marginHorizontal: 20,
-    padding: 14,
+    padding: 5,
     borderRadius: 16,
     backgroundColor: colors.highlight,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    minHeight: 44,
   },
   checkbox: {
     width: 18,
@@ -528,6 +528,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.card,
+    alignSelf: 'center',
+
   },
   checkboxChecked: {
     backgroundColor: colors.primary,
@@ -597,7 +599,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
-  cityStateText: {
+  cityZipText: {
     fontSize: 13,
     color: '#6b8e6b',
     marginTop: 2,

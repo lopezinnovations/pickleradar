@@ -57,7 +57,7 @@ async function fetchCourtById(courtId: string, userId?: string): Promise<Court |
       supabase
         .from('courts')
         .select(
-          'id, name, address, city, zip_code, latitude, longitude, description, open_time, close_time, google_place_id'
+          'id, name, address, city, state, zip_code, latitude, longitude, description, open_time, close_time, google_place_id'
         )
         .eq('id', courtId)
         .maybeSingle(),
@@ -131,7 +131,8 @@ async function fetchCourtById(courtId: string, userId?: string): Promise<Court |
       name: courtRow.name,
       address: courtRow.address,
       city: courtRow.city,
-      zipCode: courtRow.zip_code,
+      state: (courtRow as { state?: string | null }).state ?? null,
+      zip_code: courtRow.zip_code,
       latitude: courtRow.latitude,
       longitude: courtRow.longitude,
       activityLevel,
@@ -357,7 +358,11 @@ export default function CourtDetailScreen() {
             </TouchableOpacity>
           </View>
           {court.address && <Text style={styles.address}>{court.address}</Text>}
-          {court.city && <Text style={styles.city}>{court.city}</Text>}
+          {(court.city || court.state || court.zip_code) && (
+            <Text style={styles.city}>
+              {[court.city, court.state].filter(Boolean).join(', ') + (court.zip_code ? ` ${court.zip_code}` : '')}
+            </Text>
+          )}
         </View>
 
         <View style={styles.metaRow}>

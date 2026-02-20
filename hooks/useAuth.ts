@@ -43,7 +43,7 @@ function mergeUser(authUser: any, profileRow: any) {
     duprRating: profile.dupr_rating ?? base.duprRating,
     privacyOptIn: profile.privacy_opt_in ?? base.privacyOptIn,
     locationEnabled: profile.location_enabled ?? base.locationEnabled,
-    friendVisibility: profile.friend_visibility ?? base.friendVisibility,
+    friendVisibility: profile.friend_visibility ?? base.friendVisibility ?? true,
     profilePictureUrl: profile.profile_picture_url ?? base.profilePictureUrl,
     notificationsEnabled: profile.notifications_enabled ?? base.notificationsEnabled,
     latitude: profile.latitude ?? base.latitude,
@@ -69,7 +69,7 @@ export function useAuth() {
     const { data, error } = await supabase
       .from(USERS_TABLE)
       .select(
-        'id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, skill_level, dupr_rating, privacy_opt_in, location_enabled, profile_picture_url, notifications_enabled, notification_prompt_shown, terms_accepted, privacy_accepted, accepted_at, accepted_version, latitude, longitude, zip_code, location_permission_requested, is_deleted, updated_at'
+        'id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, skill_level, dupr_rating, privacy_opt_in, location_enabled, friend_visibility, profile_picture_url, notifications_enabled, notification_prompt_shown, terms_accepted, privacy_accepted, accepted_at, accepted_version, latitude, longitude, zip_code, location_permission_requested, is_deleted, updated_at'
       )
       .eq('id', userId)
       .maybeSingle();

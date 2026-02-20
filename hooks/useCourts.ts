@@ -77,7 +77,7 @@ export const useCourts = (userId?: string) => {
       // OPTIMIZED: Select only needed fields
       const { data, error } = await supabase
         .from('courts')
-        .select('id, name, address, city, zip_code, latitude, longitude, description, open_time, close_time, google_place_id');
+        .select('id, name, address, city, state, zip_code, latitude, longitude, description, open_time, close_time, google_place_id');
 
       if (error) {
         console.log('useCourts: Error fetching courts:', error);
@@ -153,7 +153,8 @@ export const useCourts = (userId?: string) => {
             name: court.name,
             address: court.address,
             city: court.city,
-            zipCode: court.zip_code,
+            state: (court as { state?: string | null }).state ?? null,
+            zip_code: court.zip_code,
             latitude: court.latitude,
             longitude: court.longitude,
             activityLevel,

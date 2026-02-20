@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SkillLevelBars } from '@/components/SkillLevelBars';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { formatDisplayName } from '@/utils/formatDisplayName';
 
 interface UserProfile {
   id: string;
@@ -283,20 +284,6 @@ export default function UserProfileScreen() {
     );
   };
 
-  const formatUserName = (firstName?: string, lastName?: string, nickname?: string, email?: string, phone?: string) => {
-    if (firstName && lastName) {
-      const displayName = `${firstName} ${lastName.charAt(0)}.`;
-      if (nickname) {
-        return `${displayName} (${nickname})`;
-      }
-      return displayName;
-    }
-    if (nickname) {
-      return nickname;
-    }
-    return email || phone || 'Unknown User';
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
@@ -347,13 +334,7 @@ export default function UserProfileScreen() {
   }
 
   const isFriend = friendshipStatus === 'accepted';
-  const displayName = formatUserName(
-    userProfile.first_name,
-    userProfile.last_name,
-    userProfile.pickleballer_nickname,
-    userProfile.email,
-    userProfile.phone
-  );
+  const displayName = formatDisplayName(userProfile);
 
   return (
     <View style={commonStyles.container}>

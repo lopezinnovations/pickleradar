@@ -83,7 +83,7 @@ async function fetchCourts({ userId, userLat, userLng, radiusMiles = 25 }: Fetch
     // OPTIMIZED: Build query with bounding box filter if location is available
     let query = supabase
       .from('courts')
-      .select('id, name, address, city, zip_code, latitude, longitude, description, open_time, close_time, google_place_id');
+      .select('id, name, address, city, state, zip_code, latitude, longitude, description, open_time, close_time, google_place_id');
 
     // NEARBY ONLY: Apply bounding box filter if user location is available
     if (userLat !== undefined && userLng !== undefined) {
@@ -198,7 +198,8 @@ async function fetchCourts({ userId, userLat, userLng, radiusMiles = 25 }: Fetch
           name: court.name,
           address: court.address,
           city: court.city,
-          zipCode: court.zip_code,
+          state: (court as { state?: string | null }).state ?? null,
+          zip_code: court.zip_code,
           latitude: court.latitude,
           longitude: court.longitude,
           activityLevel,

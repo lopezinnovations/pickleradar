@@ -7,6 +7,7 @@ import { useFriendsQuery } from '@/hooks/useFriendsQuery';
 import { IconSymbol } from '@/components/IconSymbol';
 import { FriendCardSkeleton } from '@/components/SkillLevelBars';
 import { debounce } from '@/utils/performanceLogger';
+import { formatDisplayName } from '@/utils/formatDisplayName';
 import { LegalFooter } from '@/components/LegalFooter';
 
 export default function FriendsScreen() {
@@ -65,13 +66,19 @@ export default function FriendsScreen() {
   }, [activeTab, allUsers, debouncedSearchQuery, user?.id]);
 
   const getFriendDisplayName = useCallback((f: (typeof friends)[0]) => {
-    const firstLast = [f.friendFirstName, f.friendLastName].filter(Boolean).join(' ').trim();
-    return f.friendNickname || firstLast || 'User';
+    return formatDisplayName({
+      first_name: f.friendFirstName ?? null,
+      last_name: f.friendLastName ?? null,
+      pickleballer_nickname: f.friendNickname ?? null,
+    });
   }, []);
 
   const getUserDisplayName = useCallback((u: any) => {
-    const firstLast = [u.first_name, u.last_name].filter(Boolean).join(' ').trim();
-    return u.pickleballer_nickname || firstLast || 'User';
+    return formatDisplayName({
+      first_name: u?.first_name ?? null,
+      last_name: u?.last_name ?? null,
+      pickleballer_nickname: u?.pickleballer_nickname ?? null,
+    });
   }, []);
 
   const searchPlaceholder =

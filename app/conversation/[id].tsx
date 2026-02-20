@@ -9,6 +9,7 @@ import { notifyNewMessage } from '@/utils/notifications';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
+import { formatDisplayName } from '@/utils/formatDisplayName';
 
 interface Message {
   id: string;
@@ -434,10 +435,7 @@ export default function ConversationScreen() {
     );
   }
 
-  const recipientName = recipientProfile?.pickleballer_nickname ||
-    (recipientProfile?.first_name && recipientProfile?.last_name
-      ? `${recipientProfile.first_name} ${recipientProfile.last_name}`
-      : 'User');
+  const recipientName = formatDisplayName(recipientProfile ?? {});
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

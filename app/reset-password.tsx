@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator,
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -96,115 +96,91 @@ export default function ResetPasswordScreen() {
     return password.length >= 8;
   };
 
-  const handleResetPassword = async () => {
-    console.log('User tapped Reset Password button');
+  const needsReauth = (msg: string) => /recent|aal|expired|session|jwt/i.test(msg);
 
-    // Prevent double submits
-    if (isSubmitting) {
-      console.log('Already submitting, ignoring duplicate request');
-      return;
-    }
+  const handleResetPassword = async () => {
+    if (isSubmitting) return;
 
     if (!newPassword.trim()) {
       Alert.alert('Error', 'Please enter a new password');
       return;
     }
-
     if (!validatePassword(newPassword)) {
       Alert.alert('Error', 'Password must be at least 8 characters long');
       return;
     }
-
     if (!confirmPassword.trim()) {
       Alert.alert('Error', 'Please confirm your password');
       return;
     }
-
     if (newPassword !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    if (!isSupabaseConfigured()) {
+      Alert.alert('Unable to update password', 'Sign-in is not configured. Cannot update password.');
       return;
     }
 
     setIsSubmitting(true);
     setResetError(null);
     passwordUpdateSucceededRef.current = false;
-
     resetTimeoutRef.current = setTimeout(() => {
       if (!passwordUpdateSucceededRef.current) {
-        console.log('RESET: timeout exceeded');
         setResetError('Request is taking longer than expected. Please try again.');
         setIsSubmitting(false);
       }
     }, 15000);
 
     try {
-      if (!isSupabaseConfigured()) {
-        setResetError('Sign-in is not configured. Cannot update password.');
-        return;
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) throw sessionErr;
+      if (!sessionData.session) {
+        throw new Error('Your session expired. Please sign in again and retry.');
       }
 
-      console.log('RESET: session init start');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.log('RESET: session init fail', sessionError.message);
-        setResetError('Reset link expired or invalid. Request a new one.');
-        return;
-      }
-      if (!session?.access_token) {
-        console.log('RESET: session init fail (no access_token)');
-        setResetError('Reset link expired or invalid. Request a new one.');
-        return;
-      }
-      console.log('RESET: session init success');
-
-      console.log('RESET: updateUser(password) start');
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-
-      if (updateError) {
-        console.log('RESET: updateUser(password) fail', updateError.message, updateError.status);
-        passwordUpdateSucceededRef.current = false;
-        const raw = updateError.message || 'Failed to update password.';
-        const errorMessage = raw.toLowerCase();
-        if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
-          setResetError('Please wait a moment and try again.');
-        } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
-          setResetError('Network error. Please check your connection and try again.');
-        } else {
-          setResetError('Unable to finish resetting password. Please try again.');
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        if (needsReauth(error.message)) {
+          throw new Error('Your session expired or requires a recent sign-in. Please sign out, sign in again, then try changing your password.');
         }
-        return;
+        throw error;
       }
 
-      passwordUpdateSucceededRef.current = true;
-      console.log('RESET: updateUser(password) success');
+      try {
+        if (typeof (supabase.auth as any).refreshSession === 'function') {
+          await (supabase.auth as any).refreshSession();
+        } else {
+          await supabase.auth.getSession();
+        }
+      } catch {
+        // ignore refresh issues; update already succeeded
+      }
 
+      console.log('[AUTH] Password update success');
+      passwordUpdateSucceededRef.current = true;
       setNewPassword('');
       setConfirmPassword('');
       setResetError(null);
 
       Alert.alert(
-        'Password updated',
-        'Your password has been changed. You can now sign in with your new password.',
+        'Success',
+        'Password updated.',
         [
           {
             text: 'OK',
-            onPress: () => {
-              router.replace('/(tabs)/(home)/');
-            },
+            onPress: () => router.replace('/(tabs)/(home)/'),
           },
         ]
       );
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.log('RESET: updateUser(password) fail (exception)', msg);
-      setResetError('An unexpected error occurred. Please try again.');
-      passwordUpdateSucceededRef.current = false;
+    } catch (e: any) {
+      const msg = e?.message ?? 'Please try again.';
+      setResetError(msg);
+      Alert.alert('Unable to update password', msg);
     } finally {
-      // Always clear timeout and loading state
       if (resetTimeoutRef.current) {
         clearTimeout(resetTimeoutRef.current);
+        resetTimeoutRef.current = null;
       }
       setIsSubmitting(false);
     }

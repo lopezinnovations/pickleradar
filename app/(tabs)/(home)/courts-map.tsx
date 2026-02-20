@@ -284,8 +284,13 @@ export default function CourtsMapScreen() {
             >
               <Callout onPress={() => handleCalloutPress(court)}>
                 <View style={styles.calloutContainer}>
-                  <Text style={styles.calloutTitle}>{court.name}</Text>
-                  {!!court.address && <Text style={styles.calloutText}>{court.address}</Text>}
+                  <Text style={styles.placeName}>{court.name}</Text>
+                  {!!court.address && <Text style={styles.addressLine}>{court.address}</Text>}
+                  {(court.city || court.state || court.zip_code) && (
+                    <Text style={styles.addressLineSecondary}>
+                      {[court.city, court.state].filter(Boolean).join(', ') + (court.zip_code ? ` ${court.zip_code}` : '')}
+                    </Text>
+                  )}
                   <Text style={styles.calloutText}>Activity: {activityLevelText}</Text>
                   {typeof court.currentPlayers === 'number' && court.currentPlayers > 0 && (
                     <Text style={styles.calloutText}>
@@ -377,6 +382,8 @@ const styles = StyleSheet.create({
   },
 
   calloutContainer: { padding: 10, minWidth: 220 },
-  calloutTitle: { fontSize: 16, fontWeight: '600', marginBottom: 4, color: colors.text },
+  placeName: { fontSize: 16, fontWeight: '600', marginBottom: 4, color: colors.text },
+  addressLine: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  addressLineSecondary: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
   calloutText: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
 });

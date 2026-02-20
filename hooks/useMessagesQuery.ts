@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { formatDisplayName } from '@/utils/formatDisplayName';
 
 
 interface Conversation {
@@ -95,10 +96,9 @@ async function fetchConversations(userId: string): Promise<Conversation[]> {
       const partner = userDetailsMap.get(partnerId);
 
       if (!directConversationsMap.has(partnerId)) {
-        const displayName =
-          partner?.first_name && partner?.last_name
-            ? `${partner.first_name} ${partner.last_name.charAt(0)}.`
-            : partner?.pickleballer_nickname || (partner ? 'User' : 'Unknown User');
+        const displayName = partner
+          ? formatDisplayName(partner)
+          : 'Unknown User';
 
         const muteKey = `direct:${partnerId}`;
 
