@@ -286,19 +286,21 @@ export default function GroupConversationScreen() {
 
       if (error) throw error;
 
+      console.log('[MESSAGES] inserted message', inserted.id);
+      console.log('[MESSAGES] triggering push', { type: 'group', messageId: inserted.id });
+
       const senderName =
         user.pickleballerNickname ||
         [user.firstName, user.lastName].filter(Boolean).join(' ') ||
         undefined;
-      console.log('[MESSAGES] Message inserted, triggering push for group', groupId);
       notifyNewMessage({
         type: 'group',
         sender_id: user.id,
         group_id: groupId,
         content: optimisticMessage.content,
         sender_name: senderName,
-        message_id: inserted?.id,
-      }).catch((e) => console.warn('[MESSAGES] notifyNewMessage error', e));
+        message_id: inserted.id,
+      }).catch(() => {});
     } catch (error) {
       console.error('[MESSAGES] Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.optimisticId !== optimisticId));
