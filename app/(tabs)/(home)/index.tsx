@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   TextInput,
   RefreshControl,
+  Switch,
+  Pressable,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 
@@ -84,19 +86,16 @@ export default function HomeScreen() {
     }, [refetch])
   );
 
-  // Ask for location only once when user is signed in and has no location (avoids repeated requests and success alert loop)
+  // Ask for location only once when user is signed in and has no location
   useEffect(() => {
     if (!user) {
       hasAutoRequestedLocationRef.current = false;
       return;
     }
     if (hasLocation || requestingPermission) return;
-    if (hasAutoRequestedLocationRef.current) {
-      console.log('[Home] location effect: already requested once, skipping');
-      return;
-    }
+    if (hasAutoRequestedLocationRef.current) return;
+
     hasAutoRequestedLocationRef.current = true;
-    console.log('[Home] location effect: requesting location once');
     requestLocation();
   }, [user, hasLocation, requestingPermission, requestLocation]);
 
@@ -121,7 +120,7 @@ export default function HomeScreen() {
       );
     }
 
-    // Skill level filter
+    // Skill filter
     if (skillLevels.length > 0) {
       filtered = filtered.filter((court) => {
         if (!court.averageSkillLevel || court.averageSkillLevel === 0) return false;
@@ -145,8 +144,10 @@ export default function HomeScreen() {
         case 'az' as SortOption:
           return (a.name ?? '').localeCompare(b.name ?? '');
         case 'favorites':
-          // favorites first, then activity
-          return (isFavorite(b.id) ? 1 : 0) - (isFavorite(a.id) ? 1 : 0) || (b.currentPlayers ?? 0) - (a.currentPlayers ?? 0);
+          return (
+            (isFavorite(b.id) ? 1 : 0) - (isFavorite(a.id) ? 1 : 0) ||
+            (b.currentPlayers ?? 0) - (a.currentPlayers ?? 0)
+          );
         default:
           return (b.currentPlayers ?? 0) - (a.currentPlayers ?? 0);
       }
@@ -157,18 +158,9 @@ export default function HomeScreen() {
 
   const displayedCourts = processedCourts.slice(0, displayCount);
 
-  const handleLoadMore = () => {
-    setDisplayCount((prev) => prev + LOAD_MORE_COUNT);
-  };
-
-  const handleOpenCourt = (courtId: string) => {
-    router.push(`/court/${courtId}`);
-  };
-
-  const handleOpenMap = () => {
-    // ✅ Map is optional view launched from list
-    router.push('/(tabs)/(home)/courts-map');
-  };
+  const handleLoadMore = () => setDisplayCount((prev) => prev + LOAD_MORE_COUNT);
+  const handleOpenCourt = (courtId: string) => router.push(`/court/${courtId}`);
+  const handleOpenMap = () => router.push('/(tabs)/(home)/courts-map');
 
   const toggleSkillFilter = (skill: 'Beginner' | 'Intermediate' | 'Advanced') => {
     setFilters((prev) => {
@@ -196,9 +188,7 @@ export default function HomeScreen() {
     <View style={commonStyles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
-        }
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         contentContainerStyle={{ paddingBottom: 140 }}
       >
         <View style={styles.header}>
@@ -225,38 +215,32 @@ export default function HomeScreen() {
           />
         </View>
 
-        {/* Sort + Map + Add Court */}
+        {/* Sort */}
         <View style={styles.row}>
           <View style={styles.sortRow}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.sortScrollContent}
-              style={styles.sortScroll}
-            >
-              <TouchableOpacity
-                style={[styles.pill, sortBy === 'favorites' && styles.pillActive]}
-                onPress={() => setSort('favorites')}
-              >
-                <Text style={[styles.pillText, sortBy === 'favorites' && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">Favorites</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortScrollContent} style={styles.sortScroll}>
+              <TouchableOpacity style={[styles.pill, sortBy === 'favorites' && styles.pillActive]} onPress={() => setSort('favorites')}>
+                <Text style={[styles.pillText, sortBy === 'favorites' && styles.pillTextActive]} numberOfLines={1}>
+                  Favorites
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pill, sortBy === 'activity' && styles.pillActive]}
-                onPress={() => setSort('activity')}
-              >
-                <Text style={[styles.pillText, sortBy === 'activity' && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">Activity</Text>
+
+              <TouchableOpacity style={[styles.pill, sortBy === 'activity' && styles.pillActive]} onPress={() => setSort('activity')}>
+                <Text style={[styles.pillText, sortBy === 'activity' && styles.pillTextActive]} numberOfLines={1}>
+                  Activity
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pill, sortBy === 'nearest' && styles.pillActive]}
-                onPress={() => setSort('nearest')}
-              >
-                <Text style={[styles.pillText, sortBy === 'nearest' && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">Nearest</Text>
+
+              <TouchableOpacity style={[styles.pill, sortBy === 'nearest' && styles.pillActive]} onPress={() => setSort('nearest')}>
+                <Text style={[styles.pillText, sortBy === 'nearest' && styles.pillTextActive]} numberOfLines={1}>
+                  Nearest
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.pill, sortBy === ('az' as SortOption) && styles.pillActive]}
-                onPress={() => setSort('az' as SortOption)}
-              >
-                <Text style={[styles.pillText, sortBy === ('az' as SortOption) && styles.pillTextActive]} numberOfLines={1} ellipsizeMode="tail">A-Z</Text>
+
+              <TouchableOpacity style={[styles.pill, sortBy === ('az' as SortOption) && styles.pillActive]} onPress={() => setSort('az' as SortOption)}>
+                <Text style={[styles.pillText, sortBy === ('az' as SortOption) && styles.pillTextActive]} numberOfLines={1}>
+                  A-Z
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -267,9 +251,7 @@ export default function HomeScreen() {
           <Text style={[commonStyles.subtitle, { marginBottom: 8 }]}>Filter by Skill Level</Text>
 
           <TouchableOpacity onPress={() => setShowFilters((p) => !p)}>
-            <Text style={[commonStyles.textSecondary, { fontWeight: '600' }]}>
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
-            </Text>
+            <Text style={[commonStyles.textSecondary, { fontWeight: '600' }]}>{showFilters ? 'Hide Filters' : 'Show Filters'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -290,35 +272,33 @@ export default function HomeScreen() {
               })}
             </View>
 
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setFilters((p) => ({ ...p, showFriendsOnly: !p.showFriendsOnly }))}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.checkbox, filters.showFriendsOnly && styles.checkboxChecked]} />
-              <Text style={commonStyles.text}>Show only courts with friends</Text>
-            </TouchableOpacity>
+            {/* Friends-only modern toggle (safe on web) */}
+            <View style={styles.checkboxRow}>
+              <Pressable
+                style={{ flex: 1, paddingVertical: 6 }}
+                onPress={() => setFilters((p) => ({ ...p, showFriendsOnly: !p.showFriendsOnly }))}
+              >
+                <Text style={commonStyles.text}>Show only courts with friends</Text>
+              </Pressable>
+
+              <Switch
+                value={filters.showFriendsOnly}
+                onValueChange={(val) => setFilters((p) => ({ ...p, showFriendsOnly: val }))}
+              />
+            </View>
           </>
         )}
 
         <View style={styles.courtsHeaderRow}>
-          <Text style={styles.countText}>
-            {processedCourts.length} Courts
-          </Text>
+          <Text style={styles.countText}>{processedCourts.length} Courts</Text>
 
           <View style={styles.courtsHeaderActions}>
-            <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={handleOpenMap}
-            >
+            <TouchableOpacity style={styles.headerActionButton} onPress={handleOpenMap}>
               <IconSymbol ios_icon_name="map" android_material_icon_name="map" size={16} color="#2e7d32" />
               <Text style={styles.headerActionText}>Map</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={() => setShowAddCourtModal(true)}
-            >
+            <TouchableOpacity style={styles.headerActionButton} onPress={() => setShowAddCourtModal(true)}>
               <IconSymbol ios_icon_name="plus" android_material_icon_name="add" size={16} color="#2e7d32" />
               <Text style={styles.headerActionText}>Add</Text>
             </TouchableOpacity>
@@ -365,10 +345,12 @@ export default function HomeScreen() {
                   <Text style={styles.metaText}>{court.distance.toFixed(1)} mi</Text>
                 </View>
               )}
+
               <View style={styles.metaPill}>
                 <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="people" size={14} color={colors.primary} />
                 <Text style={styles.metaText}>{court.currentPlayers ?? 0} players</Text>
               </View>
+
               {(court.friendsPlayingCount ?? 0) > 0 && (
                 <View style={styles.metaPill}>
                   <IconSymbol ios_icon_name="person.2.fill" android_material_icon_name="people" size={14} color={colors.accent} />
@@ -511,35 +493,17 @@ const styles = StyleSheet.create({
   },
 
   checkboxRow: {
-     marginTop: 12,
+    marginTop: 12,
     marginHorizontal: 20,
-    padding: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 16,
     backgroundColor: colors.highlight,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 10,
     minHeight: 44,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    alignSelf: 'center',
-
-  },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-
-  countRow: {
-    paddingHorizontal: 20,
-    marginTop: 16,
-    marginBottom: 6,
   },
 
   courtsHeaderRow: {
