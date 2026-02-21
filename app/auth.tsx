@@ -17,7 +17,7 @@ import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
-import { getSupabaseClient } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -286,8 +286,7 @@ export default function AuthScreen() {
       return;
     }
 
-    const sb = getSupabaseClient();
-    if (!sb) {
+    if (!isSupabaseConfigured() || !supabase) {
       Alert.alert('Supabase Required', 'Supabase is not configured. Please check your environment variables.');
       return;
     }
@@ -316,7 +315,7 @@ export default function AuthScreen() {
 
     try {
       console.log('Sending OTP to email:', email);
-      const { error } = await sb.auth.signInWithOtp({
+      const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: false,
@@ -373,8 +372,7 @@ export default function AuthScreen() {
       return;
     }
 
-    const sb = getSupabaseClient();
-    if (!sb) {
+    if (!isSupabaseConfigured() || !supabase) {
       setVerificationError('Supabase is not configured.');
       return;
     }
@@ -394,10 +392,10 @@ export default function AuthScreen() {
 
     try {
       console.log('Verifying OTP code');
-      const { data, error } = await sb.auth.verifyOtp({
+      const { data, error } = await supabase.auth.verifyOtp({
         email,
         token: loginCode,
-        type: 'email',
+        type: 'recovery',
       });
 
       if (error) {

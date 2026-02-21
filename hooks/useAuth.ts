@@ -1,5 +1,6 @@
 // hooks/useAuth.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
 
@@ -60,6 +61,7 @@ function mergeUser(authUser: any, profileRow: any) {
 }
 
 export function useAuth() {
+  const router = useRouter();
   const [authLoading, setAuthLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const inflightRef = useRef<Promise<any> | null>(null);
@@ -146,6 +148,9 @@ export function useAuth() {
     const { data: sub } = client.auth.onAuthStateChange(
       async (_event: AuthChangeEvent, session: Session | null) => {
         if (!mounted) return;
+        if (_event === 'PASSWORD_RECOVERY') {
+          router.replace('/reset-password');
+        }
         const authUser = session?.user ?? null;
         if (!authUser?.id) {
           setUser(null);
