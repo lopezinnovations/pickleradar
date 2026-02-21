@@ -28,6 +28,8 @@ type UpdateUserProfileInput = {
   notificationPromptShown?: boolean;
   notificationsEnabled?: boolean;
   isDeleted?: boolean;
+  age_range?: string | null;
+  gender?: string | null;
 };
 
 function mergeUser(authUser: any, profileRow: any) {
@@ -58,6 +60,8 @@ function mergeUser(authUser: any, profileRow: any) {
     acceptedAt: profile.accepted_at ?? base.acceptedAt,
     acceptedVersion: profile.accepted_version ?? base.acceptedVersion,
     isDeleted: profile.is_deleted ?? base.isDeleted,
+    age_range: profile.age_range ?? base.age_range,
+    gender: profile.gender ?? base.gender,
   };
 }
 
@@ -72,7 +76,7 @@ export function useAuth() {
     const { data, error } = await supabase
       .from(USERS_TABLE)
       .select(
-        'id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, skill_level, dupr_rating, privacy_opt_in, location_enabled, friend_visibility, profile_picture_url, notifications_enabled, notification_prompt_shown, terms_accepted, privacy_accepted, accepted_at, accepted_version, latitude, longitude, zip_code, location_permission_requested, is_deleted, updated_at'
+        'id, email, phone, first_name, last_name, pickleballer_nickname, experience_level, skill_level, dupr_rating, privacy_opt_in, location_enabled, friend_visibility, profile_picture_url, notifications_enabled, notification_prompt_shown, terms_accepted, privacy_accepted, accepted_at, accepted_version, latitude, longitude, zip_code, location_permission_requested, is_deleted, age_range, gender, updated_at'
       )
       .eq('id', userId)
       .maybeSingle();
@@ -225,7 +229,9 @@ export function useAuth() {
       lastName?: string,
       pickleballerNickname?: string,
       experienceLevel?: 'Beginner' | 'Intermediate' | 'Advanced',
-      duprRating?: number
+      duprRating?: number,
+      age_range?: string | null,
+      gender?: string | null
     ): Promise<{
       success: boolean;
       error?: string;
@@ -304,6 +310,8 @@ export function useAuth() {
                     privacy_accepted: true,
                     accepted_at: now,
                     accepted_version: CURRENT_TERMS_VERSION,
+                    age_range: age_range ?? null,
+                    gender: gender ?? null,
                   },
                 ],
                 { onConflict: 'id' }
@@ -341,6 +349,8 @@ export function useAuth() {
                   privacy_accepted: true,
                   accepted_at: now,
                   accepted_version: CURRENT_TERMS_VERSION,
+                  age_range: age_range ?? null,
+                  gender: gender ?? null,
                 },
               ],
               { onConflict: 'id' }
@@ -396,6 +406,8 @@ export function useAuth() {
       if (input.notificationsEnabled !== undefined)
         payload.notifications_enabled = input.notificationsEnabled;
       if (input.isDeleted !== undefined) payload.is_deleted = input.isDeleted;
+      if (input.age_range !== undefined) payload.age_range = input.age_range;
+      if (input.gender !== undefined) payload.gender = input.gender;
 
       if (Object.keys(payload).length === 1) return;
 

@@ -68,6 +68,8 @@ function mapDbUserToUser(data: Record<string, unknown>): User {
     privacyAccepted: !!data.privacy_accepted,
     acceptedAt: data.accepted_at as string | undefined,
     acceptedVersion: data.accepted_version as string | undefined,
+    age_range: data.age_range as string | undefined | null,
+    gender: data.gender as string | undefined | null,
   };
 }
 

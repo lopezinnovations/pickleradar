@@ -56,6 +56,8 @@ export default function ProfileScreen() {
   const [pickleballerNickname, setPickleballerNickname] = useState('');
   const [duprRating, setDuprRating] = useState('');
   const [duprError, setDuprError] = useState('');
+  const [ageRange, setAgeRange] = useState<string | null>(null);
+  const [gender, setGender] = useState<string | null>(null);
 
   // Preferences
   const [privacyOptInValue, setPrivacyOptInValue] = useState(false);
@@ -163,6 +165,8 @@ export default function ProfileScreen() {
     setPickleballerNickname(typeof nick === 'string' ? nick : '');
     setDuprRating(dupr != null && !Number.isNaN(Number(dupr)) ? String(dupr) : '');
     setDuprError('');
+    setAgeRange((user as any)?.age_range ?? null);
+    setGender((user as any)?.gender ?? null);
     setPrivacyOptInValue(!!((user as any)?.privacyOptIn ?? (user as any)?.privacy_opt_in ?? false));
     setFriendVisibilityDraft((user as any)?.friendVisibility ?? (user as any)?.friend_visibility ?? true);
 
@@ -242,7 +246,7 @@ export default function ProfileScreen() {
 
       try {
         // DB-safe (public.users.privacy_opt_in)
-        await updateUserProfile({ privacy_opt_in: next });
+        await updateUserProfile({ privacyOptIn: next });
       } catch (e: any) {
         setPrivacyOptInValue(prev);
         Alert.alert('Error', e?.message || 'Failed to update preference.');
@@ -369,6 +373,8 @@ export default function ProfileScreen() {
         lastName: lastName.trim(),
         pickleballerNickname: pickleballerNickname.trim() || undefined,
         duprRating: duprValue,
+        age_range: ageRange,
+        gender,
         privacyOptIn: privacyOptInValue,
         friendVisibility: friendVisibilityDraft,
       });
@@ -393,6 +399,8 @@ export default function ProfileScreen() {
         : ''
     );
     setDuprError('');
+    setAgeRange((user as any)?.age_range ?? null);
+    setGender((user as any)?.gender ?? null);
     setPrivacyOptInValue(!!((user as any)?.privacyOptIn ?? (user as any)?.privacy_opt_in ?? false));
     setFriendVisibilityDraft((user as any)?.friendVisibility ?? (user as any)?.friend_visibility ?? true);
     setIsEditing(false);
@@ -685,6 +693,65 @@ export default function ProfileScreen() {
               />
               {!!duprError && (
                 <Text style={[commonStyles.textSecondary, { color: colors.accent, marginTop: 6 }]}>{duprError}</Text>
+              )}
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={commonStyles.text}>Age Range (optional)</Text>
+              {isEditing ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 8 }}>
+                  {[
+                    { value: '18-24', label: '18–24' },
+                    { value: '25-34', label: '25–34' },
+                    { value: '35-44', label: '35–44' },
+                    { value: '45-54', label: '45–54' },
+                    { value: '55+', label: '55+' },
+                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[
+                        { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, marginRight: 8, marginBottom: 8 },
+                        ageRange === opt.value ? { backgroundColor: colors.primary } : { backgroundColor: colors.border },
+                      ]}
+                      onPress={() => setAgeRange(ageRange === opt.value ? null : opt.value)}
+                    >
+                      <Text style={[commonStyles.text, ageRange === opt.value ? { color: colors.card } : {}]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
+                  {ageRange ? { '18-24': '18–24', '25-34': '25–34', '35-44': '35–44', '45-54': '45–54', '55+': '55+', prefer_not_to_say: 'Prefer not to say' }[ageRange] ?? ageRange : 'Not set'}
+                </Text>
+              )}
+            </View>
+
+            <View style={{ marginTop: 16 }}>
+              <Text style={commonStyles.text}>Gender (optional)</Text>
+              {isEditing ? (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 8 }}>
+                  {[
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                  ].map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[
+                        { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, marginRight: 8, marginBottom: 8 },
+                        gender === opt.value ? { backgroundColor: colors.primary } : { backgroundColor: colors.border },
+                      ]}
+                      onPress={() => setGender(gender === opt.value ? null : opt.value)}
+                    >
+                      <Text style={[commonStyles.text, gender === opt.value ? { color: colors.card } : {}]}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <Text style={[commonStyles.textSecondary, { marginTop: 8 }]}>
+                  {gender ? { male: 'Male', female: 'Female', prefer_not_to_say: 'Prefer not to say' }[gender] ?? gender : 'Not set'}
+                </Text>
               )}
             </View>
 

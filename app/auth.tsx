@@ -39,6 +39,8 @@ export default function AuthScreen() {
   const [experienceLevel, setExperienceLevel] = useState<'Beginner' | 'Intermediate' | 'Advanced'>(
     'Beginner'
   );
+  const [ageRange, setAgeRange] = useState<string | null>(null);
+  const [gender, setGender] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
@@ -207,7 +209,9 @@ export default function AuthScreen() {
         lastName,
         pickleballerNickname,
         experienceLevel,
-        duprRating.trim() ? parseFloat(duprRating) : undefined
+        duprRating.trim() ? parseFloat(duprRating) : undefined,
+        ageRange,
+        gender
       );
 
 
@@ -221,6 +225,8 @@ export default function AuthScreen() {
         setDuprRating('');
         setDuprError('');
         setExperienceLevel('Beginner');
+        setAgeRange(null);
+        setGender(null);
         setConsentAccepted(false);
 
 
@@ -542,6 +548,8 @@ export default function AuthScreen() {
     setDuprRating('');
     setDuprError('');
     setExperienceLevel('Beginner');
+    setAgeRange(null);
+    setGender(null);
     setConsentAccepted(false);
     setVerificationError(null);
   };
@@ -695,6 +703,69 @@ export default function AuthScreen() {
                       ellipsizeMode="tail"
                     >
                       {level}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Age Range (Optional)</Text>
+              <View style={styles.experienceLevelContainer}>
+                {[
+                  { value: '18-24', label: '18–24' },
+                  { value: '25-34', label: '25–34' },
+                  { value: '35-44', label: '35–44' },
+                  { value: '45-54', label: '45–54' },
+                  { value: '55+', label: '55+' },
+                  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.experienceLevelButton,
+                      ageRange === opt.value && styles.experienceLevelButtonActive,
+                    ]}
+                    onPress={() => setAgeRange(ageRange === opt.value ? null : opt.value)}
+                    disabled={loading}
+                  >
+                    <Text
+                      style={[
+                        styles.experienceLevelText,
+                        ageRange === opt.value && styles.experienceLevelTextActive,
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.label}>Gender (Optional)</Text>
+              <View style={styles.experienceLevelContainer}>
+                {[
+                  { value: 'male', label: 'Male' },
+                  { value: 'female', label: 'Female' },
+                  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.experienceLevelButton,
+                      gender === opt.value && styles.experienceLevelButtonActive,
+                    ]}
+                    onPress={() => setGender(gender === opt.value ? null : opt.value)}
+                    disabled={loading}
+                  >
+                    <Text
+                      style={[
+                        styles.experienceLevelText,
+                        gender === opt.value && styles.experienceLevelTextActive,
+                      ]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {opt.label}
                     </Text>
                   </TouchableOpacity>
                 ))}

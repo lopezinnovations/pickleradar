@@ -497,6 +497,8 @@ export type Database = {
           privacy_accepted: boolean | null
           accepted_at: string | null
           accepted_version: string | null
+          age_range: string | null
+          gender: string | null
           messages_visit_count: number
           notification_prompt_shown: boolean
           is_deleted: boolean | null
@@ -525,6 +527,8 @@ export type Database = {
           privacy_accepted?: boolean | null
           accepted_at?: string | null
           accepted_version?: string | null
+          age_range?: string | null
+          gender?: string | null
           messages_visit_count?: number
           notification_prompt_shown?: boolean
           is_deleted?: boolean | null
@@ -553,6 +557,8 @@ export type Database = {
           privacy_accepted?: boolean | null
           accepted_at?: string | null
           accepted_version?: string | null
+          age_range?: string | null
+          gender?: string | null
           messages_visit_count?: number
           notification_prompt_shown?: boolean
           is_deleted?: boolean | null

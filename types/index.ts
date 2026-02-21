@@ -44,6 +44,8 @@ export interface User {
   privacyAccepted?: boolean;
   acceptedAt?: string;
   acceptedVersion?: string;
+  age_range?: string | null;
+  gender?: string | null;
 }
 
 export interface CheckIn {
