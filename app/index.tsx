@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { View, ActivityIndicator, Text } from "react-native";
 import { Redirect } from "expo-router";
 import { colors } from "@/styles/commonStyles";
-import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export default function Index() {
   const [loading, setLoading] = useState(true);

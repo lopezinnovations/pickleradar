@@ -17,7 +17,7 @@ import {
 import { debounce } from '@/utils/performanceLogger';
 import { useRealtimeManager } from '@/utils/realtimeManager';
 import { ConversationCardSkeleton } from '@/components/SkillLevelBars';
-import { isSupabaseConfigured } from "@/app/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 interface Conversation {
   id: string;

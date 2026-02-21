@@ -13,7 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
 const EXPIRED_MSG = 'Your session expired. Please request a new reset code and try again.';
 
@@ -140,6 +140,9 @@ export default function ResetPasswordScreen() {
     }, 15000);
 
     try {
+      if (!supabase) {
+        throw new Error('Sign-in is not configured. Cannot update password.');
+      }
       const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
       if (sessionErr) throw sessionErr;
       if (!sessionData.session) {
@@ -170,6 +173,16 @@ export default function ResetPasswordScreen() {
         throw new Error(
           signInError.message || 'New password did not work. Please try again or sign in with code.'
         );
+      }
+
+      const { data: sessionCheck, error: sessionCheckErr } = await supabase.auth.getSession();
+      const hasSession = !!sessionCheck?.session;
+      const hasRefreshToken = !!sessionCheck?.session?.refresh_token;
+      if (__DEV__) {
+        console.log('[AUTH] Password update + verification success; session present:', hasSession, 'refresh_token present:', hasRefreshToken);
+      }
+      if (sessionCheckErr || !hasSession) {
+        throw new Error('Session not persisted. Please try again.');
       }
 
       console.log('[AUTH] Password update + verification success');

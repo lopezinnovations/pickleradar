@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -364,83 +364,43 @@ export const sendTestPushToCurrentUser = async (userId: string): Promise<TestPus
 };
 
 /**
- * Request remote push for a new message (direct or group).
- * Called by the sender's client after a successful message insert.
- * Does not block; failures are logged only.
+ * Canonical payload for triggering push after a new message insert.
+ * Use message_id (snake_case); UI must pass the inserted row id.
  */
-export const notifyNewMessage = async (params: {
-  type: 'direct' | 'group';
-  sender_id: string;
-  recipient_id?: string;
-  group_id?: string;
-  content: string;
-  sender_name?: string;
-  message_id?: string;
-}): Promise<void> => {
-  console.log('[PUSH] notifyNewMessage triggered', {
-    type: params.type,
-    sender_id: params.sender_id,
-    recipient_id: params.recipient_id,
-    group_id: params.group_id,
-    message_id: params.message_id,
-  });
-  if (!isSupabaseConfigured()) {
-    console.warn('[PUSH] notifyNewMessage: Supabase not configured, skipping');
-    return;
+export type NotifyNewMessagePayload =
+  | {
+      type: 'direct';
+      message_id: string;
+      sender_id: string;
+      recipient_id: string;
+      content: string;
+      sender_name?: string;
+    }
+  | {
+      type: 'group';
+      message_id: string;
+      sender_id: string;
+      group_id: string;
+      content: string;
+      sender_name?: string;
+    };
+
+/**
+ * Invoke edge function to send push for a new message (direct or group).
+ * Call after successful insert. Throws on error.
+ */
+export async function notifyNewMessage(payload: NotifyNewMessagePayload): Promise<void> {
+  if (!isSupabaseConfigured() || !supabase) {
+    const err = new Error('[notifyNewMessage] Supabase not configured');
+    console.error('[notifyNewMessage]', err);
+    throw err;
   }
-  try {
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-    if (!supabaseUrl) {
-      console.warn('[PUSH] notifyNewMessage: EXPO_PUBLIC_SUPABASE_URL not set');
-      return;
-    }
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
-    if (!token) {
-      console.warn('[PUSH] notifyNewMessage: No session, skipping');
-      return;
-    }
-    const url = `${supabaseUrl}/functions/v1/notify-new-message`;
-    const body =
-      params.type === 'direct'
-        ? {
-            type: 'direct' as const,
-            sender_id: params.sender_id,
-            recipient_id: params.recipient_id,
-            content: params.content,
-            sender_name: params.sender_name,
-            message_id: params.message_id,
-          }
-        : {
-            type: 'group' as const,
-            sender_id: params.sender_id,
-            group_id: params.group_id,
-            content: params.content,
-            sender_name: params.sender_name,
-            message_id: params.message_id,
-          };
-    console.log('[PUSH] notifyNewMessage calling edge function', { url, bodyKeys: Object.keys(body) });
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json().catch((e) => {
-      console.warn('[PUSH] notifyNewMessage response parse error', e);
-      return {};
-    });
-    if (res.ok) {
-      console.log('[PUSH] notifyNewMessage success', res.status, json);
-    } else {
-      console.warn('[PUSH] notifyNewMessage failed', { status: res.status, json });
-    }
-  } catch (err) {
-    console.warn('[PUSH] notifyNewMessage error:', err);
+  const { error } = await supabase.functions.invoke('notify-new-message', { body: payload });
+  if (error) {
+    console.error('[notifyNewMessage] invoke error:', error);
+    throw error;
   }
-};
+}
 
 /**
  * NOTE:

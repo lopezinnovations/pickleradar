@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { supabase } from "@/app/integrations/supabase/client";
+import { supabase } from "@/lib/supabase/client";
 import { useAuth } from '@/hooks/useAuth';
 import { geocodeZipCode } from '@/utils/locationUtils';
 

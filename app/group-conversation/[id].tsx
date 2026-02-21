@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { IconSymbol } from '@/components/IconSymbol';
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 import { notifyNewMessage } from '@/utils/notifications';
@@ -287,20 +287,25 @@ export default function GroupConversationScreen() {
       if (error) throw error;
 
       console.log('[MESSAGES] inserted message', inserted.id);
-      console.log('[MESSAGES] triggering push', { type: 'group', messageId: inserted.id });
 
       const senderName =
         user.pickleballerNickname ||
         [user.firstName, user.lastName].filter(Boolean).join(' ') ||
         undefined;
-      notifyNewMessage({
-        type: 'group',
+      const pushPayload = {
+        type: 'group' as const,
+        message_id: inserted.id,
         sender_id: user.id,
         group_id: groupId,
         content: optimisticMessage.content,
         sender_name: senderName,
-        message_id: inserted.id,
-      }).catch(() => {});
+      };
+      console.log('[MESSAGES] triggering push', pushPayload);
+      try {
+        await notifyNewMessage(pushPayload);
+      } catch (e) {
+        console.warn('[MESSAGES] push failed', e);
+      }
     } catch (error) {
       console.error('[MESSAGES] Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.optimisticId !== optimisticId));

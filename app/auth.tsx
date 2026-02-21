@@ -17,7 +17,7 @@ import { colors, commonStyles, buttonStyles } from '@/styles/commonStyles';
 import { useAuth } from '@/hooks/useAuth';
 import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -168,6 +168,12 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
+      if (typeof signUp !== 'function') {
+        if (__DEV__) console.warn('[Auth] signUp is not a function (missing from useAuth)');
+        Alert.alert('Sign Up Failed', 'Sign-up is not available. Please try again later.');
+        setLoading(false);
+        return;
+      }
       const result = await signUp(
         email,
         password,
@@ -238,6 +244,12 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
+      if (typeof signIn !== 'function') {
+        if (__DEV__) console.warn('[Auth] signIn is not a function (missing from useAuth)');
+        Alert.alert('Sign In Failed', 'Sign-in is not available. Please try again later.');
+        setLoading(false);
+        return;
+      }
       const result = await signIn(email, password);
 
       if (result.success) {

@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { colors, commonStyles } from '@/styles/commonStyles';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase, isSupabaseConfigured } from "@/app/integrations/supabase/client";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
 import { notifyNewMessage } from '@/utils/notifications';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Alert } from 'react-native';
@@ -276,20 +276,25 @@ export default function ConversationScreen() {
       if (error) throw error;
 
       console.log('[MESSAGES] inserted message', inserted.id);
-      console.log('[MESSAGES] triggering push', { type: 'direct', messageId: inserted.id });
 
       const senderName =
         user.pickleballerNickname ||
         [user.firstName, user.lastName].filter(Boolean).join(' ') ||
         undefined;
-      notifyNewMessage({
-        type: 'direct',
+      const pushPayload = {
+        type: 'direct' as const,
+        message_id: inserted.id,
         sender_id: user.id,
         recipient_id: recipientId,
         content: optimisticMessage.content,
         sender_name: senderName,
-        message_id: inserted.id,
-      }).catch(() => {});
+      };
+      console.log('[MESSAGES] triggering push', pushPayload);
+      try {
+        await notifyNewMessage(pushPayload);
+      } catch (e) {
+        console.warn('[MESSAGES] push failed', e);
+      }
     } catch (error) {
       console.error('[MESSAGES] Error sending message:', error);
       setMessages((prev) => prev.filter((m) => m.optimisticId !== optimisticId));

@@ -2,11 +2,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from '@/app/integrations/supabase/client';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
 type AcceptConsentResult = { success: true } | { success: false; error?: string };
 
 const LATEST_ACCEPTED_VERSION = '1';
+const CURRENT_TERMS_VERSION = 'v1.0';
 
 const USERS_TABLE = 'users';
 const AVATAR_BUCKET = 'avatars';
@@ -175,6 +176,190 @@ export function useAuth() {
     };
   }, [fetchProfileRow]);
 
+  const signIn = useCallback(
+    async (
+      email: string,
+      password: string
+    ): Promise<{ success: boolean; error?: string; message?: string }> => {
+      try {
+        if (!isSupabaseConfigured() || !supabase) {
+          return {
+            success: false,
+            error: 'Supabase not configured',
+            message: 'Sign-in is not configured. Please try again later.',
+          };
+        }
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          return {
+            success: false,
+            error: error.message,
+            message: 'Incorrect email or password. Please try again.',
+          };
+        }
+        if (data?.user && data?.session) {
+          return { success: true, message: 'Sign in successful' };
+        }
+        return {
+          success: false,
+          error: 'Sign in failed',
+          message: 'Incorrect email or password. Please try again.',
+        };
+      } catch (err: unknown) {
+        return {
+          success: false,
+          error: err instanceof Error ? err.message : 'Sign in failed',
+          message: 'Incorrect email or password. Please try again.',
+        };
+      }
+    },
+    []
+  );
+
+  const signUp = useCallback(
+    async (
+      email: string,
+      password: string,
+      consentAccepted: boolean = false,
+      firstName?: string,
+      lastName?: string,
+      pickleballerNickname?: string,
+      experienceLevel?: 'Beginner' | 'Intermediate' | 'Advanced',
+      duprRating?: number
+    ): Promise<{
+      success: boolean;
+      error?: string;
+      message?: string;
+      email?: string;
+      requiresEmailConfirmation?: boolean;
+    }> => {
+      try {
+        if (!isSupabaseConfigured() || !supabase) {
+          return {
+            success: false,
+            error: 'Supabase not configured',
+            message: 'Sign-up is not configured. Please try again later.',
+          };
+        }
+        if (!consentAccepted) {
+          return {
+            success: false,
+            error: 'Consent required',
+            message: 'You must accept the Privacy Policy and Terms of Service to continue.',
+          };
+        }
+        if (duprRating !== undefined && (duprRating < 1 || duprRating > 7)) {
+          return {
+            success: false,
+            error: 'Invalid DUPR rating',
+            message: 'DUPR rating must be between 1.0 and 7.0',
+          };
+        }
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              terms_accepted: true,
+              privacy_accepted: true,
+              accepted_at: new Date().toISOString(),
+              accepted_version: CURRENT_TERMS_VERSION,
+            },
+          },
+        });
+        if (error) {
+          if (error.message.toLowerCase().includes('already registered')) {
+            return {
+              success: false,
+              error: error.message,
+              message: 'This email is already registered. Please sign in instead.',
+            };
+          }
+          if (
+            (error.message.includes('Error sending confirmation email') ||
+              error.message.includes('authentication failed') ||
+              error.status === 500) &&
+            data?.user
+          ) {
+            const user = data.user;
+            const now = new Date().toISOString();
+            await supabase
+              .from(USERS_TABLE)
+              .upsert(
+                [
+                  {
+                    id: user.id,
+                    email: user.email || email,
+                    phone: null,
+                    first_name: firstName || null,
+                    last_name: lastName || null,
+                    pickleballer_nickname: pickleballerNickname || null,
+                    experience_level: experienceLevel || null,
+                    dupr_rating: duprRating ?? null,
+                    privacy_opt_in: false,
+                    notifications_enabled: false,
+                    location_enabled: false,
+                    location_permission_requested: false,
+                    terms_accepted: true,
+                    privacy_accepted: true,
+                    accepted_at: now,
+                    accepted_version: CURRENT_TERMS_VERSION,
+                  },
+                ],
+                { onConflict: 'id' }
+              );
+            return {
+              success: true,
+              message: 'Account created successfully! You can now sign in.',
+              email,
+              requiresEmailConfirmation: false,
+            };
+          }
+          throw error;
+        }
+        if (data?.user) {
+          const user = data.user;
+          const now = new Date().toISOString();
+          await supabase
+            .from(USERS_TABLE)
+            .upsert(
+              [
+                {
+                  id: user.id,
+                  email: user.email || email,
+                  phone: null,
+                  first_name: firstName || null,
+                  last_name: lastName || null,
+                  pickleballer_nickname: pickleballerNickname || null,
+                  experience_level: experienceLevel || null,
+                  dupr_rating: duprRating ?? null,
+                  privacy_opt_in: false,
+                  notifications_enabled: false,
+                  location_enabled: false,
+                  location_permission_requested: false,
+                  terms_accepted: true,
+                  privacy_accepted: true,
+                  accepted_at: now,
+                  accepted_version: CURRENT_TERMS_VERSION,
+                },
+              ],
+              { onConflict: 'id' }
+            );
+        }
+        return {
+          success: true,
+          message: 'Account created successfully! You can now sign in.',
+          email,
+          requiresEmailConfirmation: false,
+        };
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
+        return { success: false, error: msg, message: msg };
+      }
+    },
+    []
+  );
+
   const signOut = useCallback(async () => {
     if (!isSupabaseConfigured() || !supabase) return;
     await supabase.auth.signOut();
@@ -320,6 +505,8 @@ export function useAuth() {
       user,
       authLoading,
       isConfigured,
+      signIn,
+      signUp,
       signOut,
       updateUserProfile,
       uploadProfilePicture,
@@ -331,6 +518,8 @@ export function useAuth() {
       user,
       authLoading,
       isConfigured,
+      signIn,
+      signUp,
       signOut,
       updateUserProfile,
       uploadProfilePicture,
