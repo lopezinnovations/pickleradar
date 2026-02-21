@@ -300,11 +300,17 @@ export default function GroupConversationScreen() {
         content: optimisticMessage.content,
         sender_name: senderName,
       };
-      console.log('[MESSAGES] triggering push', pushPayload);
-      try {
-        await notifyNewMessage(pushPayload);
-      } catch (e) {
-        console.warn('[MESSAGES] push failed', e);
+      if (typeof notifyNewMessage === 'function') {
+        try {
+          const pushResult = await notifyNewMessage(pushPayload);
+          if (__DEV__ && !pushResult.ok) {
+            console.warn('[PUSH] send error', pushResult.error);
+          }
+        } catch (_) {
+          // non-blocking; never throw
+        }
+      } else if (__DEV__) {
+        console.warn('[PUSH] notifyNewMessage not available (skip push)');
       }
     } catch (error) {
       console.error('[MESSAGES] Error sending message:', error);

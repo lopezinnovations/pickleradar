@@ -62,7 +62,7 @@ async function sendExpoPush(
     body,
     data: { type: 'new_message', ...data },
   };
-  log('Push payload summary', { to: to.slice(0, 30) + '...', title, bodyLength: body.length });
+  log('Push payload summary', { title, bodyLength: body.length });
   try {
     const res = await fetch(EXPO_PUSH_URL, {
       method: 'POST',
@@ -93,8 +93,20 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  let request_id: string | undefined;
   try {
     const authHeader = req.headers.get('Authorization');
+    const hasAuthHeader = !!authHeader;
+    const bearerPrefixOk = !!authHeader && authHeader.startsWith('Bearer ');
+    const rawBody = (await req.json()) as Record<string, unknown>;
+    request_id = (rawBody?.request_id as string) ?? undefined;
+
+    console.log('[EF notify-new-message] start', {
+      request_id,
+      hasAuthHeader,
+      bearerPrefixOk,
+    });
+
     if (!authHeader) {
       log('Skip: missing Authorization header');
       return new Response(
@@ -104,21 +116,23 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    if (!supabaseUrl || !supabaseServiceKey) {
-      log('Skip: Supabase env not configured');
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      log('Skip: Supabase env not configured', {
+        hasUrl: !!supabaseUrl,
+        hasAnonKey: !!supabaseAnonKey,
+        hasServiceKey: !!supabaseServiceKey,
+      });
       return new Response(
         JSON.stringify({ error: 'Server misconfigured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Verify caller is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const jwt = bearerPrefixOk ? authHeader.slice(7).trim() : '';
+    const authClient = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: { user }, error: authError } = await authClient.auth.getUser(jwt);
     if (authError || !user) {
       log('Skip: invalid or expired token', { error: authError?.message });
       return new Response(
@@ -127,9 +141,32 @@ serve(async (req) => {
       );
     }
 
-    const body = (await req.json()) as Payload;
+    const admin = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (body.sender_id !== user.id) {
+    function pickFirst(obj: Record<string, unknown>, keys: string[]): unknown {
+      for (const k of keys) {
+        const v = obj[k];
+        if (v !== undefined && v !== null && v !== '') return v;
+      }
+      return undefined;
+    }
+    let recipientId = pickFirst(rawBody, ['recipientId', 'recipient_id', 'toUserId', 'to_user_id', 'receiverId', 'receiver_id']) as string | undefined;
+    let messagePreview = pickFirst(rawBody, ['messagePreview', 'message_preview', 'preview', 'body', 'text', 'message']) as string | undefined;
+    let conversationType = (pickFirst(rawBody, ['conversationType', 'conversation_type']) as string) || 'direct';
+    const groupName = pickFirst(rawBody, ['groupName', 'group_name']) as string | undefined;
+    let messageId = pickFirst(rawBody, ['messageId', 'message_id']) as string | undefined;
+
+    if ((!recipientId || !messagePreview) && messageId) {
+      const { data: msgRow } = await admin.from('messages').select('recipient_id, content').eq('id', messageId).maybeSingle();
+      if (msgRow) {
+        const row = msgRow as Record<string, unknown>;
+        if (!recipientId) recipientId = row.recipient_id as string | undefined;
+        if (!messagePreview) messagePreview = ((row.content ?? '') as string).slice(0, 140);
+      }
+    }
+
+    const body = rawBody as Payload;
+    if (body.sender_id !== undefined && body.sender_id !== user.id) {
       log('Skip: caller is not sender', { caller: user.id, sender_id: body.sender_id });
       return new Response(
         JSON.stringify({ error: 'Forbidden' }),
@@ -138,27 +175,39 @@ serve(async (req) => {
     }
 
     log('Request received', {
-      message_id: body.message_id,
-      sender_id: body.sender_id,
-      recipient_id: 'recipient_id' in body ? body.recipient_id : undefined,
+      message_id: messageId ?? body.message_id,
+      sender_id: user.id,
+      recipient_id: recipientId ?? ('recipient_id' in body ? body.recipient_id : undefined),
       group_id: 'group_id' in body ? body.group_id : undefined,
     });
 
-    if (body.type === 'direct') {
-      const { message_id, sender_id, recipient_id, content, sender_name } = body;
-      if (!sender_id || !recipient_id || !content) {
-        log('Skip: missing required fields (direct)');
+    if (body.type === 'direct' || (conversationType === 'direct' && recipientId)) {
+      const recipient_id = recipientId ?? ('recipient_id' in body ? body.recipient_id : undefined);
+      const content = messagePreview ?? ('content' in body ? body.content : undefined);
+      const message_id = messageId ?? body.message_id;
+      const sender_id = user.id;
+      const sender_name = 'sender_name' in body ? body.sender_name : undefined;
+
+      if (!recipient_id || !content) {
+        const missingFields: string[] = [];
+        if (!recipient_id) missingFields.push('recipientId');
+        if (!content) missingFields.push('messagePreview');
         return new Response(
-          JSON.stringify({ error: 'Missing sender_id, recipient_id, or content' }),
+          JSON.stringify({
+            error: 'Missing required fields',
+            missingFields,
+            receivedKeys: Object.keys(rawBody),
+            hint: 'Send { recipientId, messagePreview, conversationType } or { messageId }',
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const { data: recipientUser, error: userErr } = await supabase
+      const { data: recipientUser, error: userErr } = await admin
         .from('users')
-        .select('id, notifications_enabled')
+        .select('id, push_token, notifications_enabled')
         .eq('id', recipient_id)
-        .single();
+        .maybeSingle();
 
       if (userErr || !recipientUser) {
         log('Skip: recipient lookup failed', { error: userErr?.message });
@@ -170,8 +219,36 @@ serve(async (req) => {
 
       if (recipientUser.notifications_enabled === false) {
         log('Skip: recipient has notifications disabled');
+        console.log('[EF notify-new-message] done', {
+          request_id,
+          recipients_count: 1,
+          tokens_found_count: 0,
+          mute_filtered_count: 0,
+          sent_count: 0,
+        });
         return new Response(
           JSON.stringify({ skipped: 'notifications_disabled', message_id }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: friendPref } = await admin
+        .from('friend_notification_preferences')
+        .select('notify_messages')
+        .eq('user_id', recipient_id)
+        .eq('friend_id', user.id)
+        .maybeSingle();
+      if (friendPref && (friendPref as { notify_messages?: boolean }).notify_messages === false) {
+        log('Skip: friend preference notify_messages off');
+        console.log('[EF notify-new-message] done', {
+          request_id,
+          recipients_count: 1,
+          tokens_found_count: 0,
+          mute_filtered_count: 0,
+          sent_count: 0,
+        });
+        return new Response(
+          JSON.stringify({ skipped: 'friend_preference_off', message_id }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -179,7 +256,7 @@ serve(async (req) => {
       let pushToken: string | undefined;
       let tokenRowId: string | undefined;
 
-      const { data: tokenRows, error: tokenErr } = await supabase
+      const { data: tokenRows, error: tokenErr } = await admin
         .from('push_tokens')
         .select('id, token')
         .eq('user_id', recipient_id)
@@ -187,46 +264,37 @@ serve(async (req) => {
         .order('updated_at', { ascending: false })
         .limit(1);
 
-      if (tokenErr) log('push_tokens lookup error', { recipient_id, error: tokenErr.message });
+      if (tokenErr) log('push_tokens lookup error', { error: tokenErr.message });
       pushToken = tokenRows?.[0]?.token;
       tokenRowId = tokenRows?.[0]?.id;
-      log('Recipient token lookup (push_tokens)', {
-        recipient_id,
-        token_exists: !!pushToken?.trim(),
-        token_prefix: pushToken?.slice(0, 28) ?? null,
-      });
 
       if (!pushToken?.trim()) {
-        const { data: legacyUser, error: legacyErr } = await supabase
+        const { data: legacyUser, error: legacyErr } = await admin
           .from('users')
           .select('push_token')
           .eq('id', recipient_id)
           .single();
-        if (legacyErr) log('users.push_token fallback error', { recipient_id, error: legacyErr.message });
+        if (legacyErr) log('users.push_token fallback error', { error: legacyErr.message });
         pushToken = legacyUser?.push_token ?? undefined;
-        log('Recipient token lookup (fallback users.push_token)', {
-          recipient_id,
-          token_exists: !!pushToken?.trim(),
-        });
       }
 
-      if (!pushToken?.trim()) {
-        log('Skip: token missing or empty (no active push_tokens for recipient)');
+      const tokens_found_count = pushToken?.trim() && isExpoToken(pushToken) ? 1 : 0;
+      if (tokens_found_count === 0) {
+        log('Skip: token missing or invalid (no active push_tokens for recipient)');
+        console.log('[EF notify-new-message] done', {
+          request_id,
+          recipients_count: 1,
+          tokens_found_count: 0,
+          mute_filtered_count: 0,
+          sent_count: 0,
+        });
         return new Response(
           JSON.stringify({ skipped: 'token_missing', message_id }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      if (!isExpoToken(pushToken)) {
-        log('Skip: token not in ExponentPushToken format', { prefix: pushToken?.slice(0, 30) });
-        return new Response(
-          JSON.stringify({ skipped: 'invalid_token_format', message_id }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      const { data: mute } = await supabase
+      const { data: mute } = await admin
         .from('conversation_mutes')
         .select('muted_until')
         .eq('user_id', recipient_id)
@@ -234,17 +302,34 @@ serve(async (req) => {
         .eq('conversation_id', sender_id)
         .maybeSingle();
 
+      let mute_filtered_count = 0;
       if (mute) {
         const mutedUntil = mute.muted_until;
         if (mutedUntil === null) {
+          mute_filtered_count = 1;
           log('Skip: conversation muted until user unmutes');
+          console.log('[EF notify-new-message] done', {
+            request_id,
+            recipients_count: 1,
+            tokens_found_count: 1,
+            mute_filtered_count: 1,
+            sent_count: 0,
+          });
           return new Response(
             JSON.stringify({ skipped: 'conversation_muted', message_id }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         if (new Date(mutedUntil) > new Date()) {
+          mute_filtered_count = 1;
           log('Skip: conversation muted until', mutedUntil);
+          console.log('[EF notify-new-message] done', {
+            request_id,
+            recipients_count: 1,
+            tokens_found_count: 1,
+            mute_filtered_count: 1,
+            sent_count: 0,
+          });
           return new Response(
             JSON.stringify({ skipped: 'conversation_muted_until', message_id }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -257,32 +342,36 @@ serve(async (req) => {
       const bodyText = content.length > 100 ? content.slice(0, 97) + '...' : content;
 
       const sendResult = await sendExpoPush(
-        pushToken,
+        pushToken!,
         title,
         bodyText,
         { message_id, sender_id, recipient_id, conversation_type: 'direct' }
       );
 
       if (tokenRowId && shouldMarkTokenInactive(sendResult.error)) {
-        const { error: markErr } = await supabase
+        await admin
           .from('push_tokens')
           .update({ active: false })
           .eq('id', tokenRowId);
-        log('Marked token inactive (DeviceNotRegistered)', {
-          token_row_id: tokenRowId,
-          mark_error: markErr?.message,
-        });
       }
+
+      const sent_count = sendResult.ok ? 1 : 0;
+      console.log('[EF notify-new-message] done', {
+        request_id,
+        recipients_count: 1,
+        tokens_found_count: 1,
+        mute_filtered_count: 0,
+        sent_count,
+      });
 
       if (!sendResult.ok) {
         log('Push failed', { error: sendResult.error });
         return new Response(
-          JSON.stringify({ error: 'Push send failed', detail: sendResult.error }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ skipped: 'push_send_failed', message_id, detail: sendResult.error }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      log('Push sent successfully', { message_id, recipient_id });
       return new Response(
         JSON.stringify({ success: true, message_id }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -299,7 +388,7 @@ serve(async (req) => {
         );
       }
 
-      const { data: members, error: membersError } = await supabase
+      const { data: members, error: membersError } = await admin
         .from('group_members')
         .select('user_id')
         .eq('group_id', group_id)
@@ -307,6 +396,13 @@ serve(async (req) => {
 
       if (membersError || !members?.length) {
         log('Skip: no other members or lookup failed', { error: membersError?.message });
+        console.log('[EF notify-new-message] done', {
+          request_id,
+          recipients_count: 0,
+          tokens_found_count: 0,
+          mute_filtered_count: 0,
+          sent_count: 0,
+        });
         return new Response(
           JSON.stringify({ success: true, sent: 0 }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -314,12 +410,14 @@ serve(async (req) => {
       }
 
       const recipientIds = members.map((m) => m.user_id);
-      const { data: recipientUsers } = await supabase
+      const recipients_count = recipientIds.length;
+
+      const { data: recipientUsers } = await admin
         .from('users')
         .select('id, notifications_enabled')
         .in('id', recipientIds);
 
-      const { data: tokenRows } = await supabase
+      const { data: tokenRows } = await admin
         .from('push_tokens')
         .select('id, user_id, token')
         .in('user_id', recipientIds)
@@ -334,7 +432,7 @@ serve(async (req) => {
       }
       for (const uid of recipientIds) {
         if (!tokensByUser.has(uid)) {
-          const { data: legacy } = await supabase
+          const { data: legacy } = await admin
             .from('users')
             .select('push_token')
             .eq('id', uid)
@@ -345,7 +443,7 @@ serve(async (req) => {
         }
       }
 
-      const { data: mutes } = await supabase
+      const { data: mutes } = await admin
         .from('conversation_mutes')
         .select('user_id, muted_until')
         .eq('conversation_type', 'group')
@@ -360,29 +458,29 @@ serve(async (req) => {
       const title = displayName;
       const bodyText = content.length > 100 ? content.slice(0, 97) + '...' : content;
 
-      let sentCount = 0;
+      let tokens_found_count = 0;
+      let mute_filtered_count = 0;
+      let sent_count = 0;
       for (const u of recipientUsers ?? []) {
         if (u.notifications_enabled === false) {
-          log('Skip recipient (notifications disabled)', { recipient_id: u.id });
           continue;
         }
         const tokenInfo = tokensByUser.get(u.id);
         if (!tokenInfo?.token?.trim()) {
-          log('Skip recipient (no token)', { recipient_id: u.id });
           continue;
         }
         if (!isExpoToken(tokenInfo.token)) {
-          log('Skip recipient (invalid token format)', { recipient_id: u.id });
           continue;
         }
+        tokens_found_count++;
         const mute = muteMap.get(u.id);
         if (mute) {
           if (mute.muted_until === null) {
-            log('Skip recipient (conversation muted)', { recipient_id: u.id });
+            mute_filtered_count++;
             continue;
           }
           if (mute.muted_until && new Date(mute.muted_until) > new Date()) {
-            log('Skip recipient (muted until)', { recipient_id: u.id, muted_until: mute.muted_until });
+            mute_filtered_count++;
             continue;
           }
         }
@@ -393,16 +491,22 @@ serve(async (req) => {
           bodyText,
           { message_id, sender_id, group_id, recipient_id: u.id, conversation_type: 'group' }
         );
-        if (sendResult.ok) sentCount++;
+        if (sendResult.ok) sent_count++;
         if (tokenInfo.id && shouldMarkTokenInactive(sendResult.error)) {
-          await supabase.from('push_tokens').update({ active: false }).eq('id', tokenInfo.id);
-          log('Marked token inactive (DeviceNotRegistered)', { token_row_id: tokenInfo.id });
+          await admin.from('push_tokens').update({ active: false }).eq('id', tokenInfo.id);
         }
       }
 
-      log('Group push complete', { message_id, sent: sentCount });
+      console.log('[EF notify-new-message] done', {
+        request_id,
+        recipients_count,
+        tokens_found_count,
+        mute_filtered_count,
+        sent_count,
+      });
+
       return new Response(
-        JSON.stringify({ success: true, message_id, sent: sentCount }),
+        JSON.stringify({ success: true, message_id, sent: sent_count }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

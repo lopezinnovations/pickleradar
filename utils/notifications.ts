@@ -385,20 +385,68 @@ export type NotifyNewMessagePayload =
       sender_name?: string;
     };
 
+function generateRequestId(): string {
+  if (typeof crypto !== 'undefined' && typeof (crypto as { randomUUID?: () => string }).randomUUID === 'function') {
+    return (crypto as { randomUUID: () => string }).randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 /**
  * Invoke edge function to send push for a new message (direct or group).
- * Call after successful insert. Throws on error.
+ * Uses the SAME mechanism as check-in remote push: direct fetch to Edge Function with Bearer token
+ * (see useCheckIn.ts notifyFriends). Call after successful insert. Does not throw.
  */
-export async function notifyNewMessage(payload: NotifyNewMessagePayload): Promise<void> {
+export async function notifyNewMessage(payload: NotifyNewMessagePayload): Promise<{ ok: boolean; error?: string }> {
   if (!isSupabaseConfigured() || !supabase) {
-    const err = new Error('[notifyNewMessage] Supabase not configured');
-    console.error('[notifyNewMessage]', err);
-    throw err;
+    const err = 'Supabase not configured';
+    if (__DEV__) console.warn('[PUSH] message push failed', err);
+    return { ok: false, error: err };
   }
-  const { error } = await supabase.functions.invoke('notify-new-message', { body: payload });
-  if (error) {
-    console.error('[notifyNewMessage] invoke error:', error);
-    throw error;
+  const request_id = generateRequestId();
+  const body = { ...payload, request_id };
+  if (__DEV__) {
+    console.log('[PUSH] req', { request_id, type: payload.type, message_id: payload.message_id });
+  }
+  try {
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
+    if (!session) {
+      if (__DEV__) console.warn('[PUSH] message push failed', 'Not authenticated');
+      return { ok: false, error: 'Not authenticated' };
+    }
+    const baseUrl =
+      (supabase as { supabaseUrl?: string }).supabaseUrl ??
+      process.env.EXPO_PUBLIC_SUPABASE_URL ??
+      '';
+    if (!baseUrl) {
+      if (__DEV__) console.warn('[PUSH] message push failed', 'Missing Supabase URL');
+      return { ok: false, error: 'Missing Supabase URL' };
+    }
+    const response = await fetch(`${baseUrl}/functions/v1/notify-new-message`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      const errMsg = result?.error ?? `HTTP ${response.status}`;
+      if (__DEV__) console.warn('[PUSH] message push error', errMsg);
+      return { ok: false, error: errMsg };
+    }
+    if (__DEV__) console.log('[PUSH] message push success');
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (__DEV__) console.warn('[PUSH] message push error', msg);
+    return { ok: false, error: msg };
   }
 }
 

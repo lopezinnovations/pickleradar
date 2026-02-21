@@ -1,5 +1,6 @@
 // app/auth.tsx
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -19,12 +20,14 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { LegalFooter } from '@/components/LegalFooter';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
 
+
 export default function AuthScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const prefilledEmail = params.email as string;
   const successMessage = params.message as string;
   const { signUp, signIn, isConfigured } = useAuth();
+
 
   const [email, setEmail] = useState(prefilledEmail || '');
   const [password, setPassword] = useState('');
@@ -49,10 +52,12 @@ export default function AuthScreen() {
   const [resendCountdown, setResendCountdown] = useState(0);
   const [isSendingCode, setIsSendingCode] = useState(false);
 
+
   // Refs to track loading states for timeout checks
   const isVerificationSuccessfulRef = useRef(false);
   const verificationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const resendIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
 
   // Show success message if present
   useEffect(() => {
@@ -60,6 +65,7 @@ export default function AuthScreen() {
       Alert.alert('Success', successMessage);
     }
   }, [successMessage]);
+
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -73,14 +79,17 @@ export default function AuthScreen() {
     };
   }, []);
 
+
   const validateEmail = (emailVal: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(emailVal);
   };
 
+
   const validatePassword = (passwordVal: string) => {
     return passwordVal.length >= 6;
   };
+
 
   const validateDuprRating = (value: string) => {
     if (!value.trim()) {
@@ -88,25 +97,30 @@ export default function AuthScreen() {
       return true;
     }
 
+
     const duprValue = parseFloat(value);
     if (isNaN(duprValue)) {
       setDuprError('DUPR rating must be a number');
       return false;
     }
 
+
     if (duprValue < 1 || duprValue > 7) {
       setDuprError('DUPR rating must be between 1.0 and 7.0');
       return false;
     }
 
+
     setDuprError('');
     return true;
   };
+
 
   const handleDuprChange = (value: string) => {
     setDuprRating(value);
     validateDuprRating(value);
   };
+
 
   const handleSignUp = async () => {
     if (!email.trim()) {
@@ -114,35 +128,42 @@ export default function AuthScreen() {
       return;
     }
 
+
     if (!validateEmail(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
+
 
     if (!password.trim()) {
       Alert.alert('Error', 'Please enter a password');
       return;
     }
 
+
     if (!validatePassword(password)) {
       Alert.alert('Error', 'Password must be at least 6 characters long');
       return;
     }
+
 
     if (!firstName.trim()) {
       Alert.alert('Error', 'Please enter your first name');
       return;
     }
 
+
     if (!lastName.trim()) {
       Alert.alert('Error', 'Please enter your last name');
       return;
     }
 
+
     if (!pickleballerNickname.trim()) {
       Alert.alert('Error', 'Please enter your pickleballer nickname');
       return;
     }
+
 
     if (duprRating.trim()) {
       const duprValue = parseFloat(duprRating);
@@ -152,10 +173,12 @@ export default function AuthScreen() {
       }
     }
 
+
     if (!consentAccepted) {
       Alert.alert('Consent Required', 'You must agree to the Privacy Policy and Terms of Service to continue.');
       return;
     }
+
 
     if (!isConfigured) {
       Alert.alert(
@@ -165,7 +188,9 @@ export default function AuthScreen() {
       return;
     }
 
+
     setLoading(true);
+
 
     try {
       if (typeof signUp !== 'function') {
@@ -185,6 +210,7 @@ export default function AuthScreen() {
         duprRating.trim() ? parseFloat(duprRating) : undefined
       );
 
+
       if (result.success) {
         // Clear form
         setEmail('');
@@ -196,6 +222,7 @@ export default function AuthScreen() {
         setDuprError('');
         setExperienceLevel('Beginner');
         setConsentAccepted(false);
+
 
         // Show success message and redirect to sign in
         Alert.alert('Account Created!', 'Your account has been created successfully. You can now sign in.', [
@@ -217,21 +244,25 @@ export default function AuthScreen() {
     }
   };
 
+
   const handleSignIn = async () => {
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email address');
       return;
     }
 
+
     if (!validateEmail(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
 
+
     if (!password.trim()) {
       Alert.alert('Error', 'Please enter your password');
       return;
     }
+
 
     if (!isConfigured) {
       Alert.alert(
@@ -241,7 +272,9 @@ export default function AuthScreen() {
       return;
     }
 
+
     setLoading(true);
+
 
     try {
       if (typeof signIn !== 'function') {
@@ -251,6 +284,7 @@ export default function AuthScreen() {
         return;
       }
       const result = await signIn(email, password);
+
 
       if (result.success) {
         console.log('User signed in successfully');
@@ -277,18 +311,22 @@ export default function AuthScreen() {
     }
   };
 
+
   const handleSendCode = async () => {
     console.log('User tapped Send Code button for password reset');
+
 
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email address');
       return;
     }
 
+
     if (!validateEmail(email)) {
       Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
+
 
     if (!isConfigured) {
       Alert.alert(
@@ -298,19 +336,23 @@ export default function AuthScreen() {
       return;
     }
 
+
     if (!isSupabaseConfigured() || !supabase) {
       Alert.alert('Supabase Required', 'Supabase is not configured. Please check your environment variables.');
       return;
     }
 
+
     setIsSendingCode(true);
     setResendDisabled(true);
     setResendCountdown(30);
+
 
     // Start countdown timer
     if (resendIntervalRef.current) {
       clearInterval(resendIntervalRef.current);
     }
+
 
     resendIntervalRef.current = setInterval(() => {
       setResendCountdown((prev) => {
@@ -325,6 +367,7 @@ export default function AuthScreen() {
       });
     }, 1000);
 
+
     try {
       console.log('Sending OTP to email:', email);
       const { error } = await supabase.auth.signInWithOtp({
@@ -336,8 +379,10 @@ export default function AuthScreen() {
         },
       });
 
+
       if (error) {
         console.log('Error sending OTP:', error);
+
 
         // Clear countdown on error
         if (resendIntervalRef.current) {
@@ -346,9 +391,11 @@ export default function AuthScreen() {
         setResendDisabled(false);
         setResendCountdown(0);
 
+
         Alert.alert('Error', error.message || 'Unable to send reset code. Please try again.', [{ text: 'OK' }]);
         return;
       }
+
 
       console.log('OTP sent successfully');
       setShowCodeInput(true);
@@ -358,6 +405,7 @@ export default function AuthScreen() {
     } catch (error: any) {
       console.log('Unexpected error sending OTP:', error);
 
+
       // Clear countdown on error
       if (resendIntervalRef.current) {
         clearInterval(resendIntervalRef.current);
@@ -365,33 +413,40 @@ export default function AuthScreen() {
       setResendDisabled(false);
       setResendCountdown(0);
 
+
       Alert.alert('Error', 'Unable to send reset code. Please try again.', [{ text: 'OK' }]);
     } finally {
       setIsSendingCode(false);
     }
   };
 
+
   const handleVerifyCode = async () => {
     console.log('User tapped Verify Code button');
+
 
     if (!loginCode.trim() || loginCode.length !== 6) {
       Alert.alert('Error', 'Please enter the six-digit code from your email');
       return;
     }
 
+
     if (!isConfigured) {
       setVerificationError('Supabase is not configured.');
       return;
     }
+
 
     if (!isSupabaseConfigured() || !supabase) {
       setVerificationError('Supabase is not configured.');
       return;
     }
 
+
     setIsVerifying(true);
     setVerificationError(null);
     isVerificationSuccessfulRef.current = false;
+
 
     // Set timeout for verification (15 seconds)
     verificationTimeoutRef.current = setTimeout(() => {
@@ -402,6 +457,7 @@ export default function AuthScreen() {
       }
     }, 15000);
 
+
     try {
       console.log('Verifying OTP code');
       const { data, error } = await supabase.auth.verifyOtp({
@@ -410,10 +466,13 @@ export default function AuthScreen() {
         type: 'recovery',
       });
 
+
       if (error) {
         console.log('OTP verification error:', error);
 
+
         const errorMessage = (error.message || '').toLowerCase();
+
 
         if (errorMessage.includes('rate limit') || errorMessage.includes('too many')) {
           setVerificationError('Too many attempts. Please wait 30-60 seconds before retrying.');
@@ -425,9 +484,11 @@ export default function AuthScreen() {
           setVerificationError(error.message || 'Failed to verify code. Please try again.');
         }
 
+
         isVerificationSuccessfulRef.current = false;
         return;
       }
+
 
       if (!data.session && !data.user) {
         console.log('No session or user after OTP verification');
@@ -436,12 +497,15 @@ export default function AuthScreen() {
         return;
       }
 
+
       console.log('OTP verified successfully, routing to Reset Password screen');
       isVerificationSuccessfulRef.current = true;
+
 
       // Clear code input
       setLoginCode('');
       setVerificationError(null);
+
 
       router.replace({
         pathname: '/reset-password',
@@ -459,9 +523,11 @@ export default function AuthScreen() {
     }
   };
 
+
   const handleBack = () => {
     router.back();
   };
+
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
@@ -480,6 +546,7 @@ export default function AuthScreen() {
     setVerificationError(null);
   };
 
+
   const toggleForgotPassword = () => {
     setIsForgotPassword(!isForgotPassword);
     setIsSignUp(false);
@@ -490,18 +557,22 @@ export default function AuthScreen() {
     setVerificationError(null);
   };
 
+
   const experienceLevels: ('Beginner' | 'Intermediate' | 'Advanced')[] = [
     'Beginner',
     'Intermediate',
     'Advanced',
   ];
 
+
   // Compute button text and disabled state
   const verifyButtonText = isVerifying ? 'Verifying...' : 'Verify Code';
   const verifyButtonDisabled = isVerifying || !loginCode || loginCode.length !== 6;
 
+
   const resendButtonText =
     resendDisabled && resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend Code';
+
 
   return (
     <View style={commonStyles.container}>
@@ -520,6 +591,7 @@ export default function AuthScreen() {
           />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
+
 
         <View style={styles.header}>
           <Image
@@ -541,6 +613,7 @@ export default function AuthScreen() {
           </Text>
         </View>
 
+
         <View style={styles.form}>
           {isSignUp && (
             <>
@@ -556,6 +629,7 @@ export default function AuthScreen() {
                 editable={!loading}
               />
 
+
               <Text style={styles.label}>Last Name</Text>
               <TextInput
                 style={commonStyles.input}
@@ -568,6 +642,7 @@ export default function AuthScreen() {
                 editable={!loading}
               />
 
+
               <Text style={styles.label}>Pickleballer Nickname</Text>
               <TextInput
                 style={commonStyles.input}
@@ -579,6 +654,7 @@ export default function AuthScreen() {
                 autoCorrect={false}
                 editable={!loading}
               />
+
 
               <Text style={styles.label}>DUPR Rating (Optional)</Text>
               <TextInput
@@ -596,6 +672,7 @@ export default function AuthScreen() {
               ) : (
                 <Text style={styles.helperText}>Enter a value between 1.0 and 7.0</Text>
               )}
+
 
               <Text style={styles.label}>Experience Level</Text>
               <View style={styles.experienceLevelContainer}>
@@ -625,6 +702,7 @@ export default function AuthScreen() {
             </>
           )}
 
+
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={commonStyles.input}
@@ -637,6 +715,7 @@ export default function AuthScreen() {
             autoCorrect={false}
             editable={!loading && !showCodeInput && !isVerifying}
           />
+
 
           {isForgotPassword && showCodeInput && (
             <>
@@ -653,6 +732,7 @@ export default function AuthScreen() {
               />
               <Text style={styles.helperText}>Check your email for a six-digit code and enter it here</Text>
 
+
               {verificationError && (
                 <View style={styles.errorContainer}>
                   <IconSymbol
@@ -666,6 +746,7 @@ export default function AuthScreen() {
               )}
             </>
           )}
+
 
           {!isForgotPassword && (
             <>
@@ -691,6 +772,7 @@ export default function AuthScreen() {
               </TouchableOpacity>
             </>
           )}
+
 
           {isSignUp && (
             <View style={styles.consentContainer}>
@@ -738,6 +820,7 @@ export default function AuthScreen() {
             </View>
           )}
 
+
           <TouchableOpacity
             style={[
               buttonStyles.primary,
@@ -782,6 +865,7 @@ export default function AuthScreen() {
             )}
           </TouchableOpacity>
 
+
           {isForgotPassword && showCodeInput && (
             <TouchableOpacity
               style={styles.resendButton}
@@ -795,6 +879,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
           )}
 
+
           {!isForgotPassword && !isSignUp && (
             <TouchableOpacity
               style={styles.forgotPasswordButton}
@@ -806,6 +891,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
           )}
 
+
           {!isForgotPassword && (
             <TouchableOpacity style={styles.toggleButton} onPress={toggleMode} disabled={loading} activeOpacity={0.7}>
               <Text style={styles.toggleText}>
@@ -814,6 +900,7 @@ export default function AuthScreen() {
               </Text>
             </TouchableOpacity>
           )}
+
 
           {isForgotPassword && (
             <TouchableOpacity
@@ -828,6 +915,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
           )}
         </View>
+
 
         {!isConfigured && (
           <View style={[commonStyles.card, { backgroundColor: colors.accent, marginTop: 20 }]}>
@@ -847,11 +935,13 @@ export default function AuthScreen() {
           </View>
         )}
 
+
         <LegalFooter />
       </ScrollView>
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   scrollView: {
@@ -1050,3 +1140,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+
+
+

@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { MuteOptionsModal } from '@/components/MuteOptionsModal';
-import { notifyNewMessage } from '@/utils/notifications';
+import { notifyNewMessage, sendTestPushToCurrentUser } from '@/utils/notifications';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -289,11 +289,17 @@ export default function ConversationScreen() {
         content: optimisticMessage.content,
         sender_name: senderName,
       };
-      console.log('[MESSAGES] triggering push', pushPayload);
-      try {
-        await notifyNewMessage(pushPayload);
-      } catch (e) {
-        console.warn('[MESSAGES] push failed', e);
+      if (typeof notifyNewMessage === 'function') {
+        try {
+          const pushResult = await notifyNewMessage(pushPayload);
+          if (__DEV__ && !pushResult.ok) {
+            console.warn('[PUSH] send error', pushResult.error);
+          }
+        } catch (_) {
+          // non-blocking; never throw
+        }
+      } else if (__DEV__) {
+        console.warn('[PUSH] notifyNewMessage not available (skip push)');
       }
     } catch (error) {
       console.error('[MESSAGES] Error sending message:', error);
@@ -461,14 +467,27 @@ export default function ConversationScreen() {
           </View>
           <Text style={styles.headerTitle}>{recipientName}</Text>
         </View>
-        <TouchableOpacity onPress={() => setShowMuteModal(true)} style={styles.muteButton}>
-          <IconSymbol
-            ios_icon_name={isMuted ? 'bell.slash.fill' : 'ellipsis'}
-            android_material_icon_name={isMuted ? 'notifications-off' : 'more-vert'}
-            size={24}
-            color={colors.text}
-          />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {__DEV__ && user?.id && (
+            <TouchableOpacity
+              onPress={async () => {
+                const r = await sendTestPushToCurrentUser(user.id);
+                Alert.alert(r.success ? 'Test push sent' : 'Test push failed', r.error ?? (r.success ? 'Check your device' : ''));
+              }}
+              style={styles.devButton}
+            >
+              <Text style={styles.devButtonText}>Test push</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => setShowMuteModal(true)} style={styles.muteButton}>
+            <IconSymbol
+              ios_icon_name={isMuted ? 'bell.slash.fill' : 'ellipsis'}
+              android_material_icon_name={isMuted ? 'notifications-off' : 'more-vert'}
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -557,6 +576,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  devButton: {
+    padding: 6,
+    marginRight: 4,
+    backgroundColor: colors.border,
+    borderRadius: 8,
+  },
+  devButtonText: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   muteButton: {
     padding: 8,

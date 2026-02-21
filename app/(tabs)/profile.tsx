@@ -88,6 +88,7 @@ export default function ProfileScreen() {
 
   const hasLoadedCheckIn = useRef(false);
 
+
   const validateDuprRating = (value: string) => {
     if (!value.trim()) {
       setDuprError('');
@@ -805,6 +806,7 @@ export default function ProfileScreen() {
             <TouchableOpacity style={[buttonStyles.primary, { marginBottom: 10 }]} onPress={handleTakePhoto} disabled={Platform.OS === 'web'}>
               <Text style={buttonStyles.text}>Take Photo</Text>
             </TouchableOpacity>
+
 
             <TouchableOpacity
               style={[buttonStyles.primary, { marginBottom: 10 }]}

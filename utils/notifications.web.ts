@@ -65,6 +65,19 @@ export const sendFriendCheckInNotification = async (
 export const sendFriendRequestNotification = async (_requesterIdentifier: string): Promise<void> =>
   {};
 
+/** No-op on web; push is not supported. Returns { ok: false } so callers do not throw. */
+export async function notifyNewMessage(_payload: {
+  type: 'direct' | 'group';
+  message_id?: string;
+  sender_id?: string;
+  recipient_id?: string;
+  group_id?: string;
+  content?: string;
+  sender_name?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return { ok: false, error: 'Push notifications are not supported on web' };
+}
+
 export const checkNotificationPermissionStatus = async (): Promise<
   'granted' | 'denied' | 'undetermined'
 > => 'undetermined';
